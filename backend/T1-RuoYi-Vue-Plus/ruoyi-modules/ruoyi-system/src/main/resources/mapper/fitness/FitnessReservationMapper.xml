@@ -1,0 +1,102 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+    PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+    "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="org.dromara.fitness.mapper.FitnessReservationMapper">
+
+    <sql id="reservationSelectColumns">
+        SELECT r.reservation_id AS reservationId,
+               r.reservation_no AS reservationNo,
+               r.store_id AS storeId,
+               st.store_name AS storeName,
+               r.schedule_id AS scheduleId,
+               s.schedule_no AS scheduleNo,
+               s.course_id AS courseId,
+               c.course_name AS courseName,
+               c.course_type AS courseType,
+               s.coach_id AS coachId,
+               coach.coach_name AS coachName,
+               r.member_id AS memberId,
+               m.real_name AS memberName,
+               m.mobile AS memberMobile,
+               r.card_id AS cardId,
+               r.reservation_type AS reservationType,
+               mc.card_name AS cardName,
+               mc.plan_type AS planType,
+               s.schedule_date AS scheduleDate,
+
+               s.start_time AS startTime,
+               s.end_time AS endTime,
+               r.reservation_source AS reservationSource,
+               r.reservation_status AS reservationStatus,
+               r.reservation_time AS reservationTime,
+               r.cancel_time AS cancelTime,
+               r.cancel_reason AS cancelReason,
+               r.consume_mode AS consumeMode,
+               cr.checkin_id AS checkinId,
+               cr.checkin_time AS checkinTime,
+               cr.checkin_status AS checkinStatus,
+               r.remark AS remark,
+               r.create_time AS createTime
+    </sql>
+
+    <sql id="reservationFromJoin">
+        FROM fit_course_reservation r
+        INNER JOIN fit_course_schedule s ON s.schedule_id = r.schedule_id AND s.del_flag = '0'
+        INNER JOIN fit_course c ON c.course_id = s.course_id AND c.del_flag = '0'
+        LEFT JOIN fit_store st ON st.store_id = r.store_id AND st.del_flag = '0'
+        LEFT JOIN fit_coach coach ON coach.coach_id = s.coach_id AND coach.del_flag = '0'
+        LEFT JOIN fit_member m ON m.member_id = r.member_id AND m.del_flag = '0'
+        LEFT JOIN fit_member_card mc ON mc.card_id = r.card_id AND mc.del_flag = '0'
+        LEFT JOIN fit_checkin_record cr ON cr.reservation_id = r.reservation_id AND cr.del_flag = '0'
+        WHERE r.del_flag = '0'
+        <if test="bo != null and bo.reservationNo != null and bo.reservationNo != ''">AND r.reservation_no LIKE CONCAT('%', #{bo.reservationNo}, '%')</if>
+        <if test="bo != null and bo.scheduleNo != null and bo.scheduleNo != ''">AND s.schedule_no LIKE CONCAT('%', #{bo.scheduleNo}, '%')</if>
+        <if test="bo != null and bo.storeId != null">AND r.store_id = #{bo.storeId}</if>
+        <if test="bo != null and bo.memberId != null">AND r.member_id = #{bo.memberId}</if>
+        <if test="bo != null and bo.scheduleId != null">AND r.schedule_id = #{bo.scheduleId}</if>
+        <if test="bo != null and bo.courseId != null">AND s.course_id = #{bo.courseId}</if>
+        <if test="bo != null and bo.coachId != null">AND s.coach_id = #{bo.coachId}</if>
+        <if test="bo != null and bo.reservationStatus != null and bo.reservationStatus != ''">AND r.reservation_status = #{bo.reservationStatus}</if>
+        <if test="bo != null and bo.reservationSource != null and bo.reservationSource != ''">AND r.reservation_source = #{bo.reservationSource}</if>
+        <if test="bo != null and bo.reservationType != null and bo.reservationType != ''">AND r.reservation_type = #{bo.reservationType}</if>
+        <if test="bo != null and bo.consumeMode != null and bo.consumeMode != ''">AND r.consume_mode = #{bo.consumeMode}</if>
+
+        <if test="bo != null and bo.scheduleDateStart != null">AND s.schedule_date &gt;= #{bo.scheduleDateStart}</if>
+        <if test="bo != null and bo.scheduleDateEnd != null">AND s.schedule_date &lt;= #{bo.scheduleDateEnd}</if>
+        <if test="bo != null and bo.reservationTimeStart != null">AND r.reservation_time &gt;= #{bo.reservationTimeStart}</if>
+        <if test="bo != null and bo.reservationTimeEnd != null">AND r.reservation_time &lt;= #{bo.reservationTimeEnd}</if>
+        <if test="bo != null and bo.keyword != null and bo.keyword != ''">
+            AND (m.real_name LIKE CONCAT('%', #{bo.keyword}, '%')
+                OR m.mobile LIKE CONCAT('%', #{bo.keyword}, '%')
+                OR c.course_name LIKE CONCAT('%', #{bo.keyword}, '%'))
+        </if>
+    </sql>
+
+    <select id="selectPageReservationList" resultType="org.dromara.fitness.domain.vo.FitnessReservationVo">
+        <include refid="reservationSelectColumns"/>
+        <include refid="reservationFromJoin"/>
+        ORDER BY r.reservation_time DESC, r.reservation_id DESC
+    </select>
+
+    <select id="selectReservationList" resultType="org.dromara.fitness.domain.vo.FitnessReservationVo">
+        <include refid="reservationSelectColumns"/>
+        <include refid="reservationFromJoin"/>
+        ORDER BY r.reservation_time DESC, r.reservation_id DESC
+    </select>
+
+    <select id="selectReservationById" resultType="org.dromara.fitness.domain.vo.FitnessReservationVo">
+        <include refid="reservationSelectColumns"/>
+        FROM fit_course_reservation r
+        INNER JOIN fit_course_schedule s ON s.schedule_id = r.schedule_id AND s.del_flag = '0'
+        INNER JOIN fit_course c ON c.course_id = s.course_id AND c.del_flag = '0'
+        LEFT JOIN fit_store st ON st.store_id = r.store_id AND st.del_flag = '0'
+        LEFT JOIN fit_coach coach ON coach.coach_id = s.coach_id AND coach.del_flag = '0'
+        LEFT JOIN fit_member m ON m.member_id = r.member_id AND m.del_flag = '0'
+        LEFT JOIN fit_member_card mc ON mc.card_id = r.card_id AND mc.del_flag = '0'
+        LEFT JOIN fit_checkin_record cr ON cr.reservation_id = r.reservation_id AND cr.del_flag = '0'
+        WHERE r.del_flag = '0'
+          AND r.reservation_id = #{reservationId}
+        LIMIT 1
+    </select>
+</mapper>

@@ -1,0 +1,69 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+    PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+    "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="org.dromara.fitness.mapper.FitnessOrderItemMapper">
+
+    <sql id="orderItemSelectColumns">
+        SELECT oi.item_id AS itemId,
+               oi.item_no AS itemNo,
+               oi.order_id AS orderId,
+               o.order_no AS orderNo,
+               o.order_status AS orderStatus,
+               o.store_id AS storeId,
+               st.store_name AS storeName,
+               o.member_id AS memberId,
+               COALESCE(m.real_name, m.nickname) AS memberName,
+               m.mobile AS memberMobile,
+               oi.item_type AS itemType,
+               oi.item_ref_id AS itemRefId,
+               oi.item_name AS itemName,
+               oi.quantity AS quantity,
+               oi.unit_price AS unitPrice,
+               oi.total_price AS totalPrice,
+               oi.discount_amount AS discountAmount,
+               oi.real_amount AS realAmount,
+               oi.grant_card_id AS grantCardId,
+               oi.remark AS remark,
+               oi.create_time AS createTime
+    </sql>
+
+    <sql id="orderItemFromJoin">
+        FROM fit_order_item oi
+        INNER JOIN fit_order o ON o.order_id = oi.order_id AND o.del_flag = '0'
+        LEFT JOIN fit_store st ON st.store_id = o.store_id AND st.del_flag = '0'
+        LEFT JOIN fit_member m ON m.member_id = o.member_id AND m.del_flag = '0'
+        WHERE oi.del_flag = '0'
+        <if test="bo != null and bo.orderId != null">AND oi.order_id = #{bo.orderId}</if>
+        <if test="bo != null and bo.orderNo != null and bo.orderNo != ''">AND o.order_no LIKE CONCAT('%', #{bo.orderNo}, '%')</if>
+        <if test="bo != null and bo.storeId != null">AND o.store_id = #{bo.storeId}</if>
+        <if test="bo != null and bo.memberId != null">AND o.member_id = #{bo.memberId}</if>
+        <if test="bo != null and bo.itemType != null and bo.itemType != ''">AND oi.item_type = #{bo.itemType}</if>
+        <if test="bo != null and bo.itemName != null and bo.itemName != ''">AND oi.item_name LIKE CONCAT('%', #{bo.itemName}, '%')</if>
+        <if test="bo != null and bo.orderCreateTimeStart != null">AND o.create_time &gt;= #{bo.orderCreateTimeStart}</if>
+        <if test="bo != null and bo.orderCreateTimeEnd != null">AND o.create_time &lt; DATE_ADD(#{bo.orderCreateTimeEnd}, INTERVAL 1 DAY)</if>
+    </sql>
+
+    <select id="selectPageOrderItemList" resultType="org.dromara.fitness.domain.vo.FitnessOrderItemVo">
+        <include refid="orderItemSelectColumns"/>
+        <include refid="orderItemFromJoin"/>
+        ORDER BY oi.create_time DESC, oi.item_id DESC
+    </select>
+
+    <select id="selectOrderItemList" resultType="org.dromara.fitness.domain.vo.FitnessOrderItemVo">
+        <include refid="orderItemSelectColumns"/>
+        <include refid="orderItemFromJoin"/>
+        ORDER BY oi.create_time DESC, oi.item_id DESC
+    </select>
+
+    <select id="selectOrderItemById" resultType="org.dromara.fitness.domain.vo.FitnessOrderItemVo">
+        <include refid="orderItemSelectColumns"/>
+        FROM fit_order_item oi
+        INNER JOIN fit_order o ON o.order_id = oi.order_id AND o.del_flag = '0'
+        LEFT JOIN fit_store st ON st.store_id = o.store_id AND st.del_flag = '0'
+        LEFT JOIN fit_member m ON m.member_id = o.member_id AND m.del_flag = '0'
+        WHERE oi.del_flag = '0'
+          AND oi.item_id = #{itemId}
+        LIMIT 1
+    </select>
+</mapper>

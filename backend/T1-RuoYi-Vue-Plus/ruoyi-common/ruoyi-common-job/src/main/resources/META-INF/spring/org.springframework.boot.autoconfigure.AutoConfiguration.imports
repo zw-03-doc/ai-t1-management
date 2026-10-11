@@ -1,0 +1,2 @@
+org.dromara.common.job.config.LocalScheduleConfig
+org.dromara.common.job.config.SnailJobConfig

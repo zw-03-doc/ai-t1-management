@@ -1,0 +1,72 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+    PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+    "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="org.dromara.fitness.mapper.FitnessCardPlanMapper">
+
+    <sql id="baseSelectColumns">
+        SELECT
+               t.plan_id AS planId,
+               t.plan_no AS planNo,
+               t.store_id AS storeId,
+               st.store_name AS storeName,
+               t.plan_name AS planName,
+               t.plan_type AS planType,
+               t.sale_price AS salePrice,
+               t.original_price AS originalPrice,
+               t.valid_days AS validDays,
+               t.total_times AS totalTimes,
+               t.gift_times AS giftTimes,
+               t.stored_amount AS storedAmount,
+               t.support_course_type AS supportCourseType,
+               t.is_private_bind_coach AS isPrivateBindCoach,
+               t.custom_coach_id AS customCoachId,
+               coach.coach_name AS customCoachName,
+               t.custom_member_ids AS customMemberIdsRaw,
+               t.bind_course_id AS bindCourseId,
+               c.course_name AS bindCourseName,
+               t.sort_no AS sortNo,
+               t.status AS status,
+               t.remark AS remark,
+               t.create_time AS createTime
+    </sql>
+
+    <sql id="baseFromWhere">
+        FROM fit_card_plan t
+        LEFT JOIN fit_store st ON st.store_id = t.store_id AND st.del_flag = '0'
+        LEFT JOIN fit_coach coach ON coach.coach_id = t.custom_coach_id AND coach.del_flag = '0'
+        LEFT JOIN fit_course c ON c.course_id = t.bind_course_id AND c.del_flag = '0'
+        WHERE t.del_flag = '0'
+    </sql>
+
+    <sql id="baseQueryWhere">
+        <if test="bo != null and bo.planNo != null and bo.planNo != ''">AND t.plan_no LIKE CONCAT('%', #{bo.planNo}, '%')</if>
+        <if test="bo != null and bo.planName != null and bo.planName != ''">AND t.plan_name LIKE CONCAT('%', #{bo.planName}, '%')</if>
+
+        <if test="bo != null and bo.planType != null and bo.planType != ''">AND t.plan_type = #{bo.planType}</if>
+        <if test="bo != null and bo.storeId != null">AND t.store_id = #{bo.storeId}</if>
+        <if test="bo != null and bo.status != null and bo.status != ''">AND t.status = #{bo.status}</if>
+    </sql>
+
+    <select id="selectPageCardPlanList" resultType="org.dromara.fitness.domain.vo.FitnessCardPlanVo">
+        <include refid="baseSelectColumns"/>
+        <include refid="baseFromWhere"/>
+        <include refid="baseQueryWhere"/>
+        ORDER BY t.sort_no ASC, t.create_time DESC, t.plan_id DESC
+    </select>
+
+    <select id="selectCardPlanList" resultType="org.dromara.fitness.domain.vo.FitnessCardPlanVo">
+        <include refid="baseSelectColumns"/>
+        <include refid="baseFromWhere"/>
+        <include refid="baseQueryWhere"/>
+        ORDER BY t.sort_no ASC, t.create_time DESC, t.plan_id DESC
+    </select>
+
+    <select id="selectCardPlanById" resultType="org.dromara.fitness.domain.vo.FitnessCardPlanVo">
+        <include refid="baseSelectColumns"/>
+        <include refid="baseFromWhere"/>
+        AND t.plan_id = #{planId}
+        LIMIT 1
+    </select>
+
+</mapper>

@@ -1,0 +1,91 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+    PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+    "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="org.dromara.fitness.mapper.FitnessActivityMapper">
+
+    <sql id="baseSelectColumns">
+        SELECT
+               t.activity_id AS activityId,
+               t.activity_no AS activityNo,
+               t.store_id AS storeId,
+               st.store_name AS storeName,
+               t.title,
+               t.sub_title AS subTitle,
+               t.price_highlight AS priceHighlight,
+               t.target_audience AS targetAudience,
+               t.cover_url AS coverUrl,
+               t.detail_image_url AS detailImageUrl,
+               t.detail_content AS detailContent,
+               t.start_time AS startTime,
+               t.end_time AS endTime,
+               t.countdown_end_time AS countdownEndTime,
+               t.weekly_featured AS weeklyFeatured,
+               t.activity_type AS activityType,
+               t.action_type AS actionType,
+               t.discount_label AS discountLabel,
+               t.rule_note AS ruleNote,
+               t.sort_no AS sortNo,
+               t.status,
+               t.remark,
+               t.create_time AS createTime
+    </sql>
+
+    <sql id="baseFromWhere">
+        FROM fit_activity t
+        LEFT JOIN fit_store st ON st.store_id = t.store_id AND st.del_flag = '0'
+        WHERE t.del_flag = '0'
+    </sql>
+
+    <sql id="baseQueryWhere">
+        <if test="bo != null and bo.activityNo != null and bo.activityNo != ''">AND t.activity_no LIKE CONCAT('%', #{bo.activityNo}, '%')</if>
+        <if test="bo != null and bo.title != null and bo.title != ''">AND t.title LIKE CONCAT('%', #{bo.title}, '%')</if>
+        <if test="bo != null and bo.storeId != null">AND t.store_id = #{bo.storeId}</if>
+        <if test="bo != null and bo.weeklyFeatured != null and bo.weeklyFeatured != ''">AND t.weekly_featured = #{bo.weeklyFeatured}</if>
+        <if test="bo != null and bo.activityType != null and bo.activityType != ''">AND t.activity_type = #{bo.activityType}</if>
+        <if test="bo != null and bo.actionType != null and bo.actionType != ''">AND t.action_type = #{bo.actionType}</if>
+        <if test="bo != null and bo.status != null and bo.status != ''">AND t.status = #{bo.status}</if>
+    </sql>
+
+    <select id="selectPageActivityList" resultType="org.dromara.fitness.domain.vo.FitnessActivityVo">
+        <include refid="baseSelectColumns"/>
+        <include refid="baseFromWhere"/>
+        <include refid="baseQueryWhere"/>
+        ORDER BY t.weekly_featured DESC, t.sort_no ASC, t.create_time DESC, t.activity_id DESC
+    </select>
+
+    <select id="selectActivityList" resultType="org.dromara.fitness.domain.vo.FitnessActivityVo">
+        <include refid="baseSelectColumns"/>
+        <include refid="baseFromWhere"/>
+        <include refid="baseQueryWhere"/>
+        ORDER BY t.weekly_featured DESC, t.sort_no ASC, t.create_time DESC, t.activity_id DESC
+    </select>
+
+    <select id="selectActivityById" resultType="org.dromara.fitness.domain.vo.FitnessActivityVo">
+        <include refid="baseSelectColumns"/>
+        <include refid="baseFromWhere"/>
+        AND t.activity_id = #{activityId}
+        LIMIT 1
+    </select>
+
+    <select id="selectPlanIdsByActivityId" resultType="java.lang.Long">
+        SELECT plan_id
+        FROM fit_activity_plan
+        WHERE activity_id = #{activityId}
+        ORDER BY sort_no ASC, id ASC
+    </select>
+
+    <delete id="deleteActivityPlanRefs">
+        DELETE FROM fit_activity_plan
+        WHERE activity_id = #{activityId}
+    </delete>
+
+    <insert id="batchInsertActivityPlanRefs">
+        INSERT INTO fit_activity_plan(activity_id, plan_id, sort_no, create_time)
+        VALUES
+        <foreach collection="planIds" item="planId" index="idx" separator=",">
+            (#{activityId}, #{planId}, #{idx}, NOW())
+        </foreach>
+    </insert>
+
+</mapper>

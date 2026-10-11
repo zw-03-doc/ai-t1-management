@@ -1,0 +1,91 @@
+{
+  "pages": [
+    {
+      "path": "pages/portal/index",
+      "style": {
+        "navigationStyle": "custom"
+      }
+    },
+    {
+      "path": "pages/index/index",
+      "style": {
+        "navigationBarTitleText": "T1健身首页"
+      }
+    },
+    {
+      "path": "pages/course/index",
+      "style": {
+        "navigationBarTitleText": "课程"
+      }
+    },
+    {
+      "path": "pages/activity/index",
+      "style": {
+        "navigationBarTitleText": "活动"
+      }
+    },
+    {
+      "path": "pages/activity/detail",
+      "style": {
+        "navigationBarTitleText": "活动详情"
+      }
+    },
+    {
+      "path": "pages/activity/plan",
+      "style": {
+        "navigationBarTitleText": "活动卡项"
+      }
+    },
+
+
+    {
+      "path": "pages/mine/index",
+      "style": {
+        "navigationBarTitleText": "我的"
+      }
+    },
+    {
+      "path": "pages/mine/profile",
+      "style": {
+        "navigationBarTitleText": "我的资料"
+      }
+    },
+    {
+      "path": "pages/coach/home/index",
+      "style": {
+        "navigationBarTitleText": "教练工作台"
+      }
+    },
+    {
+      "path": "pages/coach/schedule/index",
+      "style": {
+        "navigationBarTitleText": "我的排课"
+      }
+    },
+    {
+      "path": "pages/coach/checkin/index",
+      "style": {
+        "navigationBarTitleText": "待核销"
+      }
+    },
+    {
+      "path": "pages/coach/student/index",
+      "style": {
+        "navigationBarTitleText": "我的学员"
+      }
+    },
+    {
+      "path": "pages/coach/mine/index",
+      "style": {
+        "navigationBarTitleText": "教练我的"
+      }
+    }
+  ],
+  "globalStyle": {
+    "navigationBarTextStyle": "black",
+    "navigationBarTitleText": "T1健身",
+    "navigationBarBackgroundColor": "#F7F8FA",
+    "backgroundColor": "#F7F8FA"
+  },
+  "uniIdRouter": {}
+}

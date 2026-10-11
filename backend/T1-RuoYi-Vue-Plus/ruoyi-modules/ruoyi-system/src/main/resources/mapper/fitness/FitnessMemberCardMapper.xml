@@ -1,0 +1,87 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+    PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+    "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="org.dromara.fitness.mapper.FitnessMemberCardMapper">
+
+    <sql id="memberCardSelectColumns">
+        SELECT mc.card_id AS cardId,
+               mc.store_id AS storeId,
+               st.store_name AS storeName,
+               mc.member_id AS memberId,
+               COALESCE(m.real_name, m.nickname) AS memberName,
+               m.mobile AS memberMobile,
+               mc.plan_id AS planId,
+               p.plan_name AS planName,
+               mc.card_no AS cardNo,
+               mc.card_name AS cardName,
+               mc.plan_type AS planType,
+               mc.bind_coach_id AS bindCoachId,
+               coach.coach_name AS coachName,
+               mc.active_time AS activeTime,
+               mc.expire_time AS expireTime,
+               mc.total_times AS totalTimes,
+               mc.used_times AS usedTimes,
+               mc.remain_times AS remainTimes,
+               mc.balance_amount AS balanceAmount,
+               mc.card_status AS cardStatus,
+               mc.order_id AS orderId,
+               o.order_no AS orderNo,
+               mc.remark AS remark,
+               mc.create_time AS createTime
+    </sql>
+
+    <sql id="memberCardFromJoin">
+        FROM fit_member_card mc
+        INNER JOIN fit_member m ON m.member_id = mc.member_id AND m.del_flag = '0'
+        LEFT JOIN fit_store st ON st.store_id = mc.store_id AND st.del_flag = '0'
+        LEFT JOIN fit_card_plan p ON p.plan_id = mc.plan_id AND p.del_flag = '0'
+        LEFT JOIN fit_coach coach ON coach.coach_id = mc.bind_coach_id AND coach.del_flag = '0'
+        LEFT JOIN fit_order o ON o.order_id = mc.order_id AND o.del_flag = '0'
+        WHERE mc.del_flag = '0'
+        <if test="bo != null and bo.storeId != null">AND mc.store_id = #{bo.storeId}</if>
+        <if test="bo != null and bo.memberId != null">AND mc.member_id = #{bo.memberId}</if>
+        <if test="bo != null and bo.planId != null">AND mc.plan_id = #{bo.planId}</if>
+        <if test="bo != null and bo.bindCoachId != null">AND mc.bind_coach_id = #{bo.bindCoachId}</if>
+        <if test="bo != null and bo.orderId != null">AND mc.order_id = #{bo.orderId}</if>
+        <if test="bo != null and bo.planType != null and bo.planType != ''">AND mc.plan_type = #{bo.planType}</if>
+        <if test="bo != null and bo.cardStatus != null and bo.cardStatus != ''">AND mc.card_status = #{bo.cardStatus}</if>
+        <if test="bo != null and bo.activeTimeStart != null">AND mc.active_time &gt;= #{bo.activeTimeStart}</if>
+        <if test="bo != null and bo.activeTimeEnd != null">AND mc.active_time &lt;= #{bo.activeTimeEnd}</if>
+        <if test="bo != null and bo.expireTimeStart != null">AND mc.expire_time &gt;= #{bo.expireTimeStart}</if>
+        <if test="bo != null and bo.expireTimeEnd != null">AND mc.expire_time &lt;= #{bo.expireTimeEnd}</if>
+        <if test="bo != null and bo.keyword != null and bo.keyword != ''">
+            AND (mc.card_no LIKE CONCAT('%', #{bo.keyword}, '%')
+                OR mc.card_name LIKE CONCAT('%', #{bo.keyword}, '%')
+                OR m.real_name LIKE CONCAT('%', #{bo.keyword}, '%')
+                OR m.nickname LIKE CONCAT('%', #{bo.keyword}, '%')
+                OR m.mobile LIKE CONCAT('%', #{bo.keyword}, '%')
+                OR o.order_no LIKE CONCAT('%', #{bo.keyword}, '%'))
+        </if>
+    </sql>
+
+    <select id="selectPageMemberCardList" resultType="org.dromara.fitness.domain.vo.FitnessMemberCardVo">
+        <include refid="memberCardSelectColumns"/>
+        <include refid="memberCardFromJoin"/>
+        ORDER BY mc.create_time DESC, mc.card_id DESC
+    </select>
+
+    <select id="selectMemberCardList" resultType="org.dromara.fitness.domain.vo.FitnessMemberCardVo">
+        <include refid="memberCardSelectColumns"/>
+        <include refid="memberCardFromJoin"/>
+        ORDER BY mc.create_time DESC, mc.card_id DESC
+    </select>
+
+    <select id="selectMemberCardById" resultType="org.dromara.fitness.domain.vo.FitnessMemberCardVo">
+        <include refid="memberCardSelectColumns"/>
+        FROM fit_member_card mc
+        INNER JOIN fit_member m ON m.member_id = mc.member_id AND m.del_flag = '0'
+        LEFT JOIN fit_store st ON st.store_id = mc.store_id AND st.del_flag = '0'
+        LEFT JOIN fit_card_plan p ON p.plan_id = mc.plan_id AND p.del_flag = '0'
+        LEFT JOIN fit_coach coach ON coach.coach_id = mc.bind_coach_id AND coach.del_flag = '0'
+        LEFT JOIN fit_order o ON o.order_id = mc.order_id AND o.del_flag = '0'
+        WHERE mc.del_flag = '0'
+          AND mc.card_id = #{cardId}
+        LIMIT 1
+    </select>
+</mapper>

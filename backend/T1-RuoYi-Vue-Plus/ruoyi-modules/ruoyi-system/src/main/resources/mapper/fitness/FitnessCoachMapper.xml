@@ -1,0 +1,66 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+    PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+    "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="org.dromara.fitness.mapper.FitnessCoachMapper">
+
+    <sql id="baseSelectColumns">
+        SELECT
+               t.coach_id AS coachId,
+               t.coach_no AS coachNo,
+               t.user_id AS userId,
+               u.user_name AS userName,
+               u.nick_name AS nickName,
+               t.store_id AS storeId,
+               st.store_name AS storeName,
+               t.coach_name AS coachName,
+               t.mobile AS mobile,
+               t.activation_code AS activationCode,
+               t.gender AS gender,
+               t.avatar_url AS avatarUrl,
+               t.skill_tags AS skillTags,
+               t.level_code AS levelCode,
+               t.intro AS intro,
+               t.hire_status AS hireStatus,
+               t.remark AS remark,
+               t.create_time AS createTime
+    </sql>
+
+    <sql id="baseFromWhere">
+        FROM fit_coach t
+        LEFT JOIN fit_store st ON st.store_id = t.store_id AND st.del_flag = '0'
+        LEFT JOIN sys_user u ON u.user_id = t.user_id AND u.del_flag = '0'
+        WHERE t.del_flag = '0'
+    </sql>
+
+    <sql id="baseQueryWhere">
+        <if test="bo != null and bo.coachNo != null and bo.coachNo != ''">AND t.coach_no LIKE CONCAT('%', #{bo.coachNo}, '%')</if>
+        <if test="bo != null and bo.coachName != null and bo.coachName != ''">AND t.coach_name LIKE CONCAT('%', #{bo.coachName}, '%')</if>
+
+        <if test="bo != null and bo.mobile != null and bo.mobile != ''">AND t.mobile LIKE CONCAT('%', #{bo.mobile}, '%')</if>
+        <if test="bo != null and bo.storeId != null">AND t.store_id = #{bo.storeId}</if>
+        <if test="bo != null and bo.hireStatus != null and bo.hireStatus != ''">AND t.hire_status = #{bo.hireStatus}</if>
+    </sql>
+
+    <select id="selectPageCoachList" resultType="org.dromara.fitness.domain.vo.FitnessCoachVo">
+        <include refid="baseSelectColumns"/>
+        <include refid="baseFromWhere"/>
+        <include refid="baseQueryWhere"/>
+        ORDER BY t.create_time DESC, t.coach_id DESC
+    </select>
+
+    <select id="selectCoachList" resultType="org.dromara.fitness.domain.vo.FitnessCoachVo">
+        <include refid="baseSelectColumns"/>
+        <include refid="baseFromWhere"/>
+        <include refid="baseQueryWhere"/>
+        ORDER BY t.create_time DESC, t.coach_id DESC
+    </select>
+
+    <select id="selectCoachById" resultType="org.dromara.fitness.domain.vo.FitnessCoachVo">
+        <include refid="baseSelectColumns"/>
+        <include refid="baseFromWhere"/>
+        AND t.coach_id = #{coachId}
+        LIMIT 1
+    </select>
+
+</mapper>

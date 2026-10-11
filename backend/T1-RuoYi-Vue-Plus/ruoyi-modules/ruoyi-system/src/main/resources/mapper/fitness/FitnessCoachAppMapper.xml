@@ -1,0 +1,441 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+    PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+    "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="org.dromara.fitness.mapper.FitnessCoachAppMapper">
+
+    <select id="selectCoachAuthInfo" resultType="org.dromara.fitness.domain.vo.FitnessCoachAppVo$CoachProfileVo">
+        SELECT c.tenant_id AS tenantId,
+               u.user_id AS userId,
+               u.user_name AS userName,
+               u.nick_name AS nickName,
+               u.phonenumber,
+               c.coach_id AS coachId,
+               c.store_id AS storeId,
+               st.store_name AS storeName,
+               c.coach_name AS coachName,
+               c.mobile,
+               c.avatar_url AS avatarUrl,
+               c.skill_tags AS skillTags,
+               c.level_code AS levelCode,
+               c.intro,
+               c.hire_status AS hireStatus,
+               u.status AS userStatus,
+               u.password
+        FROM fit_coach c
+        INNER JOIN sys_user u ON u.user_id = c.user_id AND u.del_flag = '0'
+        LEFT JOIN fit_store st ON st.store_id = c.store_id AND st.del_flag = '0'
+        WHERE c.del_flag = '0'
+          AND u.user_name = #{username}
+        LIMIT 1
+    </select>
+
+    <select id="selectCoachAuthInfoByCoachId" resultType="org.dromara.fitness.domain.vo.FitnessCoachAppVo$CoachProfileVo">
+        SELECT c.tenant_id AS tenantId,
+               u.user_id AS userId,
+               u.user_name AS userName,
+               u.nick_name AS nickName,
+               u.phonenumber,
+               c.coach_id AS coachId,
+               c.store_id AS storeId,
+               st.store_name AS storeName,
+               c.coach_name AS coachName,
+               c.mobile,
+               c.avatar_url AS avatarUrl,
+               c.skill_tags AS skillTags,
+               c.level_code AS levelCode,
+               c.intro,
+               c.hire_status AS hireStatus,
+               u.status AS userStatus,
+               u.password
+        FROM fit_coach c
+        INNER JOIN sys_user u ON u.user_id = c.user_id AND u.del_flag = '0'
+        LEFT JOIN fit_store st ON st.store_id = c.store_id AND st.del_flag = '0'
+        WHERE c.del_flag = '0'
+          AND c.coach_id = #{coachId}
+        LIMIT 1
+    </select>
+
+
+    <select id="selectCoachProfileByUserId" resultType="org.dromara.fitness.domain.vo.FitnessCoachAppVo$CoachProfileVo">
+        SELECT c.tenant_id AS tenantId,
+               u.user_id AS userId,
+               u.user_name AS userName,
+               u.nick_name AS nickName,
+               u.phonenumber,
+               c.coach_id AS coachId,
+               c.store_id AS storeId,
+               st.store_name AS storeName,
+               c.coach_name AS coachName,
+               c.mobile,
+               c.avatar_url AS avatarUrl,
+               c.skill_tags AS skillTags,
+               c.level_code AS levelCode,
+               c.intro,
+               c.hire_status AS hireStatus,
+               u.status AS userStatus,
+               u.password
+        FROM fit_coach c
+        INNER JOIN sys_user u ON u.user_id = c.user_id AND u.del_flag = '0'
+        LEFT JOIN fit_store st ON st.store_id = c.store_id AND st.del_flag = '0'
+        WHERE c.del_flag = '0'
+          AND u.user_id = #{userId}
+        LIMIT 1
+    </select>
+
+    <select id="selectCoachHomeStats" resultType="org.dromara.fitness.domain.vo.FitnessCoachAppVo$HomeStatsVo">
+        SELECT IFNULL((
+                   SELECT COUNT(1)
+                   FROM fit_course_schedule s
+                   WHERE s.del_flag = '0'
+                     AND s.coach_id = #{coachId}
+                     AND s.schedule_date = CURDATE()
+               ), 0) AS todayScheduleCount,
+               IFNULL((
+                   SELECT COUNT(1)
+                   FROM fit_checkin_record cr
+                   INNER JOIN fit_course_schedule s ON s.schedule_id = cr.schedule_id AND s.del_flag = '0'
+                   WHERE cr.del_flag = '0'
+                     AND s.coach_id = #{coachId}
+                     AND cr.checkin_status = 'success'
+                     AND cr.operator_user_id IS NULL
+               ), 0) AS pendingCheckinCount,
+               IFNULL((
+                   SELECT COUNT(1)
+                   FROM fit_checkin_record cr
+                   INNER JOIN fit_course_schedule s ON s.schedule_id = cr.schedule_id AND s.del_flag = '0'
+                   WHERE cr.del_flag = '0'
+                     AND s.coach_id = #{coachId}
+                     AND cr.checkin_status = 'success'
+                     AND cr.operator_user_id IS NOT NULL
+               ), 0) AS confirmedCount,
+               IFNULL((
+                   SELECT COUNT(DISTINCT mc.member_id)
+                   FROM fit_member_card mc
+                   WHERE mc.del_flag = '0'
+                     AND mc.bind_coach_id = #{coachId}
+               ), 0) AS totalStudentCount,
+               IFNULL((
+                   SELECT COUNT(1)
+                   FROM fit_course_schedule s
+                   WHERE s.del_flag = '0'
+                     AND s.coach_id = #{coachId}
+                     AND YEARWEEK(s.schedule_date, 1) = YEARWEEK(CURDATE(), 1)
+               ), 0) AS weekSessionCount
+    </select>
+
+    <select id="selectCoachScheduleList" resultType="org.dromara.fitness.domain.vo.FitnessCoachAppVo$ScheduleVo">
+        SELECT s.schedule_id AS scheduleId,
+               s.store_id AS storeId,
+               st.store_name AS storeName,
+               s.course_id AS courseId,
+               c.course_name AS courseName,
+               c.course_type AS courseType,
+               s.coach_id AS coachId,
+               coach.coach_name AS coachName,
+               s.schedule_date AS scheduleDate,
+               s.start_time AS startTime,
+               s.end_time AS endTime,
+               s.capacity,
+               s.reserved_count AS reservedCount,
+               s.signed_count AS signedCount,
+               s.schedule_status AS scheduleStatus
+        FROM fit_course_schedule s
+        INNER JOIN fit_course c ON c.course_id = s.course_id AND c.del_flag = '0'
+        LEFT JOIN fit_store st ON st.store_id = s.store_id AND st.del_flag = '0'
+        LEFT JOIN fit_coach coach ON coach.coach_id = s.coach_id AND coach.del_flag = '0'
+        WHERE s.del_flag = '0'
+          AND s.coach_id = #{coachId}
+        <if test="bo != null and bo.scope != null and bo.scope == 'today'">
+          AND s.schedule_date = CURDATE()
+        </if>
+        <if test="bo != null and bo.scope != null and bo.scope == 'tomorrow'">
+          AND s.schedule_date = DATE_ADD(CURDATE(), INTERVAL 1 DAY)
+        </if>
+        <if test="bo != null and bo.scope != null and bo.scope == 'week'">
+          AND YEARWEEK(s.schedule_date, 1) = YEARWEEK(CURDATE(), 1)
+        </if>
+        <if test="bo != null and bo.scheduleDate != null">
+          AND s.schedule_date = #{bo.scheduleDate}
+        </if>
+        ORDER BY s.start_time ASC, s.schedule_id DESC
+    </select>
+
+    <select id="selectCoachScheduleDetail" resultType="org.dromara.fitness.domain.vo.FitnessCoachAppVo$ScheduleVo">
+        SELECT s.schedule_id AS scheduleId,
+               s.store_id AS storeId,
+               st.store_name AS storeName,
+               s.course_id AS courseId,
+               c.course_name AS courseName,
+               c.course_type AS courseType,
+               s.coach_id AS coachId,
+               coach.coach_name AS coachName,
+               s.schedule_date AS scheduleDate,
+               s.start_time AS startTime,
+               s.end_time AS endTime,
+               s.capacity,
+               s.reserved_count AS reservedCount,
+               s.signed_count AS signedCount,
+               s.schedule_status AS scheduleStatus
+        FROM fit_course_schedule s
+        INNER JOIN fit_course c ON c.course_id = s.course_id AND c.del_flag = '0'
+        LEFT JOIN fit_store st ON st.store_id = s.store_id AND st.del_flag = '0'
+        LEFT JOIN fit_coach coach ON coach.coach_id = s.coach_id AND coach.del_flag = '0'
+        WHERE s.del_flag = '0'
+          AND s.coach_id = #{coachId}
+          AND s.schedule_id = #{scheduleId}
+        LIMIT 1
+    </select>
+
+    <sql id="coachCheckinSelectColumns">
+        SELECT cr.checkin_id AS checkinId,
+               cr.reservation_id AS reservationId,
+               cr.schedule_id AS scheduleId,
+               s.store_id AS storeId,
+               st.store_name AS storeName,
+               s.course_id AS courseId,
+               c.course_name AS courseName,
+               c.course_type AS courseType,
+               s.schedule_date AS scheduleDate,
+               s.start_time AS startTime,
+               s.end_time AS endTime,
+               m.member_id AS memberId,
+               COALESCE(m.real_name, m.nickname) AS memberName,
+               m.mobile AS memberMobile,
+               cr.card_id AS cardId,
+               r.reservation_type AS reservationType,
+               mc.card_name AS cardName,
+               mc.plan_type AS planType,
+               mc.remain_times AS remainTimes,
+
+               cr.checkin_time AS checkinTime,
+               cr.consume_times AS consumeTimes,
+               cr.consume_amount AS consumeAmount,
+               cr.operator_user_id AS operatorUserId,
+               cr.checkin_status AS checkinStatus,
+               cr.remark
+        FROM fit_checkin_record cr
+        INNER JOIN fit_course_schedule s ON s.schedule_id = cr.schedule_id AND s.del_flag = '0'
+        LEFT JOIN fit_course_reservation r ON r.reservation_id = cr.reservation_id AND r.del_flag = '0'
+        INNER JOIN fit_member m ON m.member_id = cr.member_id AND m.del_flag = '0'
+        LEFT JOIN fit_course c ON c.course_id = s.course_id AND c.del_flag = '0'
+        LEFT JOIN fit_store st ON st.store_id = s.store_id AND st.del_flag = '0'
+        LEFT JOIN fit_member_card mc ON mc.card_id = cr.card_id AND mc.del_flag = '0'
+        WHERE cr.del_flag = '0'
+
+          AND s.coach_id = #{coachId}
+    </sql>
+
+    <select id="selectCoachCheckinList" resultType="org.dromara.fitness.domain.vo.FitnessCoachAppVo$CheckinVo">
+        <include refid="coachCheckinSelectColumns"/>
+        <if test="bo != null and bo.status != null and bo.status != '' and bo.status != 'all'">
+            <choose>
+                <when test="bo.status == 'pending'">
+                  AND cr.checkin_status = 'success' AND cr.operator_user_id IS NULL
+                </when>
+                <when test="bo.status == 'confirmed'">
+                  AND cr.checkin_status = 'success' AND cr.operator_user_id IS NOT NULL
+                </when>
+                <when test="bo.status == 'exception'">
+                  AND cr.checkin_status = 'reversed'
+                </when>
+            </choose>
+        </if>
+        ORDER BY cr.checkin_time DESC, cr.checkin_id DESC
+    </select>
+
+    <select id="selectCoachCheckinDetail" resultType="org.dromara.fitness.domain.vo.FitnessCoachAppVo$CheckinVo">
+        <include refid="coachCheckinSelectColumns"/>
+          AND cr.reservation_id = #{reservationId}
+        LIMIT 1
+    </select>
+
+    <select id="selectCoachCheckinAction" resultType="org.dromara.fitness.domain.vo.FitnessCoachAppVo$CheckinActionVo">
+        SELECT cr.tenant_id AS tenantId,
+               cr.checkin_id AS checkinId,
+               cr.reservation_id AS reservationId,
+               cr.schedule_id AS scheduleId,
+               s.store_id AS storeId,
+               s.course_id AS courseId,
+               c.course_name AS courseName,
+               s.coach_id AS coachId,
+               cr.member_id AS memberId,
+               COALESCE(m.real_name, m.nickname) AS memberName,
+               cr.card_id AS cardId,
+               mc.card_name AS cardName,
+               mc.card_status AS cardStatus,
+               mc.remain_times AS remainTimes,
+               mc.balance_amount AS balanceAmount,
+               cr.operator_user_id AS operatorUserId,
+               cr.checkin_status AS checkinStatus
+        FROM fit_checkin_record cr
+        INNER JOIN fit_course_schedule s ON s.schedule_id = cr.schedule_id AND s.del_flag = '0'
+        LEFT JOIN fit_course_reservation r ON r.reservation_id = cr.reservation_id AND r.del_flag = '0'
+        INNER JOIN fit_member m ON m.member_id = cr.member_id AND m.del_flag = '0'
+        LEFT JOIN fit_course c ON c.course_id = s.course_id AND c.del_flag = '0'
+        LEFT JOIN fit_member_card mc ON mc.card_id = cr.card_id AND mc.del_flag = '0'
+
+        WHERE cr.del_flag = '0'
+          AND s.coach_id = #{coachId}
+          AND c.course_type IN ('private', 'small')
+          AND cr.reservation_id = #{reservationId}
+
+        LIMIT 1
+    </select>
+
+    <update id="updateCheckinConfirm">
+        UPDATE fit_checkin_record
+        SET operator_user_id = #{operatorUserId},
+            consume_times = #{consumeTimes},
+            consume_amount = #{consumeAmount},
+            checkin_status = 'success',
+            remark = CASE WHEN #{remark} IS NOT NULL THEN #{remark} ELSE remark END,
+            update_time = NOW()
+        WHERE checkin_id = #{checkinId}
+          AND del_flag = '0'
+          AND operator_user_id IS NULL
+    </update>
+
+    <update id="updateCheckinException">
+        UPDATE fit_checkin_record
+        SET operator_user_id = #{operatorUserId},
+            checkin_status = 'reversed',
+            remark = CASE WHEN #{remark} IS NOT NULL THEN #{remark} ELSE remark END,
+            update_time = NOW()
+        WHERE checkin_id = #{checkinId}
+          AND del_flag = '0'
+          AND checkin_status != 'reversed'
+    </update>
+
+    <update id="updateScheduleSignedCount">
+        UPDATE fit_course_schedule
+        SET signed_count = CASE
+                              WHEN signed_count + #{delta} &lt; 0 THEN 0
+                              ELSE signed_count + #{delta}
+                           END,
+            update_time = NOW()
+        WHERE schedule_id = #{scheduleId}
+          AND del_flag = '0'
+    </update>
+
+    <update id="consumeMemberCard">
+        UPDATE fit_member_card
+        SET used_times = CASE
+                            WHEN #{consumeTimes} IS NULL THEN used_times
+                            ELSE used_times + #{consumeTimes}
+                         END,
+            remain_times = CASE
+                              WHEN #{consumeTimes} IS NULL THEN remain_times
+                              WHEN remain_times - #{consumeTimes} &lt; 0 THEN 0
+                              ELSE remain_times - #{consumeTimes}
+                           END,
+            balance_amount = CASE
+                                WHEN #{consumeAmount} IS NULL THEN balance_amount
+                                WHEN balance_amount - #{consumeAmount} &lt; 0 THEN 0
+                                ELSE balance_amount - #{consumeAmount}
+                             END,
+            card_status = CASE WHEN card_status = 'unused' THEN 'active' ELSE card_status END,
+            update_time = NOW()
+        WHERE card_id = #{cardId}
+          AND del_flag = '0'
+    </update>
+
+    <select id="selectCoachStudentList" resultType="org.dromara.fitness.domain.vo.FitnessCoachAppVo$StudentVo">
+        SELECT m.member_id AS memberId,
+               m.real_name AS realName,
+               m.nickname,
+               m.mobile,
+               m.avatar_url AS avatarUrl,
+               m.last_visit_time AS lastVisitTime,
+               mc.card_id AS cardId,
+               mc.card_name AS cardName,
+               mc.remain_times AS remainTimes,
+               mc.balance_amount AS balanceAmount,
+               (
+                   SELECT s2.start_time
+                   FROM fit_course_schedule s2
+                   INNER JOIN fit_course_reservation r2 ON r2.schedule_id = s2.schedule_id AND r2.del_flag = '0' AND r2.member_id = m.member_id AND r2.reservation_status = 'reserved'
+                   WHERE s2.del_flag = '0'
+                     AND s2.coach_id = #{coachId}
+                     AND s2.start_time &gt; NOW()
+                   ORDER BY s2.start_time ASC
+                   LIMIT 1
+               ) AS nextClassTime,
+               (
+                   SELECT c2.course_name
+                   FROM fit_course_schedule s2
+                   INNER JOIN fit_course c2 ON c2.course_id = s2.course_id AND c2.del_flag = '0'
+                   INNER JOIN fit_course_reservation r2 ON r2.schedule_id = s2.schedule_id AND r2.del_flag = '0' AND r2.member_id = m.member_id AND r2.reservation_status = 'reserved'
+                   WHERE s2.del_flag = '0'
+                     AND s2.coach_id = #{coachId}
+                     AND s2.start_time &gt; NOW()
+                   ORDER BY s2.start_time ASC
+                   LIMIT 1
+               ) AS nextCourseName,
+               IFNULL((SELECT COUNT(1) FROM fit_checkin_record cr WHERE cr.del_flag = '0' AND cr.member_id = m.member_id AND cr.operator_user_id IS NOT NULL), 0) AS totalCheckinCount
+        FROM fit_member_card mc
+        INNER JOIN fit_member m ON m.member_id = mc.member_id AND m.del_flag = '0'
+        WHERE mc.del_flag = '0'
+          AND mc.bind_coach_id = #{coachId}
+        <if test="keyword != null and keyword != ''">
+          AND (m.real_name LIKE CONCAT('%', #{keyword}, '%') OR m.nickname LIKE CONCAT('%', #{keyword}, '%') OR m.mobile LIKE CONCAT('%', #{keyword}, '%'))
+        </if>
+        ORDER BY mc.create_time DESC, mc.card_id DESC
+    </select>
+
+    <select id="selectCoachStudentDetail" resultType="org.dromara.fitness.domain.vo.FitnessCoachAppVo$StudentVo">
+        SELECT m.member_id AS memberId,
+               m.real_name AS realName,
+               m.nickname,
+               m.mobile,
+               m.avatar_url AS avatarUrl,
+               m.last_visit_time AS lastVisitTime,
+               mc.card_id AS cardId,
+               mc.card_name AS cardName,
+               mc.remain_times AS remainTimes,
+               mc.balance_amount AS balanceAmount,
+               (
+                   SELECT s2.start_time
+                   FROM fit_course_schedule s2
+                   INNER JOIN fit_course_reservation r2 ON r2.schedule_id = s2.schedule_id AND r2.del_flag = '0' AND r2.member_id = m.member_id AND r2.reservation_status = 'reserved'
+                   WHERE s2.del_flag = '0'
+                     AND s2.coach_id = #{coachId}
+                     AND s2.start_time &gt; NOW()
+                   ORDER BY s2.start_time ASC
+                   LIMIT 1
+               ) AS nextClassTime,
+               (
+                   SELECT c2.course_name
+                   FROM fit_course_schedule s2
+                   INNER JOIN fit_course c2 ON c2.course_id = s2.course_id AND c2.del_flag = '0'
+                   INNER JOIN fit_course_reservation r2 ON r2.schedule_id = s2.schedule_id AND r2.del_flag = '0' AND r2.member_id = m.member_id AND r2.reservation_status = 'reserved'
+                   WHERE s2.del_flag = '0'
+                     AND s2.coach_id = #{coachId}
+                     AND s2.start_time &gt; NOW()
+                   ORDER BY s2.start_time ASC
+                   LIMIT 1
+               ) AS nextCourseName,
+               IFNULL((SELECT COUNT(1) FROM fit_checkin_record cr WHERE cr.del_flag = '0' AND cr.member_id = m.member_id AND cr.operator_user_id IS NOT NULL), 0) AS totalCheckinCount
+        FROM fit_member_card mc
+        INNER JOIN fit_member m ON m.member_id = mc.member_id AND m.del_flag = '0'
+        WHERE mc.del_flag = '0'
+          AND mc.bind_coach_id = #{coachId}
+          AND mc.member_id = #{memberId}
+        ORDER BY mc.create_time DESC, mc.card_id DESC
+        LIMIT 1
+    </select>
+
+    <update id="updateCoachProfile">
+        UPDATE fit_coach
+        SET coach_name = CASE WHEN #{bo.coachName} IS NOT NULL AND #{bo.coachName} != '' THEN #{bo.coachName} ELSE coach_name END,
+            mobile = CASE WHEN #{bo.mobile} IS NOT NULL AND #{bo.mobile} != '' THEN #{bo.mobile} ELSE mobile END,
+            avatar_url = CASE WHEN #{bo.avatarUrl} IS NOT NULL AND #{bo.avatarUrl} != '' THEN #{bo.avatarUrl} ELSE avatar_url END,
+            skill_tags = CASE WHEN #{bo.skillTags} IS NOT NULL THEN #{bo.skillTags} ELSE skill_tags END,
+            intro = CASE WHEN #{bo.intro} IS NOT NULL THEN #{bo.intro} ELSE intro END,
+            remark = CASE WHEN #{bo.remark} IS NOT NULL THEN #{bo.remark} ELSE remark END,
+            update_time = NOW()
+        WHERE coach_id = #{coachId}
+          AND del_flag = '0'
+    </update>
+
+</mapper>

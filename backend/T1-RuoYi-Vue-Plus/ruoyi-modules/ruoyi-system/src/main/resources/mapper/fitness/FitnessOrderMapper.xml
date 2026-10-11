@@ -1,0 +1,86 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+    PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+    "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="org.dromara.fitness.mapper.FitnessOrderMapper">
+
+    <sql id="orderSelectColumns">
+        SELECT o.order_id AS orderId,
+               o.order_no AS orderNo,
+               o.store_id AS storeId,
+               st.store_name AS storeName,
+               o.member_id AS memberId,
+               m.real_name AS memberName,
+               m.mobile AS memberMobile,
+               o.order_type AS orderType,
+               o.order_source AS orderSource,
+               o.order_status AS orderStatus,
+               o.pay_method AS payMethod,
+               o.total_amount AS totalAmount,
+               o.discount_amount AS discountAmount,
+               o.payable_amount AS payableAmount,
+               o.paid_amount AS paidAmount,
+               o.paid_time AS paidTime,
+               o.trade_no AS tradeNo,
+               o.cashier_user_id AS cashierUserId,
+               o.remark AS remark,
+               o.create_time AS createTime
+    </sql>
+
+    <sql id="orderFromJoin">
+        FROM fit_order o
+        LEFT JOIN fit_store st ON st.store_id = o.store_id AND st.del_flag = '0'
+        LEFT JOIN fit_member m ON m.member_id = o.member_id AND m.del_flag = '0'
+        WHERE o.del_flag = '0'
+        <if test="bo != null and bo.storeId != null">AND o.store_id = #{bo.storeId}</if>
+        <if test="bo != null and bo.memberId != null">AND o.member_id = #{bo.memberId}</if>
+        <if test="bo != null and bo.orderNo != null and bo.orderNo != ''">AND o.order_no LIKE CONCAT('%', #{bo.orderNo}, '%')</if>
+        <if test="bo != null and bo.orderType != null and bo.orderType != ''">AND o.order_type = #{bo.orderType}</if>
+        <if test="bo != null and bo.orderSource != null and bo.orderSource != ''">AND o.order_source = #{bo.orderSource}</if>
+        <if test="bo != null and bo.orderStatus != null and bo.orderStatus != ''">AND o.order_status = #{bo.orderStatus}</if>
+        <if test="bo != null and bo.payMethod != null and bo.payMethod != ''">AND o.pay_method = #{bo.payMethod}</if>
+        <if test="bo != null and bo.orderCreateTimeStart != null">AND o.create_time &gt;= #{bo.orderCreateTimeStart}</if>
+        <if test="bo != null and bo.orderCreateTimeEnd != null">AND o.create_time &lt;= #{bo.orderCreateTimeEnd}</if>
+    </sql>
+
+    <select id="selectPageOrderList" resultType="org.dromara.fitness.domain.vo.FitnessOrderVo">
+        <include refid="orderSelectColumns"/>
+        <include refid="orderFromJoin"/>
+        ORDER BY o.create_time DESC, o.order_id DESC
+    </select>
+
+    <select id="selectOrderList" resultType="org.dromara.fitness.domain.vo.FitnessOrderVo">
+        <include refid="orderSelectColumns"/>
+        <include refid="orderFromJoin"/>
+        ORDER BY o.create_time DESC, o.order_id DESC
+    </select>
+
+    <select id="selectOrderById" resultType="org.dromara.fitness.domain.vo.FitnessOrderVo">
+        <include refid="orderSelectColumns"/>
+        FROM fit_order o
+        LEFT JOIN fit_store st ON st.store_id = o.store_id AND st.del_flag = '0'
+        LEFT JOIN fit_member m ON m.member_id = o.member_id AND m.del_flag = '0'
+        WHERE o.del_flag = '0'
+          AND o.order_id = #{orderId}
+        LIMIT 1
+    </select>
+
+    <select id="selectOrderItemList" resultType="org.dromara.fitness.domain.vo.FitnessOrderItemVo">
+        SELECT item_id AS itemId,
+               item_no AS itemNo,
+               item_type AS itemType,
+
+               item_ref_id AS itemRefId,
+               item_name AS itemName,
+               quantity,
+               unit_price AS unitPrice,
+               total_price AS totalPrice,
+               discount_amount AS discountAmount,
+               real_amount AS realAmount,
+               grant_card_id AS grantCardId
+        FROM fit_order_item
+        WHERE del_flag = '0'
+          AND order_id = #{orderId}
+        ORDER BY item_id ASC
+    </select>
+</mapper>

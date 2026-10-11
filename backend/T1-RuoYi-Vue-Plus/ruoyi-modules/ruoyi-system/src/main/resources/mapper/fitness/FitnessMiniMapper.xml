@@ -1,0 +1,884 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+    PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+    "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="org.dromara.fitness.mapper.FitnessMiniMapper">
+
+    <select id="selectMemberByOpenid" resultType="org.dromara.fitness.domain.vo.FitnessMiniVo$MemberInfoVo">
+        SELECT tenant_id AS tenantId,
+               member_id AS memberId,
+               member_no AS memberNo,
+               home_store_id AS homeStoreId,
+               mobile,
+               real_name AS realName,
+               nickname,
+               avatar_url AS avatarUrl,
+               member_status AS memberStatus
+        FROM fit_member
+        WHERE del_flag = '0'
+          AND wx_openid = #{openid}
+        LIMIT 1
+    </select>
+
+    <select id="selectMemberByMobile" resultType="org.dromara.fitness.domain.vo.FitnessMiniVo$MemberInfoVo">
+        SELECT tenant_id AS tenantId,
+               member_id AS memberId,
+               member_no AS memberNo,
+               home_store_id AS homeStoreId,
+               mobile,
+               real_name AS realName,
+               nickname,
+               avatar_url AS avatarUrl,
+               member_status AS memberStatus
+        FROM fit_member
+        WHERE del_flag = '0'
+          AND mobile = #{mobile}
+        LIMIT 1
+    </select>
+
+    <select id="selectMemberById" resultType="org.dromara.fitness.domain.vo.FitnessMiniVo$MemberInfoVo">
+        SELECT tenant_id AS tenantId,
+               member_id AS memberId,
+               member_no AS memberNo,
+               home_store_id AS homeStoreId,
+               mobile,
+               real_name AS realName,
+               nickname,
+               avatar_url AS avatarUrl,
+               member_status AS memberStatus
+        FROM fit_member
+        WHERE del_flag = '0'
+          AND member_id = #{memberId}
+        LIMIT 1
+    </select>
+
+    <select id="selectMemberProfile" resultType="org.dromara.fitness.domain.vo.FitnessMiniVo$ProfileVo">
+        SELECT member_id AS memberId,
+               member_no AS memberNo,
+               home_store_id AS homeStoreId,
+               mobile,
+               real_name AS realName,
+               nickname,
+               gender,
+               birthday,
+               avatar_url AS avatarUrl,
+               member_status AS memberStatus,
+               remark
+        FROM fit_member
+        WHERE del_flag = '0'
+          AND member_id = #{memberId}
+        LIMIT 1
+    </select>
+
+    <select id="countMemberByMobile" resultType="java.lang.Long">
+        SELECT COUNT(1)
+        FROM fit_member
+        WHERE del_flag = '0'
+          AND tenant_id = #{tenantId}
+          AND mobile = #{mobile}
+        <if test="excludeMemberId != null">
+          AND member_id &lt;&gt; #{excludeMemberId}
+        </if>
+    </select>
+
+    <insert id="insertMember">
+        INSERT INTO fit_member(
+            member_id, tenant_id, member_no, home_store_id, mobile, real_name, nickname,
+            avatar_url, wx_openid, wx_unionid, register_source, member_status, remark,
+            create_time, update_time, del_flag, version
+        ) VALUES (
+            #{memberId}, #{tenantId}, #{memberNo}, #{bo.homeStoreId}, #{bo.mobile}, #{bo.realName}, #{bo.nickname},
+            #{bo.avatarUrl}, #{bo.openid}, #{bo.unionId}, 'mini', 'normal', #{bo.remark},
+            NOW(), NOW(), '0', 0
+        )
+    </insert>
+
+    <update id="updateMemberLoginProfile">
+        UPDATE fit_member
+        SET wx_openid = #{bo.openid},
+            wx_unionid = #{bo.unionId},
+            nickname = CASE WHEN #{bo.nickname} IS NOT NULL AND #{bo.nickname} != '' THEN #{bo.nickname} ELSE nickname END,
+            avatar_url = CASE WHEN #{bo.avatarUrl} IS NOT NULL AND #{bo.avatarUrl} != '' THEN #{bo.avatarUrl} ELSE avatar_url END,
+            real_name = CASE WHEN #{bo.realName} IS NOT NULL AND #{bo.realName} != '' THEN #{bo.realName} ELSE real_name END,
+            mobile = CASE WHEN #{bo.mobile} IS NOT NULL AND #{bo.mobile} != '' THEN #{bo.mobile} ELSE mobile END,
+            home_store_id = CASE WHEN #{bo.homeStoreId} IS NOT NULL THEN #{bo.homeStoreId} ELSE home_store_id END,
+            update_time = NOW()
+        WHERE member_id = #{memberId}
+          AND del_flag = '0'
+    </update>
+
+    <update id="updateMemberPhone">
+        UPDATE fit_member
+        SET mobile = #{bo.mobile},
+            real_name = CASE WHEN #{bo.realName} IS NOT NULL AND #{bo.realName} != '' THEN #{bo.realName} ELSE real_name END,
+            update_time = NOW()
+        WHERE member_id = #{memberId}
+          AND del_flag = '0'
+    </update>
+
+    <update id="updateMemberProfile">
+        UPDATE fit_member
+        SET real_name = CASE WHEN #{bo.realName} IS NOT NULL AND #{bo.realName} != '' THEN #{bo.realName} ELSE real_name END,
+            nickname = CASE WHEN #{bo.nickname} IS NOT NULL AND #{bo.nickname} != '' THEN #{bo.nickname} ELSE nickname END,
+            gender = CASE WHEN #{bo.gender} IS NOT NULL AND #{bo.gender} != '' THEN #{bo.gender} ELSE gender END,
+            birthday = CASE WHEN #{bo.birthday} IS NOT NULL THEN #{bo.birthday} ELSE birthday END,
+            avatar_url = CASE WHEN #{bo.avatarUrl} IS NOT NULL AND #{bo.avatarUrl} != '' THEN #{bo.avatarUrl} ELSE avatar_url END,
+            remark = CASE WHEN #{bo.remark} IS NOT NULL THEN #{bo.remark} ELSE remark END,
+            update_time = NOW()
+        WHERE member_id = #{memberId}
+          AND del_flag = '0'
+    </update>
+
+    <select id="selectMineSummary" resultType="org.dromara.fitness.domain.vo.FitnessMiniVo$MineSummaryVo">
+        SELECT m.member_id AS memberId,
+               m.real_name AS realName,
+               m.nickname,
+               m.mobile,
+               m.avatar_url AS avatarUrl,
+               IFNULL((SELECT COUNT(1) FROM fit_course_reservation r WHERE r.del_flag = '0' AND r.member_id = m.member_id), 0) AS totalReservationCount,
+               IFNULL((SELECT COUNT(1) FROM fit_course_reservation r WHERE r.del_flag = '0' AND r.member_id = m.member_id AND r.reservation_status = 'reserved'), 0) AS pendingReservationCount,
+               IFNULL((SELECT COUNT(1) FROM fit_member_card mc WHERE mc.del_flag = '0' AND mc.member_id = m.member_id), 0) AS totalCardCount,
+               IFNULL((SELECT COUNT(1) FROM fit_member_card mc WHERE mc.del_flag = '0' AND mc.member_id = m.member_id AND mc.card_status IN ('unused', 'active')), 0) AS activeCardCount,
+               IFNULL((SELECT COUNT(1) FROM fit_checkin_record c WHERE c.del_flag = '0' AND c.member_id = m.member_id AND c.checkin_status = 'success' AND c.operator_user_id IS NULL), 0) AS pendingConfirmCount,
+               IFNULL((SELECT COUNT(1) FROM fit_checkin_record c WHERE c.del_flag = '0' AND c.member_id = m.member_id AND c.checkin_status = 'success' AND c.operator_user_id IS NOT NULL), 0) AS confirmedCheckinCount
+        FROM fit_member m
+        WHERE m.del_flag = '0'
+          AND m.member_id = #{memberId}
+        LIMIT 1
+    </select>
+
+    <select id="selectStoreList" resultType="org.dromara.fitness.domain.vo.FitnessMiniVo$StoreVo">
+        SELECT s.store_id AS storeId,
+               s.store_code AS storeCode,
+               s.store_name AS storeName,
+               s.store_short_name AS storeShortName,
+               s.contact_name AS contactName,
+               s.contact_phone AS contactPhone,
+               s.address,
+               s.business_hours AS businessHours,
+               s.cover_url AS coverUrl,
+               s.status,
+               CASE WHEN s.store_id = m.home_store_id THEN TRUE ELSE FALSE END AS homeStore
+        FROM fit_store s
+        LEFT JOIN fit_member m ON m.member_id = #{memberId} AND m.del_flag = '0'
+        WHERE s.del_flag = '0'
+          AND s.status = '0'
+        <if test="keyword != null and keyword != ''">
+          AND (s.store_name LIKE CONCAT('%', #{keyword}, '%') OR s.store_short_name LIKE CONCAT('%', #{keyword}, '%'))
+        </if>
+        ORDER BY homeStore DESC, s.store_id DESC
+    </select>
+
+    <select id="selectStoreById" resultType="org.dromara.fitness.domain.vo.FitnessMiniVo$StoreVo">
+        SELECT s.store_id AS storeId,
+               s.store_code AS storeCode,
+               s.store_name AS storeName,
+               s.store_short_name AS storeShortName,
+               s.contact_name AS contactName,
+               s.contact_phone AS contactPhone,
+               s.address,
+               s.business_hours AS businessHours,
+               s.cover_url AS coverUrl,
+               s.status,
+               CASE WHEN s.store_id = m.home_store_id THEN TRUE ELSE FALSE END AS homeStore
+        FROM fit_store s
+        LEFT JOIN fit_member m ON m.member_id = #{memberId} AND m.del_flag = '0'
+        WHERE s.del_flag = '0'
+          AND s.store_id = #{storeId}
+        LIMIT 1
+    </select>
+
+    <select id="selectCourseList" resultType="org.dromara.fitness.domain.vo.FitnessMiniVo$CourseVo">
+        SELECT c.course_id AS courseId,
+               c.course_name AS courseName,
+               c.course_type AS courseType,
+               c.store_id AS storeId,
+               s.store_name AS storeName,
+               c.default_coach_id AS defaultCoachId,
+               coach.coach_name AS coachName,
+               c.duration_minutes AS durationMinutes,
+               c.capacity,
+               c.cover_url AS coverUrl,
+               c.description,
+               c.support_card_type AS supportCardType,
+               c.status
+        FROM fit_course c
+        LEFT JOIN fit_store s ON s.store_id = c.store_id AND s.del_flag = '0'
+        LEFT JOIN fit_coach coach ON coach.coach_id = c.default_coach_id AND coach.del_flag = '0'
+        WHERE c.del_flag = '0'
+          AND c.status = '0'
+        <if test="bo != null and bo.storeId != null">
+          AND c.store_id = #{bo.storeId}
+        </if>
+        <if test="bo != null and bo.courseType != null and bo.courseType != ''">
+          AND c.course_type = #{bo.courseType}
+        </if>
+        <if test="bo != null and bo.keyword != null and bo.keyword != ''">
+          AND c.course_name LIKE CONCAT('%', #{bo.keyword}, '%')
+        </if>
+        ORDER BY c.course_id DESC
+    </select>
+
+    <select id="selectCourseById" resultType="org.dromara.fitness.domain.vo.FitnessMiniVo$CourseVo">
+        SELECT c.course_id AS courseId,
+               c.course_name AS courseName,
+               c.course_type AS courseType,
+               c.store_id AS storeId,
+               s.store_name AS storeName,
+               c.default_coach_id AS defaultCoachId,
+               coach.coach_name AS coachName,
+               c.duration_minutes AS durationMinutes,
+               c.capacity,
+               c.cover_url AS coverUrl,
+               c.description,
+               c.support_card_type AS supportCardType,
+               c.status
+        FROM fit_course c
+        LEFT JOIN fit_store s ON s.store_id = c.store_id AND s.del_flag = '0'
+        LEFT JOIN fit_coach coach ON coach.coach_id = c.default_coach_id AND coach.del_flag = '0'
+        WHERE c.del_flag = '0'
+          AND c.course_id = #{courseId}
+        LIMIT 1
+    </select>
+
+    <select id="selectRecommendCourseList" resultType="org.dromara.fitness.domain.vo.FitnessMiniVo$CourseVo">
+        SELECT c.course_id AS courseId,
+               c.course_name AS courseName,
+               c.course_type AS courseType,
+               c.store_id AS storeId,
+               s.store_name AS storeName,
+               c.default_coach_id AS defaultCoachId,
+               coach.coach_name AS coachName,
+               c.duration_minutes AS durationMinutes,
+               c.capacity,
+               c.cover_url AS coverUrl,
+               c.description,
+               c.support_card_type AS supportCardType,
+               c.status
+        FROM fit_course c
+        LEFT JOIN fit_store s ON s.store_id = c.store_id AND s.del_flag = '0'
+        LEFT JOIN fit_coach coach ON coach.coach_id = c.default_coach_id AND coach.del_flag = '0'
+        WHERE c.del_flag = '0'
+          AND c.status = '0'
+          AND c.course_type NOT IN ('private', 'small')
+        ORDER BY c.course_id DESC
+        LIMIT 6
+
+    </select>
+
+    <select id="selectScheduleList" resultType="org.dromara.fitness.domain.vo.FitnessMiniVo$ScheduleVo">
+        SELECT s.schedule_id AS scheduleId,
+               s.store_id AS storeId,
+               st.store_name AS storeName,
+               s.course_id AS courseId,
+               c.course_name AS courseName,
+               c.course_type AS courseType,
+               s.coach_id AS coachId,
+               coach.coach_name AS coachName,
+               s.schedule_date AS scheduleDate,
+               s.start_time AS startTime,
+               s.end_time AS endTime,
+               s.capacity,
+               s.reserved_count AS reservedCount,
+               s.signed_count AS signedCount,
+               (s.capacity - s.reserved_count) AS availableCount,
+               s.schedule_status AS scheduleStatus,
+               CASE WHEN r.reservation_id IS NOT NULL THEN TRUE ELSE FALSE END AS reservedByMe,
+               r.reservation_id AS reservationId,
+               r.reservation_status AS reservationStatus,
+               cr.checkin_status AS checkinStatus
+        FROM fit_course_schedule s
+        INNER JOIN fit_course c ON c.course_id = s.course_id AND c.del_flag = '0'
+        LEFT JOIN fit_store st ON st.store_id = s.store_id AND st.del_flag = '0'
+        LEFT JOIN fit_coach coach ON coach.coach_id = s.coach_id AND coach.del_flag = '0'
+        LEFT JOIN fit_course_reservation r ON r.schedule_id = s.schedule_id AND r.member_id = #{memberId} AND r.del_flag = '0' AND r.reservation_status &lt;&gt; 'cancelled'
+
+        LEFT JOIN fit_checkin_record cr ON cr.reservation_id = r.reservation_id AND cr.del_flag = '0'
+        WHERE s.del_flag = '0'
+          AND s.schedule_status &lt;&gt; 'cancelled'
+          AND s.end_time &gt; NOW()
+          AND c.course_type NOT IN ('private', 'small')
+
+
+        <if test="bo != null and bo.storeId != null">
+          AND s.store_id = #{bo.storeId}
+        </if>
+        <if test="bo != null and bo.courseId != null">
+          AND s.course_id = #{bo.courseId}
+        </if>
+        <if test="bo != null and bo.courseType != null and bo.courseType != ''">
+          AND c.course_type = #{bo.courseType}
+        </if>
+        <if test="bo != null and bo.coachId != null">
+          AND s.coach_id = #{bo.coachId}
+        </if>
+        <if test="bo != null and bo.scheduleDate != null">
+          AND s.schedule_date = #{bo.scheduleDate}
+        </if>
+        ORDER BY s.start_time ASC
+    </select>
+
+    <select id="selectReservationAction" resultType="org.dromara.fitness.domain.vo.FitnessMiniVo$ReservationActionVo">
+        SELECT r.tenant_id AS tenantId,
+               r.reservation_id AS reservationId,
+               r.store_id AS storeId,
+               r.schedule_id AS scheduleId,
+               r.member_id AS memberId,
+               r.card_id AS cardId,
+               r.reservation_type AS reservationType,
+               mc.plan_type AS planType,
+               mc.bind_coach_id AS bindCoachId,
+               st.store_name AS storeName,
+
+               c.course_id AS courseId,
+               c.course_name AS courseName,
+               c.course_type AS courseType,
+               s.coach_id AS coachId,
+               coach.coach_name AS coachName,
+               s.schedule_date AS scheduleDate,
+               s.start_time AS startTime,
+               s.end_time AS endTime,
+               s.reservation_deadline AS reservationDeadline,
+               s.cancel_deadline AS cancelDeadline,
+               s.schedule_status AS scheduleStatus,
+               r.reservation_status AS reservationStatus,
+               s.capacity,
+               s.reserved_count AS reservedCount
+        FROM fit_course_reservation r
+        INNER JOIN fit_course_schedule s ON s.schedule_id = r.schedule_id AND s.del_flag = '0'
+        INNER JOIN fit_course c ON c.course_id = s.course_id AND c.del_flag = '0'
+        LEFT JOIN fit_store st ON st.store_id = r.store_id AND st.del_flag = '0'
+        LEFT JOIN fit_member_card mc ON mc.card_id = r.card_id AND mc.del_flag = '0'
+        LEFT JOIN fit_coach coach ON coach.coach_id = s.coach_id AND coach.del_flag = '0'
+        WHERE r.del_flag = '0'
+
+          AND r.member_id = #{memberId}
+          AND r.reservation_id = #{reservationId}
+        LIMIT 1
+    </select>
+
+    <select id="selectScheduleReservationAction" resultType="org.dromara.fitness.domain.vo.FitnessMiniVo$ReservationActionVo">
+        SELECT s.tenant_id AS tenantId,
+               NULL AS reservationId,
+               s.store_id AS storeId,
+               s.schedule_id AS scheduleId,
+               #{memberId} AS memberId,
+               NULL AS cardId,
+               'store_experience' AS reservationType,
+               NULL AS planType,
+               NULL AS bindCoachId,
+               st.store_name AS storeName,
+
+               c.course_id AS courseId,
+               c.course_name AS courseName,
+               c.course_type AS courseType,
+               s.coach_id AS coachId,
+               coach.coach_name AS coachName,
+               s.schedule_date AS scheduleDate,
+               s.start_time AS startTime,
+               s.end_time AS endTime,
+               s.reservation_deadline AS reservationDeadline,
+               s.cancel_deadline AS cancelDeadline,
+               s.schedule_status AS scheduleStatus,
+               'reserved' AS reservationStatus,
+               s.capacity,
+               s.reserved_count AS reservedCount
+        FROM fit_course_schedule s
+        INNER JOIN fit_course c ON c.course_id = s.course_id AND c.del_flag = '0'
+        LEFT JOIN fit_store st ON st.store_id = s.store_id AND st.del_flag = '0'
+        LEFT JOIN fit_coach coach ON coach.coach_id = s.coach_id AND coach.del_flag = '0'
+        WHERE s.del_flag = '0'
+          AND s.schedule_id = #{scheduleId}
+        LIMIT 1
+    </select>
+
+    <select id="countActiveReservation" resultType="java.lang.Long">
+        SELECT COUNT(1)
+        FROM fit_course_reservation
+        WHERE del_flag = '0'
+          AND member_id = #{memberId}
+          AND schedule_id = #{scheduleId}
+          AND reservation_status = 'reserved'
+    </select>
+
+    <select id="selectUsableMemberCard" resultType="org.dromara.fitness.domain.vo.FitnessMiniVo$MemberCardVo">
+        SELECT mc.card_id AS cardId,
+               mc.plan_id AS planId,
+               mc.card_no AS cardNo,
+               mc.card_name AS cardName,
+               mc.plan_type AS planType,
+               mc.bind_coach_id AS bindCoachId,
+               coach.coach_name AS coachName,
+               mc.active_time AS activeTime,
+               mc.expire_time AS expireTime,
+               mc.total_times AS totalTimes,
+               mc.used_times AS usedTimes,
+               mc.remain_times AS remainTimes,
+               mc.balance_amount AS balanceAmount,
+               mc.card_status AS cardStatus
+        FROM fit_member_card mc
+        LEFT JOIN fit_coach coach ON coach.coach_id = mc.bind_coach_id AND coach.del_flag = '0'
+        WHERE mc.del_flag = '0'
+          AND mc.member_id = #{memberId}
+          AND mc.card_id = #{cardId}
+        LIMIT 1
+    </select>
+
+    <insert id="insertReservation">
+        INSERT INTO fit_course_reservation(
+            reservation_id, reservation_no, tenant_id, store_id, schedule_id, member_id, card_id,
+            reservation_type, reservation_source, reservation_status, reservation_time, consume_mode,
+            remark, create_time, update_time, del_flag, version
+        ) VALUES (
+            #{reservationId}, #{reservationNo}, #{tenantId}, #{storeId}, #{scheduleId}, #{memberId}, #{cardId},
+            #{reservationType}, 'mini', 'reserved', #{reservationTime}, #{consumeMode},
+            #{remark}, NOW(), NOW(), '0', 0
+        )
+
+    </insert>
+
+
+    <update id="updateReservationCancel">
+        UPDATE fit_course_reservation
+        SET reservation_status = 'cancelled',
+            cancel_reason = #{cancelReason},
+            cancel_time = #{cancelTime},
+            update_time = NOW()
+        WHERE reservation_id = #{reservationId}
+          AND del_flag = '0'
+          AND reservation_status = 'reserved'
+    </update>
+
+    <update id="updateScheduleReservedCount">
+        UPDATE fit_course_schedule
+        SET reserved_count = CASE
+                                WHEN reserved_count + #{delta} &lt; 0 THEN 0
+                                ELSE reserved_count + #{delta}
+                             END,
+            update_time = NOW()
+        WHERE schedule_id = #{scheduleId}
+          AND del_flag = '0'
+    </update>
+
+    <select id="selectMyReservationList" resultType="org.dromara.fitness.domain.vo.FitnessMiniVo$ReservationVo">
+        SELECT r.reservation_id AS reservationId,
+               r.schedule_id AS scheduleId,
+               r.store_id AS storeId,
+               st.store_name AS storeName,
+               s.course_id AS courseId,
+               c.course_name AS courseName,
+               c.course_type AS courseType,
+               s.coach_id AS coachId,
+               coach.coach_name AS coachName,
+               s.schedule_date AS scheduleDate,
+               s.start_time AS startTime,
+               s.end_time AS endTime,
+               r.card_id AS cardId,
+               r.reservation_type AS reservationType,
+               mc.card_name AS cardName,
+               mc.plan_type AS planType,
+               r.reservation_status AS reservationStatus,
+               r.reservation_time AS reservationTime,
+               r.cancel_time AS cancelTime,
+               r.cancel_reason AS cancelReason,
+               cr.checkin_id AS checkinId,
+               cr.checkin_time AS checkinTime,
+               cr.operator_user_id AS operatorUserId,
+               cr.checkin_status AS checkinStatus
+
+        FROM fit_course_reservation r
+        INNER JOIN fit_course_schedule s ON s.schedule_id = r.schedule_id AND s.del_flag = '0'
+        INNER JOIN fit_course c ON c.course_id = s.course_id AND c.del_flag = '0'
+        LEFT JOIN fit_store st ON st.store_id = r.store_id AND st.del_flag = '0'
+        LEFT JOIN fit_coach coach ON coach.coach_id = s.coach_id AND coach.del_flag = '0'
+        LEFT JOIN fit_member_card mc ON mc.card_id = r.card_id AND mc.del_flag = '0'
+        LEFT JOIN fit_checkin_record cr ON cr.reservation_id = r.reservation_id AND cr.del_flag = '0'
+        WHERE r.del_flag = '0'
+          AND r.member_id = #{memberId}
+        ORDER BY r.reservation_time DESC, r.reservation_id DESC
+    </select>
+
+    <select id="selectReservationById" resultType="org.dromara.fitness.domain.vo.FitnessMiniVo$ReservationVo">
+        SELECT r.reservation_id AS reservationId,
+               r.schedule_id AS scheduleId,
+               r.store_id AS storeId,
+               st.store_name AS storeName,
+               s.course_id AS courseId,
+               c.course_name AS courseName,
+               c.course_type AS courseType,
+               s.coach_id AS coachId,
+               coach.coach_name AS coachName,
+               s.schedule_date AS scheduleDate,
+               s.start_time AS startTime,
+               s.end_time AS endTime,
+               r.card_id AS cardId,
+               r.reservation_type AS reservationType,
+               mc.card_name AS cardName,
+               mc.plan_type AS planType,
+               r.reservation_status AS reservationStatus,
+               r.reservation_time AS reservationTime,
+               r.cancel_time AS cancelTime,
+               r.cancel_reason AS cancelReason,
+               cr.checkin_id AS checkinId,
+               cr.checkin_time AS checkinTime,
+               cr.operator_user_id AS operatorUserId,
+               cr.checkin_status AS checkinStatus
+
+        FROM fit_course_reservation r
+        INNER JOIN fit_course_schedule s ON s.schedule_id = r.schedule_id AND s.del_flag = '0'
+        INNER JOIN fit_course c ON c.course_id = s.course_id AND c.del_flag = '0'
+        LEFT JOIN fit_store st ON st.store_id = r.store_id AND st.del_flag = '0'
+        LEFT JOIN fit_coach coach ON coach.coach_id = s.coach_id AND coach.del_flag = '0'
+        LEFT JOIN fit_member_card mc ON mc.card_id = r.card_id AND mc.del_flag = '0'
+        LEFT JOIN fit_checkin_record cr ON cr.reservation_id = r.reservation_id AND cr.del_flag = '0'
+        WHERE r.del_flag = '0'
+          AND r.member_id = #{memberId}
+          AND r.reservation_id = #{reservationId}
+        LIMIT 1
+    </select>
+
+    <select id="selectCardPlanList" resultType="org.dromara.fitness.domain.vo.FitnessMiniVo$CardPlanVo">
+        SELECT p.plan_id AS planId,
+               p.store_id AS storeId,
+               st.store_name AS storeName,
+               p.plan_name AS planName,
+               p.plan_type AS planType,
+               p.sale_price AS salePrice,
+               p.original_price AS originalPrice,
+               p.valid_days AS validDays,
+               p.total_times AS totalTimes,
+               p.gift_times AS giftTimes,
+               p.stored_amount AS storedAmount,
+               p.support_course_type AS supportCourseType,
+               p.is_private_bind_coach AS isPrivateBindCoach,
+               p.status
+        FROM fit_card_plan p
+        LEFT JOIN fit_store st ON st.store_id = p.store_id AND st.del_flag = '0'
+        WHERE p.del_flag = '0'
+          AND p.status = '0'
+        <if test="storeId != null">
+          AND p.store_id = #{storeId}
+        </if>
+        ORDER BY p.sort_no ASC, p.plan_id DESC
+    </select>
+
+    <select id="selectCardPlanById" resultType="org.dromara.fitness.domain.vo.FitnessMiniVo$CardPlanVo">
+        SELECT p.plan_id AS planId,
+               p.store_id AS storeId,
+               st.store_name AS storeName,
+               p.plan_name AS planName,
+               p.plan_type AS planType,
+               p.sale_price AS salePrice,
+               p.original_price AS originalPrice,
+               p.valid_days AS validDays,
+               p.total_times AS totalTimes,
+               p.gift_times AS giftTimes,
+               p.stored_amount AS storedAmount,
+               p.support_course_type AS supportCourseType,
+               p.is_private_bind_coach AS isPrivateBindCoach,
+               p.status
+        FROM fit_card_plan p
+        LEFT JOIN fit_store st ON st.store_id = p.store_id AND st.del_flag = '0'
+        WHERE p.del_flag = '0'
+          AND p.plan_id = #{planId}
+        LIMIT 1
+    </select>
+
+    <select id="selectActivityList" resultType="org.dromara.fitness.domain.vo.FitnessMiniVo$ActivityVo">
+        SELECT a.activity_id AS activityId,
+               a.activity_no AS activityNo,
+               a.store_id AS storeId,
+               st.store_name AS storeName,
+               st.contact_phone AS storeContactPhone,
+               a.title,
+               a.sub_title AS subTitle,
+               a.price_highlight AS priceHighlight,
+               a.target_audience AS targetAudience,
+               a.cover_url AS coverUrl,
+               a.detail_image_url AS detailImageUrl,
+               a.detail_content AS detailContent,
+               a.start_time AS startTime,
+               a.end_time AS endTime,
+               a.countdown_end_time AS countdownEndTime,
+               a.weekly_featured AS weeklyFeatured,
+               a.activity_type AS activityType,
+               a.action_type AS actionType,
+               a.discount_label AS discountLabel,
+               a.rule_note AS ruleNote,
+               a.sort_no AS sortNo,
+               a.status
+        FROM fit_activity a
+        LEFT JOIN fit_store st ON st.store_id = a.store_id AND st.del_flag = '0'
+        WHERE a.del_flag = '0'
+          AND a.status = '0'
+          AND NOW() >= a.start_time
+          AND NOW() &lt;= a.end_time
+          AND (a.store_id IS NULL OR a.store_id = #{storeId} OR #{storeId} IS NULL)
+        ORDER BY a.weekly_featured DESC, a.sort_no ASC, a.activity_id DESC
+    </select>
+
+    <select id="selectActivityById" resultType="org.dromara.fitness.domain.vo.FitnessMiniVo$ActivityVo">
+        SELECT a.activity_id AS activityId,
+               a.activity_no AS activityNo,
+               a.store_id AS storeId,
+               st.store_name AS storeName,
+               st.contact_phone AS storeContactPhone,
+               a.title,
+               a.sub_title AS subTitle,
+               a.price_highlight AS priceHighlight,
+               a.target_audience AS targetAudience,
+               a.cover_url AS coverUrl,
+               a.detail_image_url AS detailImageUrl,
+               a.detail_content AS detailContent,
+               a.start_time AS startTime,
+               a.end_time AS endTime,
+               a.countdown_end_time AS countdownEndTime,
+               a.weekly_featured AS weeklyFeatured,
+               a.activity_type AS activityType,
+               a.action_type AS actionType,
+               a.discount_label AS discountLabel,
+               a.rule_note AS ruleNote,
+               a.sort_no AS sortNo,
+               a.status
+        FROM fit_activity a
+        LEFT JOIN fit_store st ON st.store_id = a.store_id AND st.del_flag = '0'
+        WHERE a.del_flag = '0'
+          AND a.status = '0'
+          AND a.activity_id = #{activityId}
+        LIMIT 1
+    </select>
+
+    <select id="selectActivityCardPlanList" resultType="org.dromara.fitness.domain.vo.FitnessMiniVo$ActivityCardPlanVo">
+        SELECT p.plan_id AS planId,
+               p.store_id AS storeId,
+               st.store_name AS storeName,
+               p.plan_name AS planName,
+               p.plan_type AS planType,
+               p.sale_price AS salePrice,
+               p.original_price AS originalPrice,
+               p.valid_days AS validDays,
+               p.total_times AS totalTimes,
+               p.gift_times AS giftTimes,
+               p.stored_amount AS storedAmount,
+               p.support_course_type AS supportCourseType,
+               p.is_private_bind_coach AS isPrivateBindCoach,
+               p.status,
+               a.discount_label AS discountLabel,
+               a.rule_note AS ruleNote
+        FROM fit_activity_plan ap
+        INNER JOIN fit_activity a ON a.activity_id = ap.activity_id AND a.del_flag = '0'
+        INNER JOIN fit_card_plan p ON p.plan_id = ap.plan_id AND p.del_flag = '0' AND p.status = '0'
+        LEFT JOIN fit_store st ON st.store_id = p.store_id AND st.del_flag = '0'
+        WHERE ap.activity_id = #{activityId}
+        ORDER BY ap.sort_no ASC, p.sort_no ASC, p.plan_id DESC
+    </select>
+
+
+    <insert id="insertOrder">
+
+        INSERT INTO fit_order(
+            order_id, tenant_id, store_id, order_no, member_id, order_type,
+            order_source, order_status, pay_method, total_amount, discount_amount,
+            payable_amount, paid_amount, paid_time, remark,
+            create_time, update_time, del_flag, version
+        ) VALUES (
+            #{orderId}, #{tenantId}, #{storeId}, #{orderNo}, #{memberId}, #{orderType},
+            'mini', #{orderStatus}, #{payMethod}, #{totalAmount}, #{discountAmount},
+            #{payableAmount}, #{paidAmount}, #{paidTime}, #{remark},
+            NOW(), NOW(), '0', 0
+        )
+    </insert>
+
+    <insert id="insertOrderItem">
+        INSERT INTO fit_order_item(
+            item_id, tenant_id, order_id, item_type, item_ref_id, item_name,
+            quantity, unit_price, total_price, discount_amount, real_amount,
+            grant_card_id, create_time, update_time, del_flag, version
+        ) VALUES (
+            #{itemId}, #{tenantId}, #{orderId}, #{itemType}, #{itemRefId}, #{itemName},
+            #{quantity}, #{unitPrice}, #{totalPrice}, #{discountAmount}, #{realAmount},
+            #{grantCardId}, NOW(), NOW(), '0', 0
+        )
+    </insert>
+
+    <insert id="insertMemberCard">
+        INSERT INTO fit_member_card(
+            card_id, tenant_id, store_id, member_id, plan_id, card_no, card_name, plan_type,
+            bind_coach_id, active_time, expire_time, total_times, used_times, remain_times,
+            balance_amount, card_status, order_id, create_time, update_time, del_flag, version
+        ) VALUES (
+            #{cardId}, #{tenantId}, #{storeId}, #{memberId}, #{plan.planId}, #{cardNo}, #{plan.planName}, #{plan.planType},
+            #{bindCoachId}, #{activeTime}, #{expireTime}, #{totalTimes}, 0, #{totalTimes},
+            #{balanceAmount}, #{cardStatus}, #{orderId}, NOW(), NOW(), '0', 0
+        )
+    </insert>
+
+    <select id="selectMyOrderList" resultType="org.dromara.fitness.domain.vo.FitnessMiniVo$OrderVo">
+        SELECT o.order_id AS orderId,
+               o.order_no AS orderNo,
+               o.store_id AS storeId,
+               st.store_name AS storeName,
+               o.order_type AS orderType,
+               o.order_source AS orderSource,
+               o.order_status AS orderStatus,
+               o.pay_method AS payMethod,
+               o.total_amount AS totalAmount,
+               o.discount_amount AS discountAmount,
+               o.payable_amount AS payableAmount,
+               o.paid_amount AS paidAmount,
+               o.paid_time AS paidTime,
+               o.create_time AS createTime
+        FROM fit_order o
+        LEFT JOIN fit_store st ON st.store_id = o.store_id AND st.del_flag = '0'
+        WHERE o.del_flag = '0'
+          AND o.member_id = #{memberId}
+        ORDER BY o.create_time DESC, o.order_id DESC
+    </select>
+
+    <select id="selectOrderById" resultType="org.dromara.fitness.domain.vo.FitnessMiniVo$OrderVo">
+        SELECT o.order_id AS orderId,
+               o.order_no AS orderNo,
+               o.store_id AS storeId,
+               st.store_name AS storeName,
+               o.order_type AS orderType,
+               o.order_source AS orderSource,
+               o.order_status AS orderStatus,
+               o.pay_method AS payMethod,
+               o.total_amount AS totalAmount,
+               o.discount_amount AS discountAmount,
+               o.payable_amount AS payableAmount,
+               o.paid_amount AS paidAmount,
+               o.paid_time AS paidTime,
+               o.create_time AS createTime
+        FROM fit_order o
+        LEFT JOIN fit_store st ON st.store_id = o.store_id AND st.del_flag = '0'
+        WHERE o.del_flag = '0'
+          AND o.member_id = #{memberId}
+          AND o.order_id = #{orderId}
+        LIMIT 1
+    </select>
+
+    <select id="selectOrderItemList" resultType="org.dromara.fitness.domain.vo.FitnessMiniVo$OrderItemVo">
+        SELECT item_id AS itemId,
+               item_no AS itemNo,
+               item_type AS itemType,
+               item_ref_id AS itemRefId,
+               item_name AS itemName,
+               quantity,
+               unit_price AS unitPrice,
+               total_price AS totalPrice,
+               discount_amount AS discountAmount,
+               real_amount AS realAmount,
+               grant_card_id AS grantCardId
+        FROM fit_order_item
+        WHERE del_flag = '0'
+          AND order_id = #{orderId}
+        ORDER BY item_id ASC
+    </select>
+
+    <select id="selectMyMemberCardList" resultType="org.dromara.fitness.domain.vo.FitnessMiniVo$MemberCardVo">
+        SELECT mc.card_id AS cardId,
+               mc.plan_id AS planId,
+               mc.card_no AS cardNo,
+               mc.card_name AS cardName,
+               mc.plan_type AS planType,
+               mc.bind_coach_id AS bindCoachId,
+               coach.coach_name AS coachName,
+               mc.active_time AS activeTime,
+               mc.expire_time AS expireTime,
+               mc.total_times AS totalTimes,
+               mc.used_times AS usedTimes,
+               mc.remain_times AS remainTimes,
+               mc.balance_amount AS balanceAmount,
+               mc.card_status AS cardStatus
+        FROM fit_member_card mc
+        LEFT JOIN fit_coach coach ON coach.coach_id = mc.bind_coach_id AND coach.del_flag = '0'
+        WHERE mc.del_flag = '0'
+          AND mc.member_id = #{memberId}
+        ORDER BY mc.create_time DESC, mc.card_id DESC
+    </select>
+
+    <select id="selectCheckinByReservationId" resultType="org.dromara.fitness.domain.vo.FitnessMiniVo$CheckinVo">
+        SELECT cr.checkin_id AS checkinId,
+               cr.reservation_id AS reservationId,
+               cr.schedule_id AS scheduleId,
+               cr.member_id AS memberId,
+               COALESCE(m.real_name, m.nickname) AS memberName,
+               c.course_name AS courseName,
+               coach.coach_name AS coachName,
+               cr.card_id AS cardId,
+               mc.card_name AS cardName,
+               s.schedule_date AS scheduleDate,
+               s.start_time AS startTime,
+               s.end_time AS endTime,
+               cr.checkin_time AS checkinTime,
+               cr.consume_times AS consumeTimes,
+               cr.consume_amount AS consumeAmount,
+               cr.operator_user_id AS operatorUserId,
+               cr.checkin_status AS checkinStatus,
+               cr.remark
+        FROM fit_checkin_record cr
+        INNER JOIN fit_course_schedule s ON s.schedule_id = cr.schedule_id AND s.del_flag = '0'
+        LEFT JOIN fit_course c ON c.course_id = s.course_id AND c.del_flag = '0'
+        LEFT JOIN fit_coach coach ON coach.coach_id = s.coach_id AND coach.del_flag = '0'
+        LEFT JOIN fit_member m ON m.member_id = cr.member_id AND m.del_flag = '0'
+        LEFT JOIN fit_member_card mc ON mc.card_id = cr.card_id AND mc.del_flag = '0'
+        WHERE cr.del_flag = '0'
+          AND cr.member_id = #{memberId}
+          AND cr.reservation_id = #{reservationId}
+        LIMIT 1
+    </select>
+
+    <insert id="insertCheckin">
+        INSERT INTO fit_checkin_record(
+            checkin_id, checkin_no, tenant_id, store_id, reservation_id, schedule_id, member_id, card_id,
+            checkin_type, checkin_time, consume_times, consume_amount, operator_user_id,
+            checkin_status, remark, create_time, update_time, del_flag, version
+        ) VALUES (
+            #{checkinId}, #{checkinNo}, #{tenantId}, #{storeId}, #{reservationId}, #{scheduleId}, #{memberId}, #{cardId},
+            #{checkinType}, #{checkinTime}, 0, 0.00, NULL,
+            'success', #{remark}, NOW(), NOW(), '0', 0
+        )
+
+    </insert>
+
+    <update id="updateMemberVisitInfo">
+        UPDATE fit_member
+        SET last_store_id = #{storeId},
+            last_visit_time = #{visitTime},
+            update_time = NOW()
+        WHERE member_id = #{memberId}
+          AND del_flag = '0'
+    </update>
+
+    <select id="selectMyCheckinList" resultType="org.dromara.fitness.domain.vo.FitnessMiniVo$CheckinVo">
+        SELECT cr.checkin_id AS checkinId,
+               cr.reservation_id AS reservationId,
+               cr.schedule_id AS scheduleId,
+               cr.member_id AS memberId,
+               COALESCE(m.real_name, m.nickname) AS memberName,
+               c.course_name AS courseName,
+               coach.coach_name AS coachName,
+               cr.card_id AS cardId,
+               mc.card_name AS cardName,
+               s.schedule_date AS scheduleDate,
+               s.start_time AS startTime,
+               s.end_time AS endTime,
+               cr.checkin_time AS checkinTime,
+               cr.consume_times AS consumeTimes,
+               cr.consume_amount AS consumeAmount,
+               cr.operator_user_id AS operatorUserId,
+               cr.checkin_status AS checkinStatus,
+               cr.remark
+        FROM fit_checkin_record cr
+        INNER JOIN fit_course_schedule s ON s.schedule_id = cr.schedule_id AND s.del_flag = '0'
+        LEFT JOIN fit_course c ON c.course_id = s.course_id AND c.del_flag = '0'
+        LEFT JOIN fit_coach coach ON coach.coach_id = s.coach_id AND coach.del_flag = '0'
+        LEFT JOIN fit_member m ON m.member_id = cr.member_id AND m.del_flag = '0'
+        LEFT JOIN fit_member_card mc ON mc.card_id = cr.card_id AND mc.del_flag = '0'
+        WHERE cr.del_flag = '0'
+          AND cr.member_id = #{memberId}
+        ORDER BY cr.checkin_time DESC, cr.checkin_id DESC
+    </select>
+
+</mapper>

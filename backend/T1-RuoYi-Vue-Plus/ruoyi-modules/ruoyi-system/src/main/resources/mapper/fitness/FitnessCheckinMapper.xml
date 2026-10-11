@@ -1,0 +1,107 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+    PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+    "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="org.dromara.fitness.mapper.FitnessCheckinMapper">
+
+    <sql id="checkinSelectColumns">
+        SELECT cr.checkin_id AS checkinId,
+               cr.checkin_no AS checkinNo,
+               cr.reservation_id AS reservationId,
+               r.reservation_no AS reservationNo,
+               cr.schedule_id AS scheduleId,
+               s.schedule_no AS scheduleNo,
+               s.store_id AS storeId,
+               st.store_name AS storeName,
+               s.course_id AS courseId,
+               c.course_name AS courseName,
+               c.course_type AS courseType,
+               s.coach_id AS coachId,
+               coach.coach_name AS coachName,
+               cr.member_id AS memberId,
+               m.member_no AS memberNo,
+               COALESCE(m.real_name, m.nickname) AS memberName,
+               m.mobile AS memberMobile,
+               cr.card_id AS cardId,
+               r.reservation_type AS reservationType,
+               mc.card_name AS cardName,
+               mc.plan_type AS planType,
+               mc.card_status AS cardStatus,
+
+               mc.remain_times AS remainTimes,
+               mc.balance_amount AS balanceAmount,
+               s.schedule_date AS scheduleDate,
+               s.start_time AS startTime,
+               s.end_time AS endTime,
+               cr.checkin_type AS checkinType,
+               cr.checkin_time AS checkinTime,
+               cr.consume_times AS consumeTimes,
+               cr.consume_amount AS consumeAmount,
+               cr.operator_user_id AS operatorUserId,
+               su.nick_name AS operatorUserName,
+               cr.checkin_status AS checkinStatus,
+               cr.remark AS remark,
+               cr.create_time AS createTime
+    </sql>
+
+    <sql id="checkinFromJoin">
+        FROM fit_checkin_record cr
+        INNER JOIN fit_course_schedule s ON s.schedule_id = cr.schedule_id AND s.del_flag = '0'
+        LEFT JOIN fit_course_reservation r ON r.reservation_id = cr.reservation_id AND r.del_flag = '0'
+        INNER JOIN fit_member m ON m.member_id = cr.member_id AND m.del_flag = '0'
+        LEFT JOIN fit_course c ON c.course_id = s.course_id AND c.del_flag = '0'
+        LEFT JOIN fit_store st ON st.store_id = s.store_id AND st.del_flag = '0'
+        LEFT JOIN fit_coach coach ON coach.coach_id = s.coach_id AND coach.del_flag = '0'
+        LEFT JOIN fit_member_card mc ON mc.card_id = cr.card_id AND mc.del_flag = '0'
+        LEFT JOIN sys_user su ON su.user_id = cr.operator_user_id AND su.del_flag = '0'
+        WHERE cr.del_flag = '0'
+        <if test="bo != null and bo.checkinNo != null and bo.checkinNo != ''">AND cr.checkin_no LIKE CONCAT('%', #{bo.checkinNo}, '%')</if>
+        <if test="bo != null and bo.reservationNo != null and bo.reservationNo != ''">AND r.reservation_no LIKE CONCAT('%', #{bo.reservationNo}, '%')</if>
+        <if test="bo != null and bo.storeId != null">AND s.store_id = #{bo.storeId}</if>
+        <if test="bo != null and bo.scheduleId != null">AND cr.schedule_id = #{bo.scheduleId}</if>
+        <if test="bo != null and bo.memberId != null">AND cr.member_id = #{bo.memberId}</if>
+        <if test="bo != null and bo.cardId != null">AND cr.card_id = #{bo.cardId}</if>
+        <if test="bo != null and bo.coachId != null">AND s.coach_id = #{bo.coachId}</if>
+        <if test="bo != null and bo.checkinType != null and bo.checkinType != ''">AND cr.checkin_type = #{bo.checkinType}</if>
+        <if test="bo != null and bo.checkinStatus != null and bo.checkinStatus != ''">AND cr.checkin_status = #{bo.checkinStatus}</if>
+        <if test="bo != null and bo.checkinTimeStart != null">AND cr.checkin_time &gt;= #{bo.checkinTimeStart}</if>
+        <if test="bo != null and bo.checkinTimeEnd != null">AND cr.checkin_time &lt;= #{bo.checkinTimeEnd}</if>
+        <if test="bo != null and bo.scheduleDateStart != null">AND s.schedule_date &gt;= #{bo.scheduleDateStart}</if>
+        <if test="bo != null and bo.scheduleDateEnd != null">AND s.schedule_date &lt;= #{bo.scheduleDateEnd}</if>
+        <if test="bo != null and bo.keyword != null and bo.keyword != ''">
+            AND (m.real_name LIKE CONCAT('%', #{bo.keyword}, '%')
+                OR m.nickname LIKE CONCAT('%', #{bo.keyword}, '%')
+                OR m.mobile LIKE CONCAT('%', #{bo.keyword}, '%')
+                OR c.course_name LIKE CONCAT('%', #{bo.keyword}, '%')
+                OR mc.card_name LIKE CONCAT('%', #{bo.keyword}, '%'))
+        </if>
+    </sql>
+
+    <select id="selectPageCheckinList" resultType="org.dromara.fitness.domain.vo.FitnessCheckinVo">
+        <include refid="checkinSelectColumns"/>
+        <include refid="checkinFromJoin"/>
+        ORDER BY cr.checkin_time DESC, cr.checkin_id DESC
+    </select>
+
+    <select id="selectCheckinList" resultType="org.dromara.fitness.domain.vo.FitnessCheckinVo">
+        <include refid="checkinSelectColumns"/>
+        <include refid="checkinFromJoin"/>
+        ORDER BY cr.checkin_time DESC, cr.checkin_id DESC
+    </select>
+
+    <select id="selectCheckinById" resultType="org.dromara.fitness.domain.vo.FitnessCheckinVo">
+        <include refid="checkinSelectColumns"/>
+        FROM fit_checkin_record cr
+        INNER JOIN fit_course_schedule s ON s.schedule_id = cr.schedule_id AND s.del_flag = '0'
+        LEFT JOIN fit_course_reservation r ON r.reservation_id = cr.reservation_id AND r.del_flag = '0'
+        INNER JOIN fit_member m ON m.member_id = cr.member_id AND m.del_flag = '0'
+        LEFT JOIN fit_course c ON c.course_id = s.course_id AND c.del_flag = '0'
+        LEFT JOIN fit_store st ON st.store_id = s.store_id AND st.del_flag = '0'
+        LEFT JOIN fit_coach coach ON coach.coach_id = s.coach_id AND coach.del_flag = '0'
+        LEFT JOIN fit_member_card mc ON mc.card_id = cr.card_id AND mc.del_flag = '0'
+        LEFT JOIN sys_user su ON su.user_id = cr.operator_user_id AND su.del_flag = '0'
+        WHERE cr.del_flag = '0'
+          AND cr.checkin_id = #{checkinId}
+        LIMIT 1
+    </select>
+</mapper>

@@ -1,0 +1,129 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+    PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+    "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="org.dromara.fitness.mapper.FitnessReportMapper">
+
+    <select id="selectMemberReportList" resultType="org.dromara.fitness.domain.vo.FitnessMemberReportVo">
+        SELECT st.store_id AS storeId,
+               st.store_name AS storeName,
+               IFNULL(COUNT(DISTINCT CASE
+                   WHEN m.member_id IS NOT NULL
+                   <if test="bo != null and bo.startDate != null">AND m.create_time &gt;= #{bo.startDate}</if>
+                   <if test="bo != null and bo.endDate != null">AND m.create_time &lt; DATE_ADD(#{bo.endDate}, INTERVAL 1 DAY)</if>
+                   THEN m.member_id END), 0) AS newMemberCount,
+               IFNULL(COUNT(DISTINCT CASE
+                   WHEN cr.checkin_id IS NOT NULL
+                    AND cr.checkin_status = 'success'
+                   <if test="bo != null and bo.startDate != null">AND cr.checkin_time &gt;= #{bo.startDate}</if>
+                   <if test="bo != null and bo.endDate != null">AND cr.checkin_time &lt; DATE_ADD(#{bo.endDate}, INTERVAL 1 DAY)</if>
+                   THEN cr.member_id END), 0) AS activeMemberCount,
+               IFNULL(COUNT(DISTINCT CASE
+                   WHEN o.order_id IS NOT NULL
+                    AND o.order_status IN ('paid', 'refunded')
+                   <if test="bo != null and bo.startDate != null">AND o.paid_time &gt;= #{bo.startDate}</if>
+                   <if test="bo != null and bo.endDate != null">AND o.paid_time &lt; DATE_ADD(#{bo.endDate}, INTERVAL 1 DAY)</if>
+                   THEN o.member_id END), 0) AS paidMemberCount,
+               IFNULL(COUNT(DISTINCT CASE
+                   WHEN mc.card_id IS NOT NULL
+                    AND mc.card_status IN ('unused', 'active')
+                   <if test="bo != null and bo.startDate != null">AND mc.active_time &gt;= #{bo.startDate}</if>
+                   <if test="bo != null and bo.endDate != null">AND mc.active_time &lt; DATE_ADD(#{bo.endDate}, INTERVAL 1 DAY)</if>
+                   THEN mc.card_id END), 0) AS activeCardCount,
+               IFNULL(COUNT(DISTINCT CASE
+                   WHEN mc.card_id IS NOT NULL
+                    AND mc.card_status IN ('unused', 'active')
+                    AND mc.expire_time IS NOT NULL
+                    AND mc.expire_time &gt;= NOW()
+                    AND mc.expire_time &lt; DATE_ADD(NOW(), INTERVAL 7 DAY)
+                   THEN mc.card_id END), 0) AS expiringCardCount
+        FROM fit_store st
+        LEFT JOIN fit_member m ON m.home_store_id = st.store_id AND m.del_flag = '0'
+        LEFT JOIN fit_checkin_record cr ON cr.store_id = st.store_id AND cr.del_flag = '0'
+        LEFT JOIN fit_order o ON o.store_id = st.store_id AND o.del_flag = '0'
+        LEFT JOIN fit_member_card mc ON mc.store_id = st.store_id AND mc.del_flag = '0'
+        WHERE st.del_flag = '0'
+        <if test="bo != null and bo.storeId != null">AND st.store_id = #{bo.storeId}</if>
+        GROUP BY st.store_id, st.store_name
+        ORDER BY st.store_id ASC
+    </select>
+
+    <select id="selectOrderReportList" resultType="org.dromara.fitness.domain.vo.FitnessOrderReportVo">
+        SELECT o.store_id AS storeId,
+               st.store_name AS storeName,
+               o.order_type AS orderType,
+               COUNT(1) AS orderCount,
+               SUM(CASE WHEN o.order_status = 'paid' THEN 1 ELSE 0 END) AS paidOrderCount,
+               SUM(CASE WHEN o.order_status = 'refunded' THEN 1 ELSE 0 END) AS refundOrderCount,
+               IFNULL(SUM(o.payable_amount), 0) AS payableAmount,
+               IFNULL(SUM(CASE WHEN o.order_status = 'paid' THEN o.paid_amount ELSE 0 END), 0) AS paidAmount,
+               IFNULL(SUM(CASE WHEN o.order_status = 'refunded' THEN o.paid_amount ELSE 0 END), 0) AS refundAmount
+        FROM fit_order o
+        LEFT JOIN fit_store st ON st.store_id = o.store_id AND st.del_flag = '0'
+        WHERE o.del_flag = '0'
+        <if test="bo != null and bo.storeId != null">AND o.store_id = #{bo.storeId}</if>
+        <if test="bo != null and bo.startDate != null">AND o.create_time &gt;= #{bo.startDate}</if>
+        <if test="bo != null and bo.endDate != null">AND o.create_time &lt; DATE_ADD(#{bo.endDate}, INTERVAL 1 DAY)</if>
+        GROUP BY o.store_id, st.store_name, o.order_type
+        ORDER BY o.store_id ASC, o.order_type ASC
+    </select>
+
+    <select id="selectCourseReportList" resultType="org.dromara.fitness.domain.vo.FitnessCourseReportVo">
+        SELECT c.store_id AS storeId,
+               st.store_name AS storeName,
+               c.course_id AS courseId,
+               c.course_name AS courseName,
+               c.course_type AS courseType,
+               COUNT(DISTINCT s.schedule_id) AS scheduleCount,
+               COUNT(DISTINCT r.reservation_id) AS reservationCount,
+               COUNT(DISTINCT CASE WHEN cr.checkin_status = 'success' AND cr.operator_user_id IS NOT NULL THEN cr.checkin_id END) AS checkinCount,
+               IFNULL(ROUND(COUNT(DISTINCT CASE WHEN cr.checkin_status = 'success' AND cr.operator_user_id IS NOT NULL THEN cr.checkin_id END) * 100 / NULLIF(COUNT(DISTINCT r.reservation_id), 0), 2), 0) AS attendanceRate
+        FROM fit_course c
+        LEFT JOIN fit_store st ON st.store_id = c.store_id AND st.del_flag = '0'
+        LEFT JOIN fit_course_schedule s ON s.course_id = c.course_id AND s.del_flag = '0'
+            <if test="bo != null and bo.startDate != null">AND s.schedule_date &gt;= #{bo.startDate}</if>
+            <if test="bo != null and bo.endDate != null">AND s.schedule_date &lt; DATE_ADD(#{bo.endDate}, INTERVAL 1 DAY)</if>
+        LEFT JOIN fit_course_reservation r ON r.schedule_id = s.schedule_id AND r.del_flag = '0' AND r.reservation_status &lt;&gt; 'cancelled'
+        LEFT JOIN fit_checkin_record cr ON cr.reservation_id = r.reservation_id AND cr.del_flag = '0'
+        WHERE c.del_flag = '0'
+        <if test="bo != null and bo.storeId != null">AND c.store_id = #{bo.storeId}</if>
+        GROUP BY c.store_id, st.store_name, c.course_id, c.course_name, c.course_type
+        ORDER BY c.store_id ASC, c.course_id ASC
+    </select>
+
+    <select id="selectCoachStoreReportList" resultType="org.dromara.fitness.domain.vo.FitnessCoachStoreReportVo">
+        SELECT coach.store_id AS storeId,
+               st.store_name AS storeName,
+               coach.coach_id AS coachId,
+               coach.coach_name AS coachName,
+               COUNT(DISTINCT s.schedule_id) AS scheduleCount,
+               COUNT(DISTINCT r.reservation_id) AS reservationCount,
+               COUNT(DISTINCT CASE WHEN cr.checkin_status = 'success' AND cr.operator_user_id IS NOT NULL THEN cr.checkin_id END) AS checkinCount,
+               IFNULL(MAX(sales.privateCourseSalesAmount), 0) AS privateCourseSalesAmount
+        FROM fit_coach coach
+        LEFT JOIN fit_store st ON st.store_id = coach.store_id AND st.del_flag = '0'
+        LEFT JOIN fit_course_schedule s ON s.coach_id = coach.coach_id AND s.del_flag = '0'
+            <if test="bo != null and bo.startDate != null">AND s.schedule_date &gt;= #{bo.startDate}</if>
+            <if test="bo != null and bo.endDate != null">AND s.schedule_date &lt; DATE_ADD(#{bo.endDate}, INTERVAL 1 DAY)</if>
+        LEFT JOIN fit_course_reservation r ON r.schedule_id = s.schedule_id AND r.del_flag = '0' AND r.reservation_status &lt;&gt; 'cancelled'
+        LEFT JOIN fit_checkin_record cr ON cr.reservation_id = r.reservation_id AND cr.del_flag = '0'
+        LEFT JOIN (
+            SELECT mc.store_id,
+                   mc.bind_coach_id AS coach_id,
+                   SUM(o.paid_amount) AS privateCourseSalesAmount
+            FROM fit_member_card mc
+            INNER JOIN fit_order o ON o.order_id = mc.order_id AND o.del_flag = '0' AND o.order_status = 'paid'
+            WHERE mc.del_flag = '0'
+              AND mc.bind_coach_id IS NOT NULL
+              AND mc.plan_type = 'private_package'
+            <if test="bo != null and bo.storeId != null">AND mc.store_id = #{bo.storeId}</if>
+            <if test="bo != null and bo.startDate != null">AND o.paid_time &gt;= #{bo.startDate}</if>
+            <if test="bo != null and bo.endDate != null">AND o.paid_time &lt; DATE_ADD(#{bo.endDate}, INTERVAL 1 DAY)</if>
+            GROUP BY mc.store_id, mc.bind_coach_id
+        ) sales ON sales.store_id = coach.store_id AND sales.coach_id = coach.coach_id
+        WHERE coach.del_flag = '0'
+        <if test="bo != null and bo.storeId != null">AND coach.store_id = #{bo.storeId}</if>
+        GROUP BY coach.store_id, st.store_name, coach.coach_id, coach.coach_name
+        ORDER BY coach.store_id ASC, coach.coach_id ASC
+    </select>
+</mapper>

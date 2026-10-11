@@ -1,0 +1,76 @@
+# 说明：
+# 1. 本文件用于“云服务器只跑基础设施，本地电脑开发业务代码”的场景
+# 2. 当前仅保留 MySQL / Redis / MinIO 三个服务
+# 3. 端口会对外监听，请务必在阿里云安全组中仅放行你自己电脑的公网 IP
+# 4. 建议将密码写入同目录 .env 文件，不要长期使用默认值
+
+services:
+  mysql:
+    image: mysql:8.0.42
+    container_name: mysql
+    restart: unless-stopped
+    environment:
+      TZ: Asia/Shanghai
+      # 允许 root 从远程连接；更推荐业务代码使用普通账号
+      MYSQL_ROOT_HOST: "%"
+      MYSQL_ROOT_PASSWORD: ${T1_MYSQL_ROOT_PASSWORD:-}
+      MYSQL_DATABASE: ${MYSQL_DATABASE:-ry-vue}
+      # 可选：自动创建一个普通开发账号
+      MYSQL_USER: ${MYSQL_USER:-gym_dev}
+      MYSQL_PASSWORD: ${T1_MYSQL_PASSWORD:-}
+    ports:
+      - "3306:3306"
+    volumes:
+      - /docker/mysql/data:/var/lib/mysql
+      - /docker/mysql/conf:/etc/mysql/conf.d
+    command:
+      - --default-authentication-plugin=mysql_native_password
+      - --character-set-server=utf8mb4
+      - --collation-server=utf8mb4_general_ci
+      - --explicit_defaults_for_timestamp=true
+      - --lower_case_table_names=1
+    networks:
+      - infra-net
+
+  redis:
+    image: redis:7.2.8
+    container_name: redis
+    restart: unless-stopped
+    environment:
+      TZ: Asia/Shanghai
+    ports:
+      - "6379:6379"
+    volumes:
+      - /docker/redis/conf:/redis/config:rw
+      - /docker/redis/data:/redis/data:rw
+    command: redis-server /redis/config/redis.conf --requirepass ${REDIS_PASSWORD:-GymRedis@2026}
+    networks:
+      - infra-net
+
+  minio:
+    image: pgsty/minio:RELEASE.2026-02-14T12-00-00Z
+    container_name: minio
+    restart: unless-stopped
+    environment:
+      TZ: Asia/Shanghai
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-minioadmin}
+      MINIO_ROOT_PASSWORD: ${T1_MINIO_ROOT_PASSWORD:-}
+      MINIO_COMPRESS: "off"
+      MINIO_COMPRESS_EXTENSIONS: ""
+      MINIO_COMPRESS_MIME_TYPES: ""
+      # 如果后续绑定域名或 HTTPS，可再补下面两个变量
+      # MINIO_SERVER_URL: "https://your-domain:9000"
+      # MINIO_BROWSER_REDIRECT_URL: "https://your-domain:9001"
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    volumes:
+      - /docker/minio/data:/data
+      - /docker/minio/config:/root/.minio/
+    command: server --address ':9000' --console-address ':9001' /data
+    networks:
+      - infra-net
+
+networks:
+  infra-net:
+    driver: bridge

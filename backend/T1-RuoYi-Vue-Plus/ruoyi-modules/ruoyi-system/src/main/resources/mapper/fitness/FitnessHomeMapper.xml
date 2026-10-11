@@ -1,0 +1,192 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+    PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+    "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="org.dromara.fitness.mapper.FitnessHomeMapper">
+
+    <select id="selectHomeStats" resultType="org.dromara.fitness.domain.vo.FitnessHomeStatsVo">
+        SELECT
+            IFNULL((
+                SELECT COUNT(DISTINCT c.member_id)
+                FROM fit_checkin_record c
+                WHERE c.del_flag = '0'
+                  AND c.checkin_status = 'success'
+                  AND c.checkin_time >= CURDATE()
+                  AND c.checkin_time &lt; DATE_ADD(CURDATE(), INTERVAL 1 DAY)
+                <if test="bo != null and bo.storeId != null">
+                  AND c.store_id = #{bo.storeId}
+                </if>
+            ), 0) AS todayArrivalCount,
+            IFNULL((
+                SELECT COUNT(1)
+                FROM fit_member m
+                WHERE m.del_flag = '0'
+                  AND m.create_time >= CURDATE()
+                  AND m.create_time &lt; DATE_ADD(CURDATE(), INTERVAL 1 DAY)
+                <if test="bo != null and bo.storeId != null">
+                  AND m.home_store_id = #{bo.storeId}
+                </if>
+            ), 0) AS todayNewMemberCount,
+            IFNULL((
+                SELECT SUM(o.paid_amount)
+                FROM fit_order o
+                WHERE o.del_flag = '0'
+                  AND o.order_status = 'paid'
+                  AND o.paid_time >= CURDATE()
+                  AND o.paid_time &lt; DATE_ADD(CURDATE(), INTERVAL 1 DAY)
+                <if test="bo != null and bo.storeId != null">
+                  AND o.store_id = #{bo.storeId}
+                </if>
+            ), 0) AS todaySalesAmount,
+            IFNULL((
+                SELECT COUNT(1)
+                FROM fit_course_reservation r
+                    INNER JOIN fit_course_schedule s ON s.schedule_id = r.schedule_id AND s.del_flag = '0'
+                WHERE r.del_flag = '0'
+                  AND r.reservation_status &lt;&gt; 'cancelled'
+                  AND s.schedule_date = CURDATE()
+
+                <if test="bo != null and bo.storeId != null">
+                  AND r.store_id = #{bo.storeId}
+                </if>
+            ), 0) AS todayReservationCount,
+            IFNULL((
+                SELECT COUNT(1)
+                FROM fit_checkin_record c
+                WHERE c.del_flag = '0'
+                  AND c.checkin_status = 'success'
+                  AND c.checkin_time >= CURDATE()
+                  AND c.checkin_time &lt; DATE_ADD(CURDATE(), INTERVAL 1 DAY)
+                <if test="bo != null and bo.storeId != null">
+                  AND c.store_id = #{bo.storeId}
+                </if>
+            ), 0) AS todayCheckinCount,
+            IFNULL((
+                SELECT COUNT(1)
+                FROM fit_member m
+                WHERE m.del_flag = '0'
+                  AND m.create_time >= DATE_FORMAT(CURDATE(), '%Y-%m-01')
+                  AND m.create_time &lt; DATE_ADD(LAST_DAY(CURDATE()), INTERVAL 1 DAY)
+                <if test="bo != null and bo.storeId != null">
+                  AND m.home_store_id = #{bo.storeId}
+                </if>
+            ), 0) AS monthNewMemberCount,
+            IFNULL((
+                SELECT COUNT(1)
+                FROM fit_order o
+                WHERE o.del_flag = '0'
+                  AND o.order_status = 'paid'
+                  AND o.order_type = 'recharge'
+                  AND o.paid_time >= DATE_FORMAT(CURDATE(), '%Y-%m-01')
+                  AND o.paid_time &lt; DATE_ADD(LAST_DAY(CURDATE()), INTERVAL 1 DAY)
+                <if test="bo != null and bo.storeId != null">
+                  AND o.store_id = #{bo.storeId}
+                </if>
+            ), 0) AS monthRechargeOrderCount,
+            IFNULL((
+                SELECT COUNT(1)
+                FROM fit_course_reservation r
+                    INNER JOIN fit_course_schedule s ON s.schedule_id = r.schedule_id AND s.del_flag = '0'
+                WHERE r.del_flag = '0'
+                  AND r.reservation_status &lt;&gt; 'cancelled'
+                  AND s.schedule_date >= DATE_FORMAT(CURDATE(), '%Y-%m-01')
+
+                  AND s.schedule_date &lt; DATE_ADD(LAST_DAY(CURDATE()), INTERVAL 1 DAY)
+                <if test="bo != null and bo.storeId != null">
+                  AND r.store_id = #{bo.storeId}
+                </if>
+            ), 0) AS monthReservationCount,
+            IFNULL((
+                SELECT SUM(oi.real_amount)
+                FROM fit_order_item oi
+                    INNER JOIN fit_order o ON o.order_id = oi.order_id AND o.del_flag = '0'
+                    INNER JOIN fit_card_plan p ON p.plan_id = oi.item_ref_id AND p.del_flag = '0'
+                WHERE oi.del_flag = '0'
+                  AND oi.item_type = 'card_plan'
+                  AND o.order_status = 'paid'
+                  AND p.plan_type = 'private_package'
+                  AND o.paid_time >= DATE_FORMAT(CURDATE(), '%Y-%m-01')
+                  AND o.paid_time &lt; DATE_ADD(LAST_DAY(CURDATE()), INTERVAL 1 DAY)
+                <if test="bo != null and bo.storeId != null">
+                  AND o.store_id = #{bo.storeId}
+                </if>
+            ), 0) AS monthPrivateCourseSalesAmount,
+            IFNULL((
+                SELECT COUNT(1)
+                FROM fit_course_reservation r
+                    INNER JOIN fit_course_schedule s ON s.schedule_id = r.schedule_id AND s.del_flag = '0'
+                WHERE r.del_flag = '0'
+                  AND r.reservation_status = 'reserved'
+                  AND s.schedule_date = CURDATE()
+                <if test="bo != null and bo.storeId != null">
+                  AND r.store_id = #{bo.storeId}
+                </if>
+            ), 0) AS pendingCheckinCount,
+            IFNULL((
+                SELECT COUNT(1)
+                FROM fit_course_reservation r
+                    INNER JOIN fit_course_schedule s ON s.schedule_id = r.schedule_id AND s.del_flag = '0'
+                WHERE r.del_flag = '0'
+                  AND r.reservation_status = 'reserved'
+                  AND s.schedule_date &gt; CURDATE()
+                <if test="bo != null and bo.storeId != null">
+                  AND r.store_id = #{bo.storeId}
+                </if>
+            ), 0) AS pendingReservationCount,
+            IFNULL((
+                SELECT COUNT(1)
+                FROM fit_order o
+                WHERE o.del_flag = '0'
+                  AND o.order_status = 'pending'
+                <if test="bo != null and bo.storeId != null">
+                  AND o.store_id = #{bo.storeId}
+                </if>
+            ), 0) AS pendingOrderCount,
+            IFNULL((
+                SELECT COUNT(1)
+                FROM fit_member_card mc
+                WHERE mc.del_flag = '0'
+                  AND mc.card_status IN ('unused', 'active')
+                  AND mc.expire_time IS NOT NULL
+                  AND mc.expire_time >= CURDATE()
+                  AND mc.expire_time &lt; DATE_ADD(CURDATE(), INTERVAL 8 DAY)
+                <if test="bo != null and bo.storeId != null">
+                  AND mc.store_id = #{bo.storeId}
+                </if>
+            ), 0) AS expiringCardCount
+    </select>
+
+    <select id="selectTodayScheduleList" resultType="org.dromara.fitness.domain.vo.FitnessHomeScheduleVo">
+        SELECT s.schedule_id AS scheduleId,
+               s.schedule_no AS scheduleNo,
+               c.course_name AS courseName,
+               st.store_name AS storeName,
+               coach.coach_name AS coachName,
+               s.start_time AS startTime,
+               s.end_time AS endTime,
+               s.capacity AS capacity,
+               s.reserved_count AS reservedCount,
+               s.signed_count AS signedCount,
+               s.schedule_status AS scheduleStatus
+        FROM fit_course_schedule s
+        LEFT JOIN fit_store st ON st.store_id = s.store_id AND st.del_flag = '0'
+        LEFT JOIN fit_course c ON c.course_id = s.course_id AND c.del_flag = '0'
+        LEFT JOIN fit_coach coach ON coach.coach_id = s.coach_id AND coach.del_flag = '0'
+        WHERE s.del_flag = '0'
+          AND s.schedule_status &lt;&gt; 'cancelled'
+          AND s.schedule_date = CURDATE()
+        <if test="bo != null and bo.storeId != null">
+          AND s.store_id = #{bo.storeId}
+        </if>
+        ORDER BY CASE
+                     WHEN NOW() BETWEEN s.start_time AND s.end_time THEN 0
+                     WHEN s.start_time &gt; NOW() THEN 1
+                     ELSE 2
+                 END,
+                 s.start_time ASC,
+                 s.schedule_id ASC
+        LIMIT 4
+    </select>
+
+</mapper>
+

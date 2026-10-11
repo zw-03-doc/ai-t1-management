@@ -1,0 +1,137 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+    PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+    "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="org.dromara.fitness.mapper.FitnessScheduleMapper">
+
+    <sql id="scheduleSelectColumns">
+        SELECT t.schedule_id AS scheduleId,
+               t.schedule_no AS scheduleNo,
+               t.store_id AS storeId,
+               st.store_name AS storeName,
+               t.course_id AS courseId,
+               c.course_name AS courseName,
+               c.course_type AS courseType,
+               t.coach_id AS coachId,
+               coach.coach_name AS coachName,
+               t.schedule_date AS scheduleDate,
+               t.start_time AS startTime,
+               t.end_time AS endTime,
+               t.capacity AS capacity,
+               t.reserved_count AS reservedCount,
+               t.signed_count AS signedCount,
+               t.reservation_deadline AS reservationDeadline,
+               t.cancel_deadline AS cancelDeadline,
+               t.schedule_status AS scheduleStatus,
+               t.schedule_mode AS scheduleMode,
+               (SELECT GROUP_CONCAT(COALESCE(m.real_name, m.nickname) ORDER BY ss2.member_id SEPARATOR '、')
+
+                FROM fit_schedule_student ss2
+                INNER JOIN fit_member m ON m.member_id = ss2.member_id AND m.del_flag = '0'
+                WHERE ss2.schedule_id = t.schedule_id AND ss2.del_flag = '0') AS studentNames,
+               t.remark AS remark,
+               t.create_time AS createTime
+    </sql>
+
+    <sql id="scheduleFromJoin">
+        FROM fit_course_schedule t
+        LEFT JOIN fit_store st ON st.store_id = t.store_id AND st.del_flag = '0'
+        LEFT JOIN fit_course c ON c.course_id = t.course_id AND c.del_flag = '0'
+        LEFT JOIN fit_coach coach ON coach.coach_id = t.coach_id AND coach.del_flag = '0'
+    </sql>
+
+    <select id="selectPageScheduleList" resultType="org.dromara.fitness.domain.vo.FitnessScheduleVo">
+        <include refid="scheduleSelectColumns"/>
+        <include refid="scheduleFromJoin"/>
+        WHERE t.del_flag = '0'
+        <if test="bo != null and bo.scheduleNo != null and bo.scheduleNo != ''">AND t.schedule_no LIKE CONCAT('%', #{bo.scheduleNo}, '%')</if>
+        <if test="bo != null and bo.storeId != null">AND t.store_id = #{bo.storeId}</if>
+        <if test="bo != null and bo.coachId != null">AND t.coach_id = #{bo.coachId}</if>
+        <if test="bo != null and bo.courseId != null">AND t.course_id = #{bo.courseId}</if>
+        <if test="bo != null and bo.scheduleStatus != null and bo.scheduleStatus != ''">AND t.schedule_status = #{bo.scheduleStatus}</if>
+        <if test="bo != null and bo.scheduleMode != null and bo.scheduleMode != ''">AND t.schedule_mode = #{bo.scheduleMode}</if>
+        <if test="bo != null and bo.scheduleDateStart != null">AND t.schedule_date &gt;= #{bo.scheduleDateStart}</if>
+        <if test="bo != null and bo.scheduleDateEnd != null">AND t.schedule_date &lt;= #{bo.scheduleDateEnd}</if>
+        ORDER BY t.schedule_date DESC, t.start_time DESC, t.schedule_id DESC
+    </select>
+
+    <select id="selectScheduleList" resultType="org.dromara.fitness.domain.vo.FitnessScheduleVo">
+        <include refid="scheduleSelectColumns"/>
+        <include refid="scheduleFromJoin"/>
+        WHERE t.del_flag = '0'
+        <if test="bo != null and bo.scheduleNo != null and bo.scheduleNo != ''">AND t.schedule_no LIKE CONCAT('%', #{bo.scheduleNo}, '%')</if>
+        <if test="bo != null and bo.storeId != null">AND t.store_id = #{bo.storeId}</if>
+        <if test="bo != null and bo.coachId != null">AND t.coach_id = #{bo.coachId}</if>
+        <if test="bo != null and bo.courseId != null">AND t.course_id = #{bo.courseId}</if>
+        <if test="bo != null and bo.scheduleStatus != null and bo.scheduleStatus != ''">AND t.schedule_status = #{bo.scheduleStatus}</if>
+        <if test="bo != null and bo.scheduleMode != null and bo.scheduleMode != ''">AND t.schedule_mode = #{bo.scheduleMode}</if>
+        <if test="bo != null and bo.scheduleDateStart != null">AND t.schedule_date &gt;= #{bo.scheduleDateStart}</if>
+        <if test="bo != null and bo.scheduleDateEnd != null">AND t.schedule_date &lt;= #{bo.scheduleDateEnd}</if>
+        ORDER BY t.schedule_date DESC, t.start_time DESC, t.schedule_id DESC
+    </select>
+
+    <select id="selectScheduleById" resultType="org.dromara.fitness.domain.vo.FitnessScheduleVo">
+        <include refid="scheduleSelectColumns"/>
+        <include refid="scheduleFromJoin"/>
+        WHERE t.del_flag = '0'
+          AND t.schedule_id = #{scheduleId}
+        LIMIT 1
+    </select>
+
+    <update id="updateReservedCount">
+        UPDATE fit_course_schedule
+        SET reserved_count = CASE
+                                WHEN reserved_count + #{delta} &lt; 0 THEN 0
+                                ELSE reserved_count + #{delta}
+                             END,
+            update_time = NOW()
+        WHERE schedule_id = #{scheduleId}
+          AND del_flag = '0'
+          AND (reserved_count + #{delta} >= 0)
+          AND (#{delta} &lt;= 0 OR reserved_count &lt; capacity OR capacity IS NULL)
+    </update>
+
+    <update id="updateSignedCount">
+        UPDATE fit_course_schedule
+        SET signed_count = CASE
+                              WHEN signed_count + #{delta} &lt; 0 THEN 0
+                              ELSE signed_count + #{delta}
+                           END,
+            update_time = NOW()
+        WHERE schedule_id = #{scheduleId}
+          AND del_flag = '0'
+    </update>
+
+    <select id="selectCourseTypeById" resultType="java.lang.String">
+        SELECT course_type
+        FROM fit_course
+        WHERE course_id = #{courseId}
+          AND del_flag = '0'
+        LIMIT 1
+    </select>
+
+    <delete id="deleteScheduleStudents">
+        DELETE FROM fit_schedule_student
+        WHERE schedule_id = #{scheduleId}
+    </delete>
+
+    <insert id="batchInsertScheduleStudents">
+        INSERT INTO fit_schedule_student(
+            tenant_id, schedule_id, member_id,
+            attendance_status, remind_status, create_time, update_time, del_flag
+        ) VALUES
+        <foreach collection="memberIds" item="memberId" separator=",">
+            (#{tenantId}, #{scheduleId}, #{memberId}, 'pending', '0', NOW(), NOW(), '0')
+        </foreach>
+    </insert>
+
+
+    <select id="selectScheduleStudentIds" resultType="java.lang.Long">
+        SELECT member_id
+        FROM fit_schedule_student
+        WHERE schedule_id = #{scheduleId}
+          AND del_flag = '0'
+        ORDER BY member_id ASC
+    </select>
+
+</mapper>
