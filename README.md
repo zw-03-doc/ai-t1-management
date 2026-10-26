@@ -69,5 +69,7 @@ npm run build:mp-weixin
 - [课程、门店、教练、预约与签到规则](docs/fitness-booking-and-checkin.md)
 - [训练计划、顺延、实际记录与附件授权](docs/training-design.md)
 - [隔离部署、初始化、升级与回退](deploy/README.md)
+- [2026-10-26 部署记录](deploy/DEPLOYMENT-2026-10-26.md)
+- [2026-10-26 验证结果与待验证事项](docs/verification-2026-10-26.md)
 
 管理端 `https://t1.wedodiary.top/`，会员/教练网页 `https://t1.wedodiary.top/app/`。价格只展示，课程咨询通过负责私教微信号进行，不接入线上支付。教练网页使用管理员创建的账号；会员网页使用小程序“我的”中生成的一次性登录码。
