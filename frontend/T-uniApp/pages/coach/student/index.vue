@@ -34,6 +34,7 @@
 							<text class="remain-label">剩余课次</text>
 						</view>
 					</view>
+					<button size="mini" @tap="goPage('/pages/training/index?role=coach&memberId=' + item.memberId)">定制 / 查看训练计划</button>
 					<view class="info-grid">
 						<view class="info-item">
 							<text class="info-label">最近到店</text>

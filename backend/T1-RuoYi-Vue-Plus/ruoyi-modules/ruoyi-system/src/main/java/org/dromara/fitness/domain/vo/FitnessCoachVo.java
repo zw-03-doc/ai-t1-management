@@ -125,4 +125,6 @@ public class FitnessCoachVo implements Serializable {
     @ExcelProperty(value = "创建时间")
     private Date createTime;
 
+
+    private String contactWechat;
 }

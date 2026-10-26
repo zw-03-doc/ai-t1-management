@@ -1,4 +1,4 @@
-export const DEFAULT_API_BASE_URL = 'http://127.0.0.1:8080'
+export const DEFAULT_API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'https://t1.wedodiary.top/prod-api'
 
 export const API_BASE_URL = uni.getStorageSync('T1_API_BASE_URL') || DEFAULT_API_BASE_URL
 

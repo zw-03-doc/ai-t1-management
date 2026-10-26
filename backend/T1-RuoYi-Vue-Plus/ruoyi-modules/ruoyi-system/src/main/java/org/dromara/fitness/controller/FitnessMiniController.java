@@ -38,7 +38,7 @@ public class FitnessMiniController extends BaseController {
 
     @SaCheckLogin
     @RepeatSubmit
-    @RateLimiter(time = 60, count = 1, message = "操作过于频繁，请稍后再试")
+    @RateLimiter(key = "#{T(org.dromara.common.satoken.utils.LoginHelper).getUserId()}", time = 60, count = 1, message = "操作过于频繁，请稍后再试")
     @PostMapping("/auth/bindPhone")
     public R<Void> bindPhone(@Validated @RequestBody FitnessMiniBo.BindPhoneBo bo) {
         fitnessMiniService.bindPhone(bo);
@@ -83,7 +83,7 @@ public class FitnessMiniController extends BaseController {
 
     @SaCheckLogin
     @RepeatSubmit
-    @RateLimiter(time = 1, count = 5, message = "操作过于频繁，请稍后再试")
+    @RateLimiter(key = "#{T(org.dromara.common.satoken.utils.LoginHelper).getUserId()}", time = 1, count = 5, message = "操作过于频繁，请稍后再试")
     @PostMapping("/reservation")
     public R<FitnessMiniVo.ReservationVo> createReservation(@Validated @RequestBody FitnessMiniBo.ReservationCreateBo bo) {
         return R.ok(fitnessMiniService.createReservation(bo));
@@ -97,7 +97,7 @@ public class FitnessMiniController extends BaseController {
 
     @SaCheckLogin
     @RepeatSubmit
-    @RateLimiter(time = 1, count = 5, message = "操作过于频繁，请稍后再试")
+    @RateLimiter(key = "#{T(org.dromara.common.satoken.utils.LoginHelper).getUserId()}", time = 1, count = 5, message = "操作过于频繁，请稍后再试")
     @PutMapping("/reservation/{reservationId}/cancel")
     public R<Void> cancelReservation(@PathVariable Long reservationId) {
         fitnessMiniService.cancelReservation(reservationId);
@@ -136,7 +136,7 @@ public class FitnessMiniController extends BaseController {
 
     @SaCheckLogin
     @RepeatSubmit
-    @RateLimiter(time = 1, count = 3, message = "操作过于频繁，请稍后再试")
+    @RateLimiter(key = "#{T(org.dromara.common.satoken.utils.LoginHelper).getUserId()}", time = 1, count = 3, message = "操作过于频繁，请稍后再试")
     @PostMapping("/order")
 
     public R<FitnessMiniVo.OrderVo> createOrder(@Validated @RequestBody FitnessMiniBo.OrderCreateBo bo) {
@@ -163,7 +163,7 @@ public class FitnessMiniController extends BaseController {
 
     @SaCheckLogin
     @RepeatSubmit
-    @RateLimiter(time = 1, count = 3, message = "操作过于频繁，请稍后再试")
+    @RateLimiter(key = "#{T(org.dromara.common.satoken.utils.LoginHelper).getUserId()}", time = 1, count = 3, message = "操作过于频繁，请稍后再试")
     @PostMapping("/checkin")
     public R<FitnessMiniVo.CheckinVo> createCheckin(@Validated @RequestBody FitnessMiniBo.CheckinCreateBo bo) {
         return R.ok(fitnessMiniService.createCheckin(bo));

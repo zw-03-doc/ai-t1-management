@@ -174,7 +174,7 @@ export function request(options = {}) {
 						resolve(resolveSuccessPayload(result))
 						return
 					}
-					if (response.statusCode === 503 && retryCount < 1) {
+					if (method === 'GET' && response.statusCode === 503 && retryCount < 1) {
 						retryCount++
 						doRequest()
 						return
@@ -189,7 +189,7 @@ export function request(options = {}) {
 				fail: (error) => {
 					clearTimeout(weakNetworkTimer)
 					const errMsg = normalizeErrorMessage(error && error.errMsg, '网络请求失败')
-					if (retryCount < 1 && /timeout/i.test(String(error && error.errMsg || ''))) {
+					if (method === 'GET' && retryCount < 1 && /timeout/i.test(String(error && error.errMsg || ''))) {
 						retryCount++
 						doRequest()
 						return

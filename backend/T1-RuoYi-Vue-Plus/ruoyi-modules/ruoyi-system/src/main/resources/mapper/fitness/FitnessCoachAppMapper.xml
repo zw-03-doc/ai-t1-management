@@ -23,9 +23,10 @@
                u.status AS userStatus,
                u.password
         FROM fit_coach c
-        INNER JOIN sys_user u ON u.user_id = c.user_id AND u.del_flag = '0'
+        INNER JOIN sys_user u ON u.user_id = c.user_id AND u.tenant_id = c.tenant_id AND u.del_flag = '0'
         LEFT JOIN fit_store st ON st.store_id = c.store_id AND st.del_flag = '0'
         WHERE c.del_flag = '0'
+          AND c.tenant_id = '000000'
           AND u.user_name = #{username}
         LIMIT 1
     </select>
@@ -49,7 +50,7 @@
                u.status AS userStatus,
                u.password
         FROM fit_coach c
-        INNER JOIN sys_user u ON u.user_id = c.user_id AND u.del_flag = '0'
+        INNER JOIN sys_user u ON u.user_id = c.user_id AND u.tenant_id = c.tenant_id AND u.del_flag = '0'
         LEFT JOIN fit_store st ON st.store_id = c.store_id AND st.del_flag = '0'
         WHERE c.del_flag = '0'
           AND c.coach_id = #{coachId}
@@ -76,7 +77,7 @@
                u.status AS userStatus,
                u.password
         FROM fit_coach c
-        INNER JOIN sys_user u ON u.user_id = c.user_id AND u.del_flag = '0'
+        INNER JOIN sys_user u ON u.user_id = c.user_id AND u.tenant_id = c.tenant_id AND u.del_flag = '0'
         LEFT JOIN fit_store st ON st.store_id = c.store_id AND st.del_flag = '0'
         WHERE c.del_flag = '0'
           AND u.user_id = #{userId}
@@ -189,8 +190,8 @@
 
     <sql id="coachCheckinSelectColumns">
         SELECT cr.checkin_id AS checkinId,
-               cr.reservation_id AS reservationId,
-               cr.schedule_id AS scheduleId,
+               r.reservation_id AS reservationId,
+               r.schedule_id AS scheduleId,
                s.store_id AS storeId,
                st.store_name AS storeName,
                s.course_id AS courseId,
@@ -202,7 +203,7 @@
                m.member_id AS memberId,
                COALESCE(m.real_name, m.nickname) AS memberName,
                m.mobile AS memberMobile,
-               cr.card_id AS cardId,
+               r.card_id AS cardId,
                r.reservation_type AS reservationType,
                mc.card_name AS cardName,
                mc.plan_type AS planType,
@@ -214,14 +215,14 @@
                cr.operator_user_id AS operatorUserId,
                cr.checkin_status AS checkinStatus,
                cr.remark
-        FROM fit_checkin_record cr
-        INNER JOIN fit_course_schedule s ON s.schedule_id = cr.schedule_id AND s.del_flag = '0'
-        LEFT JOIN fit_course_reservation r ON r.reservation_id = cr.reservation_id AND r.del_flag = '0'
-        INNER JOIN fit_member m ON m.member_id = cr.member_id AND m.del_flag = '0'
+        FROM fit_course_reservation r
+        INNER JOIN fit_course_schedule s ON s.schedule_id = r.schedule_id AND s.tenant_id=r.tenant_id AND s.del_flag = '0'
+        LEFT JOIN fit_checkin_record cr ON cr.reservation_id = r.reservation_id AND cr.tenant_id=r.tenant_id AND cr.del_flag = '0'
+        INNER JOIN fit_member m ON m.member_id = r.member_id AND m.tenant_id=r.tenant_id AND m.del_flag = '0'
         LEFT JOIN fit_course c ON c.course_id = s.course_id AND c.del_flag = '0'
         LEFT JOIN fit_store st ON st.store_id = s.store_id AND st.del_flag = '0'
-        LEFT JOIN fit_member_card mc ON mc.card_id = cr.card_id AND mc.del_flag = '0'
-        WHERE cr.del_flag = '0'
+        LEFT JOIN fit_member_card mc ON mc.card_id = r.card_id AND mc.del_flag = '0'
+        WHERE r.del_flag = '0' AND r.reservation_status IN ('reserved','signed')
 
           AND s.coach_id = #{coachId}
     </sql>
@@ -231,7 +232,7 @@
         <if test="bo != null and bo.status != null and bo.status != '' and bo.status != 'all'">
             <choose>
                 <when test="bo.status == 'pending'">
-                  AND cr.checkin_status = 'success' AND cr.operator_user_id IS NULL
+                  AND (cr.checkin_id IS NULL OR (cr.checkin_status = 'success' AND cr.operator_user_id IS NULL))
                 </when>
                 <when test="bo.status == 'confirmed'">
                   AND cr.checkin_status = 'success' AND cr.operator_user_id IS NOT NULL
@@ -246,7 +247,7 @@
 
     <select id="selectCoachCheckinDetail" resultType="org.dromara.fitness.domain.vo.FitnessCoachAppVo$CheckinVo">
         <include refid="coachCheckinSelectColumns"/>
-          AND cr.reservation_id = #{reservationId}
+          AND r.reservation_id = #{reservationId}
         LIMIT 1
     </select>
 
@@ -264,6 +265,8 @@
                cr.card_id AS cardId,
                mc.card_name AS cardName,
                mc.card_status AS cardStatus,
+               mc.plan_type AS planType,
+               mc.bind_coach_id AS bindCoachId,
                mc.remain_times AS remainTimes,
                mc.balance_amount AS balanceAmount,
                cr.operator_user_id AS operatorUserId,
@@ -277,7 +280,6 @@
 
         WHERE cr.del_flag = '0'
           AND s.coach_id = #{coachId}
-          AND c.course_type IN ('private', 'small')
           AND cr.reservation_id = #{reservationId}
 
         LIMIT 1

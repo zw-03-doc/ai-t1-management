@@ -29,13 +29,13 @@
 			<view v-if="loading" class="empty">加载中...</view>
 			<view v-else-if="errorText" class="empty error" @tap="loadCurrentTabData">{{ errorText }}，点击重试</view>
 			<block v-else>
-				<view class="card" v-for="item in courseList" :key="item.courseId">
+				<view class="card" v-for="item in courseList" :key="item.courseId" @tap="openCourse(item)">
 					<view class="card-head">
 						<text class="card-title">{{ item.courseName }}</text>
 						<text class="card-tag">{{ item.courseType || '课程' }}</text>
 					</view>
 					<view class="card-desc">{{ item.storeName || '门店待定' }} · 教练 {{ item.coachName || '待安排' }}</view>
-					<view class="card-desc">时长 {{ item.durationMinutes || 0 }} 分钟 · 容量 {{ item.capacity || 0 }} 人</view>
+					<view class="card-desc">展示价 ¥{{ item.displayPrice || 0 }} · 时长 {{ item.durationMinutes || 0 }} 分钟 · 容量 {{ item.capacity || 0 }} 人</view>
 				</view>
 				<view v-if="!courseList.length" class="empty">暂无课程数据</view>
 			</block>
@@ -230,6 +230,7 @@
 			this.loadCurrentTabData()
 		},
 		methods: {
+            openCourse(item) { uni.navigateTo({url:'/pages/course/detail?id='+item.courseId}) },
 			switchTab(tab) {
 				if (this.currentTab === tab || this.loading) {
 					return
@@ -375,16 +376,16 @@
 			async buildReservationPayload(item, cardCache = {}) {
 				const payload = { scheduleId: item.scheduleId }
 				if (item.courseType === 'private' || item.courseType === 'small') {
-					const coachKey = item.coachId || 'none'
+					const coachKey = `${item.storeId || 'none'}:${item.coachId || 'none'}`
 					let cardId = cardCache[coachKey]
 					if (!cardId) {
 						cardId = await this.pickReservationCard(item)
 						if (!cardId) {
-							throw new Error('未选择卡项，已中断本次批量预约')
+							throw new Error('已取消选择，剩余课程未预约')
 						}
 						cardCache[coachKey] = cardId
 					}
-					payload.cardId = cardId
+					if (cardId !== 'without-card') payload.cardId = cardId
 				}
 				return payload
 			},
@@ -456,7 +457,7 @@
 						if (!cardId) {
 							return
 						}
-						payload.cardId = cardId
+						if (cardId !== 'without-card') payload.cardId = cardId
 					}
 					await memberCreateReservation(payload)
 					uni.showToast({ title: '预约成功', icon: 'success' })
@@ -477,7 +478,7 @@
 					if (!card || !card.cardId) {
 						return false
 					}
-					if (card.planType === 'time_card') {
+					if (card.planType === 'time_card' || card.planType === 'stored_card') {
 						return false
 					}
 					if (card.bindCoachId && scheduleItem.coachId && card.bindCoachId !== scheduleItem.coachId) {
@@ -485,17 +486,11 @@
 					}
 					return true
 				})
-				if (!availableCards.length) {
-					uni.showToast({ title: '暂无可预约私教/小班课程的卡项', icon: 'none' })
-					return null
-				}
-				if (availableCards.length === 1) {
-					return availableCards[0].cardId
-				}
+				uni.hideLoading()
 				return new Promise((resolve) => {
 					uni.showActionSheet({
-						itemList: availableCards.map((card) => `${card.cardName || '卡项'}（${card.coachName || '未绑定教练'}）`),
-						success: (res) => resolve(availableCards[res.tapIndex].cardId),
+						itemList: ['无卡预约 · 线下咨询', ...availableCards.map((card) => `${card.cardName || '卡项'}（${card.coachName || '未绑定教练'}）`)],
+						success: (res) => resolve(res.tapIndex === 0 ? 'without-card' : availableCards[res.tapIndex - 1].cardId),
 						fail: () => resolve(null)
 					})
 				})

@@ -23,6 +23,7 @@
                t.intro AS intro,
                t.hire_status AS hireStatus,
                t.remark AS remark,
+               t.contact_wechat AS contactWechat,
                t.create_time AS createTime
     </sql>
 

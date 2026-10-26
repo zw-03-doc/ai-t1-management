@@ -87,6 +87,8 @@ public final class FitnessCoachAppBo {
     @Data
     @EqualsAndHashCode(callSuper = true)
     public static class CheckinConfirmBo extends BaseEntity {
+        @jakarta.validation.constraints.Pattern(regexp = "mini|web")
+        private String source;
 
         @NotNull(message = "预约ID不能为空")
         private Long reservationId;
@@ -101,6 +103,8 @@ public final class FitnessCoachAppBo {
     @Data
     @EqualsAndHashCode(callSuper = true)
     public static class CheckinExceptionBo extends BaseEntity {
+        @jakarta.validation.constraints.Pattern(regexp = "mini|web")
+        private String source;
 
         @NotNull(message = "预约ID不能为空")
         private Long reservationId;

@@ -89,4 +89,8 @@ public class FitnessScheduleVo implements Serializable {
 
     @ExcelProperty("创建时间")
     private Date createTime;
+
+    /** Price captured when scheduling. */
+    private java.math.BigDecimal displayPrice;
+    private java.util.Date reservationOpenTime;
 }

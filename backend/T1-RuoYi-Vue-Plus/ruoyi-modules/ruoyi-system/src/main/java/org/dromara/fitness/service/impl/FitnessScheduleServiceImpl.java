@@ -20,6 +20,7 @@ import org.dromara.fitness.mapper.FitnessScheduleMapper;
 import org.dromara.fitness.service.IFitnessScheduleService;
 import org.dromara.fitness.utils.FitnessBizCodeUtils;
 import org.springframework.stereotype.Service;
+import org.dromara.fitness.service.support.FitnessOperationsService;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.ArrayList;
@@ -41,6 +42,7 @@ public class FitnessScheduleServiceImpl implements IFitnessScheduleService {
     private static final String MODE_PRIVATE = "private";
     private static final String MODE_SMALL_GROUP = "small_group";
 
+    private final FitnessOperationsService operations;
     private final FitnessScheduleMapper baseMapper;
 
     @Override
@@ -72,8 +74,8 @@ public class FitnessScheduleServiceImpl implements IFitnessScheduleService {
         add.setScheduleId(IdGeneratorUtil.nextLongId());
         add.setScheduleNo(FitnessBizCodeUtils.defaultIfBlank(bo.getScheduleNo(), "SCH"));
         add.setTenantId(currentTenantId());
-        add.setReservedCount(bo.getReservedCount() == null ? 0 : bo.getReservedCount());
-        add.setSignedCount(bo.getSignedCount() == null ? 0 : bo.getSignedCount());
+        add.setReservedCount(0);
+        add.setSignedCount(0);
         add.setScheduleStatus(StringUtils.defaultIfBlank(bo.getScheduleStatus(), "draft"));
         add.setScheduleMode(resolveScheduleMode(bo));
         validScheduleNoUnique(add.getScheduleNo(), null);
@@ -90,12 +92,24 @@ public class FitnessScheduleServiceImpl implements IFitnessScheduleService {
     @Lock4j(keys = {"'schedule:update:' + #bo.scheduleId"}, acquireTimeout = 3000)
     @Transactional(rollbackFor = Exception.class)
     public Boolean updateByBo(FitnessScheduleBo bo) {
+        FitCourseSchedule db = operations.lockSchedule(bo.getScheduleId());
         validBeforeSave(bo);
-        FitCourseSchedule db = baseMapper.selectById(bo.getScheduleId());
         if (db == null) {
             throw new ServiceException("排课不存在");
         }
+        int reserved = db.getReservedCount() == null ? 0 : db.getReservedCount();
+        if (bo.getCapacity() < reserved) throw new ServiceException("名额不得小于已预约人数");
+        if (reserved > 0 && (!Objects.equals(db.getStoreId(), bo.getStoreId()) || !Objects.equals(db.getCourseId(), bo.getCourseId())
+            || !Objects.equals(db.getCoachId(), bo.getCoachId()) || !Objects.equals(db.getStartTime(), bo.getStartTime())
+            || !Objects.equals(db.getEndTime(), bo.getEndTime())))
+            throw new ServiceException("已有预约的场次不能直接变更门店、课程、教练或时间，请取消预约后重新排课");
+        if (reserved > 0 && !Objects.equals(db.getScheduleStatus(), bo.getScheduleStatus())
+            && !"closed".equals(bo.getScheduleStatus()) && !"open".equals(bo.getScheduleStatus()))
+            throw new ServiceException("有预约的场次不能直接取消或结束，请先处理预约");
         FitCourseSchedule update = MapstructUtils.convert(bo, FitCourseSchedule.class);
+        update.setReservedCount(db.getReservedCount());
+        update.setSignedCount(db.getSignedCount());
+        update.setVersion(db.getVersion());
         update.setScheduleNo(FitnessBizCodeUtils.fillOrKeep(bo.getScheduleNo(), db.getScheduleNo(), "SCH"));
         update.setScheduleMode(resolveScheduleMode(bo));
         validScheduleNoUnique(update.getScheduleNo(), bo.getScheduleId());
@@ -107,7 +121,10 @@ public class FitnessScheduleServiceImpl implements IFitnessScheduleService {
     }
 
     @Override
+    @Transactional(rollbackFor = Exception.class)
     public Boolean cancelSchedule(Long scheduleId, String cancelReason) {
+        FitCourseSchedule current = operations.lockSchedule(scheduleId);
+        if (current.getReservedCount() != null && current.getReservedCount() > 0) throw new ServiceException("请先取消并处理此场次的预约，再取消排课");
         FitCourseSchedule update = new FitCourseSchedule();
         update.setScheduleId(scheduleId);
         update.setScheduleStatus("cancelled");
@@ -126,29 +143,18 @@ public class FitnessScheduleServiceImpl implements IFitnessScheduleService {
                 throw new ServiceException("部分排课不存在或已被删除");
             }
         }
+        for (Long id : ids) {
+            FitCourseSchedule current = operations.lockSchedule(id);
+            if (current.getReservedCount() != null && current.getReservedCount() > 0) throw new ServiceException("有预约记录的场次不能删除");
+        }
+        ids.forEach(operations::requireNoScheduleHistory);
         ids.forEach(baseMapper::deleteScheduleStudents);
         return baseMapper.deleteByIds(ids) > 0;
     }
 
     private void validBeforeSave(FitnessScheduleBo bo) {
-        if (bo.getStartTime() != null && bo.getEndTime() != null && DateUtil.compare(bo.getEndTime(), bo.getStartTime()) <= 0) {
-            throw new ServiceException("结束时间必须晚于开始时间");
-        }
-        String courseType = baseMapper.selectCourseTypeById(bo.getCourseId());
-        if (StringUtils.isBlank(courseType)) {
-            throw new ServiceException("课程不存在或已下架");
-        }
-        List<Long> memberIds = cleanMemberIds(bo.getStudentMemberIds());
-        if (isPrivateOrSmall(courseType)) {
-            if (CollUtil.isEmpty(memberIds)) {
-                throw new ServiceException("私教/小班排课需至少选择1名学员");
-            }
-            if (memberIds.size() > 5) {
-                throw new ServiceException("私教/小班排课最多选择5名学员");
-            }
-            bo.setCapacity(memberIds.size());
-        }
-        bo.setStudentMemberIds(memberIds);
+        bo.setStudentMemberIds(cleanMemberIds(bo.getStudentMemberIds()));
+        operations.prepareSchedule(bo);
     }
 
     private String resolveScheduleMode(FitnessScheduleBo bo) {

@@ -12,6 +12,8 @@ export interface FitnessScheduleVO extends BaseEntity {
   startTime?: string;
   endTime?: string;
   capacity?: number;
+  displayPrice?: number;
+  reservationOpenTime?: string;
   reservedCount?: number;
   signedCount?: number;
   reservationDeadline?: string;
@@ -46,6 +48,8 @@ export interface FitnessScheduleForm {
   startTime?: string;
   endTime?: string;
   capacity?: number;
+  displayPrice?: number;
+  reservationOpenTime?: string;
   reservedCount?: number;
   signedCount?: number;
   reservationDeadline?: string;

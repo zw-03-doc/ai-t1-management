@@ -2,8 +2,8 @@
 	<view class="checkin-page">
 		<view class="header-card">
 			<view>
-				<view class="header-title">待核销私教课</view>
-				<view class="header-desc">学员签到后，教练在这里确认到课并完成消课。</view>
+				<view class="header-title">签到与核销</view>
+				<view class="header-desc">可为本人授课的学员代签到；已签到的课程可确认到课。每次操作均留有记录。</view>
 			</view>
 			<view class="header-badge">{{ pendingCount }} 条待处理</view>
 		</view>
@@ -37,7 +37,7 @@
 					<view class="card-head">
 						<view>
 							<view class="card-title">{{ item.memberName || '会员' }}</view>
-							<view class="card-meta">{{ item.courseName || '课程待定' }} · {{ formatDateTime(item.checkinTime) }}</view>
+							<view class="card-meta">{{ item.courseName || '课程待定' }} · {{ formatDateTime(item.checkinTime || item.startTime) }}</view>
 						</view>
 						<text class="status-tag" :class="activeTab">{{ tabLabel(activeTab) }}</text>
 					</view>
@@ -45,10 +45,10 @@
 					<view class="info-row">会员卡：{{ item.cardName || '无卡签到' }}</view>
 					<view class="info-row">备注：{{ item.remark || '无' }}</view>
 					<view class="action-row" v-if="activeTab === 'pending'">
-						<view class="action-btn primary" :class="{ disabled: actioningReservationId === item.reservationId }" @tap="confirmItem(item)">
-							{{ actioningReservationId === item.reservationId ? '处理中...' : '确认核销' }}
+						<view class="action-btn primary" :class="{ disabled: actioningReservationId === item.reservationId }" @tap="item.checkinId ? confirmItem(item) : proxyItem(item)">
+							{{ actioningReservationId === item.reservationId ? '处理中...' : (item.checkinId ? '确认核销' : '代签到') }}
 						</view>
-						<view class="action-btn ghost" :class="{ disabled: actioningReservationId === item.reservationId }" @tap="markException(item)">
+						<view class="action-btn ghost" :class="{ disabled: actioningReservationId === item.reservationId }" v-if="item.checkinId" @tap="markException(item)">
 							{{ actioningReservationId === item.reservationId ? '处理中...' : '标记异常' }}
 						</view>
 					</view>
@@ -68,7 +68,7 @@
 </template>
 
 <script>
-	import { coachCheckinList, coachConfirmCheckin, coachExceptionCheckin } from '../../../api/auth'
+	import { coachCheckinList, coachConfirmCheckin, coachExceptionCheckin, coachProxyCheckin } from '../../../api/auth'
 
 	export default {
 		data() {
@@ -107,6 +107,11 @@
 			this.refreshAll()
 		},
 		methods: {
+            proxyItem(item) { uni.showModal({title:'为会员代签到',content:'请确认会员已到场。操作人、时间和来源将写入管理员行为记录。',editable:true,placeholderText:'请填写代签到原因',success:async res=>{if(!res.confirm)return; if(!res.content?.trim()){uni.showToast({title:'请填写原因',icon:'none'});return} this.actioningReservationId=item.reservationId; let source='mini';
+                // #ifdef H5
+                source='web';
+                // #endif
+                try{await coachProxyCheckin({reservationId:item.reservationId,remark:res.content,source});await this.refreshAll()}catch(e){uni.showToast({title:e.message,icon:'none'})}finally{this.actioningReservationId=null}}}) },
 			tabLabel(value) {
 				const map = { pending: '待核销', confirmed: '已完成', exception: '异常' }
 				return map[value] || '状态'
@@ -161,7 +166,17 @@
 				if (!item || !item.reservationId || this.actioningReservationId) {
 					return
 				}
-				const ok = await this.confirmDialog('确认该签到已完成核销吗？')
+				let consumeAmount = 0
+				if (item.cardId && item.planType === 'stored_card') {
+					const input = await new Promise(resolve => uni.showModal({ title: '储值卡核销金额（元）', editable: true, placeholderText: '请输入本次线下确认的金额', success: resolve, fail: () => resolve({ confirm: false }) }))
+					if (!input.confirm) return
+					consumeAmount = Number(input.content)
+					if (!Number.isFinite(consumeAmount) || consumeAmount <= 0 || !/^\d+(\.\d{1,2})?$/.test(input.content.trim())) {
+						uni.showToast({ title: '请输入正确金额，最多两位小数', icon: 'none' })
+						return
+					}
+				}
+				const ok = await this.confirmDialog(consumeAmount ? `确认从该储值卡核销 ${consumeAmount} 元吗？` : '确认该签到已完成核销吗？')
 				if (!ok) {
 					return
 				}
@@ -170,7 +185,8 @@
 					uni.showLoading({ title: '核销中...' })
 					await coachConfirmCheckin({
 						reservationId: item.reservationId,
-						consumeTimes: item.cardId && item.planType !== 'time_card' ? 1 : 0,
+						consumeTimes: item.cardId && !['time_card', 'stored_card'].includes(item.planType) ? 1 : 0,
+						consumeAmount,
 						remark: '教练端确认核销'
 					})
 

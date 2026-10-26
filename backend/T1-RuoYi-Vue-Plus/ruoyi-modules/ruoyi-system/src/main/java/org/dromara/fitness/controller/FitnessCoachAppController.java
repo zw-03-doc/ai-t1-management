@@ -29,6 +29,7 @@ public class FitnessCoachAppController extends BaseController {
     private final IFitnessCoachAppService fitnessCoachAppService;
 
     @SaIgnore
+    @RateLimiter(limitType = org.dromara.common.ratelimiter.enums.LimitType.IP, time = 60, count = 5, message = "登录尝试过于频繁，请稍后重试")
     @PostMapping("/auth/login")
     public R<FitnessCoachAppVo.LoginVo> login(@Validated @RequestBody FitnessCoachAppBo.LoginBo bo) {
         return R.ok(fitnessCoachAppService.login(bo));
@@ -41,6 +42,7 @@ public class FitnessCoachAppController extends BaseController {
     }
 
     @SaIgnore
+    @RateLimiter(limitType = org.dromara.common.ratelimiter.enums.LimitType.IP, time = 60, count = 5, message = "激活尝试过于频繁，请稍后重试")
     @PostMapping("/auth/wechatActivate")
     public R<FitnessCoachAppVo.LoginVo> wechatActivate(@Validated @RequestBody FitnessCoachAppBo.WechatActivateBo bo) {
         return R.ok(fitnessCoachAppService.wechatActivate(bo));
@@ -85,7 +87,7 @@ public class FitnessCoachAppController extends BaseController {
 
     @SaCheckLogin
     @RepeatSubmit
-    @RateLimiter(time = 1, count = 5, message = "操作过于频繁，请稍后再试")
+    @RateLimiter(key = "#{T(org.dromara.common.satoken.utils.LoginHelper).getUserId()}", time = 1, count = 5, message = "操作过于频繁，请稍后再试")
     @PostMapping("/checkin/confirm")
     public R<FitnessCoachAppVo.CheckinVo> confirmCheckin(@Validated @RequestBody FitnessCoachAppBo.CheckinConfirmBo bo) {
         return R.ok(fitnessCoachAppService.confirmCheckin(bo));
@@ -93,7 +95,7 @@ public class FitnessCoachAppController extends BaseController {
 
     @SaCheckLogin
     @RepeatSubmit
-    @RateLimiter(time = 1, count = 5, message = "操作过于频繁，请稍后再试")
+    @RateLimiter(key = "#{T(org.dromara.common.satoken.utils.LoginHelper).getUserId()}", time = 1, count = 5, message = "操作过于频繁，请稍后再试")
     @PostMapping("/checkin/exception")
     public R<FitnessCoachAppVo.CheckinVo> markException(@Validated @RequestBody FitnessCoachAppBo.CheckinExceptionBo bo) {
         return R.ok(fitnessCoachAppService.markCheckinException(bo));
@@ -119,7 +121,7 @@ public class FitnessCoachAppController extends BaseController {
 
     @SaCheckLogin
     @RepeatSubmit
-    @RateLimiter(time = 1, count = 3, message = "操作过于频繁，请稍后再试")
+    @RateLimiter(key = "#{T(org.dromara.common.satoken.utils.LoginHelper).getUserId()}", time = 1, count = 3, message = "操作过于频繁，请稍后再试")
     @PutMapping("/mine/profile")
     public R<Void> updateProfile(@RequestBody FitnessCoachAppBo.ProfileUpdateBo bo) {
         fitnessCoachAppService.updateProfile(bo);
@@ -128,7 +130,7 @@ public class FitnessCoachAppController extends BaseController {
 
     @SaCheckLogin
     @RepeatSubmit
-    @RateLimiter(time = 1, count = 3, message = "操作过于频繁，请稍后再试")
+    @RateLimiter(key = "#{T(org.dromara.common.satoken.utils.LoginHelper).getUserId()}", time = 1, count = 3, message = "操作过于频繁，请稍后再试")
     @PutMapping("/mine/password")
     public R<Void> updatePassword(@Validated @RequestBody FitnessCoachAppBo.PasswordUpdateBo bo) {
         fitnessCoachAppService.updatePassword(bo);

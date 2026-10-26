@@ -36,8 +36,6 @@
         "navigationBarTitleText": "活动卡项"
       }
     },
-
-
     {
       "path": "pages/mine/index",
       "style": {
@@ -78,6 +76,24 @@
       "path": "pages/coach/mine/index",
       "style": {
         "navigationBarTitleText": "教练我的"
+      }
+    },
+    {
+      "path": "pages/training/index",
+      "style": {
+        "navigationBarTitleText": "训练计划"
+      }
+    },
+    {
+      "path": "pages/course/detail",
+      "style": {
+        "navigationBarTitleText": "课程详情"
+      }
+    },
+    {
+      "path": "pages/coach/interest/index",
+      "style": {
+        "navigationBarTitleText": "学员课程兴趣"
       }
     }
   ],

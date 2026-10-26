@@ -18,6 +18,7 @@ import org.dromara.fitness.service.IFitnessCourseService;
 import org.dromara.fitness.utils.FitnessBizCodeUtils;
 
 import org.springframework.stereotype.Service;
+import org.dromara.fitness.service.support.FitnessOperationsService;
 
 import java.util.Collection;
 import java.util.List;
@@ -31,6 +32,7 @@ import java.util.List;
 @Service
 public class FitnessCourseServiceImpl implements IFitnessCourseService {
 
+    private final FitnessOperationsService operations;
     private final FitnessCourseMapper baseMapper;
 
     @Override
@@ -54,6 +56,7 @@ public class FitnessCourseServiceImpl implements IFitnessCourseService {
         add.setCourseId(IdGeneratorUtil.nextLongId());
         add.setTenantId(currentTenantId());
         add.setCourseNo(FitnessBizCodeUtils.defaultIfBlank(bo.getCourseNo(), "CRS"));
+        operations.prepareCourse(add, null);
         validEntityBeforeSave(add);
         boolean flag = baseMapper.insert(add) > 0;
         if (flag) {
@@ -71,6 +74,7 @@ public class FitnessCourseServiceImpl implements IFitnessCourseService {
         }
         FitCourse update = MapstructUtils.convert(bo, FitCourse.class);
         update.setCourseNo(FitnessBizCodeUtils.fillOrKeep(bo.getCourseNo(), db.getCourseNo(), "CRS"));
+        operations.prepareCourse(update, db);
         validEntityBeforeSave(update);
         return baseMapper.updateById(update) > 0;
     }
@@ -78,10 +82,12 @@ public class FitnessCourseServiceImpl implements IFitnessCourseService {
 
     @Override
     public Boolean updateStatus(Long courseId, String status) {
-        FitCourse update = new FitCourse();
-        update.setCourseId(courseId);
-        update.setStatus(status);
-        return baseMapper.updateById(update) > 0;
+        FitCourse course = baseMapper.selectById(courseId);
+        if (course == null) throw new ServiceException("课程不存在");
+        course.setStatus(status);
+        if ("0".equals(status)) course.setPublishedAt(new java.util.Date());
+        operations.prepareCourse(course, course);
+        return baseMapper.updateById(course) > 0;
     }
 
     @Override
@@ -92,6 +98,7 @@ public class FitnessCourseServiceImpl implements IFitnessCourseService {
                 throw new ServiceException("部分数据不存在或已被删除");
             }
         }
+        ids.forEach(operations::requireNoCourseHistory);
         return baseMapper.deleteByIds(ids) > 0;
     }
 

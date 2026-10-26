@@ -118,4 +118,8 @@ public class FitCourseSchedule extends TenantEntity {
      */
     @TableLogic(value = "0", delval = "2")
     private String delFlag;
+
+    /** Price captured when scheduling. */
+    private java.math.BigDecimal displayPrice;
+    private java.util.Date reservationOpenTime;
 }

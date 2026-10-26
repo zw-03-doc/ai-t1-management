@@ -30,6 +30,8 @@
                 INNER JOIN fit_member m ON m.member_id = ss2.member_id AND m.del_flag = '0'
                 WHERE ss2.schedule_id = t.schedule_id AND ss2.del_flag = '0') AS studentNames,
                t.remark AS remark,
+               t.display_price AS displayPrice,
+               t.reservation_open_time AS reservationOpenTime,
                t.create_time AS createTime
     </sql>
 

@@ -121,6 +121,20 @@ public final class FitnessMiniVo {
     @Data
     public static class CourseVo implements Serializable {
 
+    /** Display-only price in CNY; no online payment is created. */
+    private java.math.BigDecimal displayPrice;
+    private Integer listingDays;
+    private java.util.Date publishedAt;
+    private java.util.Date listingUntil;
+    private Integer bookingAdvanceDays;
+    private Integer bookingCloseMinutes;
+    private Integer cancelCloseMinutes;
+    private Integer checkinBeforeMinutes;
+    private Integer checkinAfterMinutes;
+
+        private String coachContactWechat;
+
+
         @Serial
         private static final long serialVersionUID = 1L;
 
@@ -153,6 +167,14 @@ public final class FitnessMiniVo {
 
     @Data
     public static class ScheduleVo implements Serializable {
+
+    /** Price captured when scheduling. */
+    private java.math.BigDecimal displayPrice;
+    private java.util.Date reservationOpenTime;
+
+        private Date reservationDeadline;
+        private Date cancelDeadline;
+
 
         @Serial
         private static final long serialVersionUID = 1L;

@@ -7,13 +7,13 @@
 				<image class="brand-icon" src="/static/images/brand-icon.jpg" mode="aspectFit" />
 				<view class="brand-text">
 					<text class="brand-title">T1 健身空间</text>
-					<text class="brand-subtitle">会员入口一键微信登录，教练入口首次需手机号 + 激活码完成绑定</text>
+					<text class="brand-subtitle">预约课程 · 自主签到 · 定制训练</text>
 				</view>
 			</view>
 
 			<view class="hero-copy">
 				<text class="hero-title">畅练 · 约课 · 核销</text>
-				<text class="hero-desc">会员端通过微信登录换取 openid 后自动注册/自动登录；教练端先探测当前微信，未激活时输入手机号和激活码完成首次绑定。</text>
+				<text class="hero-desc">从一节喜欢的课开始，记录每天的训练，让每一次进步看得见。</text>
 			</view>
 
 			<view class="status-bar">
@@ -30,10 +30,10 @@
 			<view class="action-group">
 				<!-- #ifdef MP-WEIXIN -->
 				<button v-if="memberLoggedIn" class="primary-btn" @tap="enterHome">进入会员首页</button>
-				<button v-else class="primary-btn" @tap="handleMemberLogin">微信登录会员首页</button>
+				<button v-else class="primary-btn" @tap="handleMemberLogin">会员登录</button>
 				<!-- #endif -->
 				<!-- #ifndef MP-WEIXIN -->
-				<button class="primary-btn" @tap="goMemberFallback">微信登录会员首页</button>
+				<button class="primary-btn" @tap="goMemberFallback">会员登录</button>
 				<!-- #endif -->
 				<button class="secondary-btn" @tap="goActivity">查看活动专区</button>
 				<button v-if="coachLoggedIn" class="coach-btn" @tap="goCoachApp">进入教练工作台</button>
@@ -47,7 +47,8 @@
 			</view>
 		</view>
 
-		<view v-if="activationPopupVisible" class="activation-mask" @tap="closeActivationPopup">
+		<view v-if="browserLogin" class="activation-mask"><view class="activation-card"><view class="activation-title">{{ browserRole === 'coach' ? '教练账号登录' : '会员网页登录' }}</view><view v-if="browserRole === 'coach'"><input v-model.trim="browserForm.username" class="form-input" placeholder="管理员分配的教练账号" /><input v-model="browserForm.password" password class="form-input" placeholder="密码" /></view><view v-else><text class="activation-desc">在微信小程序“我的”生成一次性网页登录码，然后粘贴在此处。</text><input v-model.trim="browserForm.code" class="form-input" placeholder="一次性网页登录码" /></view><view class="activation-actions"><button @tap="browserLogin=false">取消</button><button class="popup-primary-btn" :disabled="browserBusy" @tap="submitBrowserLogin">登录</button></view></view></view>
+        <view v-if="activationPopupVisible" class="activation-mask" @tap="closeActivationPopup">
 			<view class="activation-card" @tap.stop>
 				<view class="activation-header">
 					<text class="activation-title">教练身份激活</text>
@@ -74,7 +75,7 @@
 </template>
 
 <script>
-	import { coachWechatActivate, coachWechatLogin, memberWechatLogin } from '../../api/auth'
+	import { coachWechatActivate, coachWechatLogin, memberWechatLogin, coachPasswordLogin, memberWebLogin } from '../../api/auth'
 	import {
 		hasCoachSession,
 		hasMemberSession,
@@ -95,6 +96,7 @@
 		data() {
 			return {
 				targetRole: 'member',
+                browserLogin: false, browserRole: 'coach', browserForm: {username:'',password:'',code:''}, browserBusy:false,
 				targetRoute: '',
 				memberLoggedIn: false,
 				coachLoggedIn: false,
@@ -113,6 +115,7 @@
 			this.refreshLoginState()
 		},
 		methods: {
+            async submitBrowserLogin() { if(this.browserBusy)return; this.browserBusy=true; try { const coach=this.browserRole==='coach'; const result=await (coach?coachPasswordLogin({username:this.browserForm.username,password:this.browserForm.password}):memberWebLogin({code:this.browserForm.code})); (coach?saveCoachSession:saveMemberSession)(result); this.browserForm={username:'',password:'',code:''}; this.browserLogin=false; this.navigateAfterLogin(this.browserRole) } catch(e) { uni.showToast({title:e.message||'登录失败',icon:'none'}) } finally {this.browserBusy=false} },
 			decodeTarget(target) {
 				if (!target) {
 					return ''
@@ -209,7 +212,7 @@
 				await this.doMemberLogin()
 			},
 			goMemberFallback() {
-				uni.showToast({ title: '请在微信小程序内完成会员登录', icon: 'none' })
+				this.browserRole='member'; this.browserLogin=true
 			},
 			goActivity() {
 				uni.navigateTo({
@@ -220,7 +223,7 @@
 				this.navigateAfterLogin('coach')
 			},
 			goCoachFallback() {
-				uni.showToast({ title: '请在微信小程序内完成教练激活与登录', icon: 'none' })
+				this.browserRole='coach'; this.browserLogin=true
 			},
 			async handleCoachEntry() {
 				if (this.coachLoggedIn) {
@@ -260,8 +263,9 @@
 				try {
 					this.activationSubmitting = true
 					uni.showLoading({ title: '激活中...' })
+					const loginRes = await this.wxLogin()
 					const result = await coachWechatActivate({
-						openid: this.activationForm.openid,
+						code: loginRes.code,
 						mobile: this.activationForm.mobile,
 						activationCode: this.activationForm.activationCode
 					})

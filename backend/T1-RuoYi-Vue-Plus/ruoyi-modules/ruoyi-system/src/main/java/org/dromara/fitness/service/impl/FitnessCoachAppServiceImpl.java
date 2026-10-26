@@ -28,6 +28,7 @@ import org.dromara.fitness.utils.FitnessSecurityUtils;
 import org.dromara.system.domain.SysUser;
 import org.dromara.system.mapper.SysUserMapper;
 import org.springframework.stereotype.Service;
+import org.dromara.fitness.service.support.FitnessOperationsService;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
@@ -46,6 +47,7 @@ import java.util.stream.Collectors;
 @Service
 public class FitnessCoachAppServiceImpl implements IFitnessCoachAppService {
 
+    private final FitnessOperationsService operations;
     private final FitnessCoachAppMapper baseMapper;
     private final FitnessCoachMapper coachMapper;
     private final FitnessCoachWechatBindMapper coachWechatBindMapper;
@@ -56,6 +58,9 @@ public class FitnessCoachAppServiceImpl implements IFitnessCoachAppService {
 
     @Override
     public FitnessCoachAppVo.LoginVo login(FitnessCoachAppBo.LoginBo bo) {
+        String accountKey = "fitness:coach-login:" + cn.hutool.crypto.digest.DigestUtil.sha256Hex(bo.getUsername().trim().toLowerCase(java.util.Locale.ROOT));
+        if (org.dromara.common.redis.utils.RedisUtils.rateLimiter(accountKey, org.redisson.api.RateType.OVERALL, 5, 60) < 0)
+            throw new ServiceException("账号登录尝试过于频繁，请1分钟后重试");
         FitnessCoachAppVo.CoachProfileVo authInfo = baseMapper.selectCoachAuthInfo(bo.getUsername());
         validateCoachAuthInfo(authInfo, true);
         if (StringUtils.isBlank(authInfo.getPassword()) || !BCrypt.checkpw(bo.getPassword(), authInfo.getPassword())) {
@@ -160,6 +165,7 @@ public class FitnessCoachAppServiceImpl implements IFitnessCoachAppService {
     @Lock4j(keys = {"'checkin:confirm:' + #bo.reservationId"}, acquireTimeout = 3000)
     @Transactional(rollbackFor = Exception.class)
     public FitnessCoachAppVo.CheckinVo confirmCheckin(FitnessCoachAppBo.CheckinConfirmBo bo) {
+        operations.lockReservation(bo.getReservationId());
         Long coachId = FitnessSecurityUtils.getCurrentCoachId();
         Long operatorUserId = FitnessSecurityUtils.getCurrentCoachUserId();
         FitnessCoachAppVo.CheckinActionVo actionVo = baseMapper.selectCoachCheckinAction(coachId, bo.getReservationId());
@@ -178,10 +184,7 @@ public class FitnessCoachAppServiceImpl implements IFitnessCoachAppService {
 
         BigDecimal consumeAmount = bo.getConsumeAmount() == null ? BigDecimal.ZERO : bo.getConsumeAmount();
         validateCardConsume(actionVo, consumeTimes, consumeAmount);
-        int rows = baseMapper.updateCheckinConfirm(actionVo.getCheckinId(), operatorUserId, consumeTimes, consumeAmount, bo.getRemark());
-        if (rows <= 0) {
-            throw new ServiceException("确认核销失败");
-        }
+        operations.confirmRecord(actionVo.getCheckinId(), operatorUserId, consumeTimes, consumeAmount, bo.getRemark());
         baseMapper.updateScheduleSignedCount(actionVo.getScheduleId(), 1);
         if (actionVo.getCardId() != null && (consumeTimes > 0 || consumeAmount.compareTo(BigDecimal.ZERO) > 0)) {
             consumeMemberCard(actionVo.getCardId(), consumeTimes, consumeAmount);
@@ -192,6 +195,7 @@ public class FitnessCoachAppServiceImpl implements IFitnessCoachAppService {
             reservation.setReservationStatus("signed");
             reservationMapper.updateById(reservation);
         }
+        operations.audit(actionVo.getMemberId(), actionVo.getStoreId(), actionVo.getScheduleId(), bo.getReservationId(), actionVo.getCheckinId(), "coach_confirm_checkin", StringUtils.defaultIfBlank(bo.getSource(), "mini"), bo.getRemark());
         return queryCheckinDetail(bo.getReservationId());
     }
 
@@ -199,6 +203,7 @@ public class FitnessCoachAppServiceImpl implements IFitnessCoachAppService {
     @Lock4j(keys = {"'checkin:exception:' + #bo.reservationId"}, acquireTimeout = 3000)
     @Transactional(rollbackFor = Exception.class)
     public FitnessCoachAppVo.CheckinVo markCheckinException(FitnessCoachAppBo.CheckinExceptionBo bo) {
+        operations.lockReservation(bo.getReservationId());
         Long coachId = FitnessSecurityUtils.getCurrentCoachId();
         Long operatorUserId = FitnessSecurityUtils.getCurrentCoachUserId();
         FitnessCoachAppVo.CheckinActionVo actionVo = baseMapper.selectCoachCheckinAction(coachId, bo.getReservationId());
@@ -208,9 +213,8 @@ public class FitnessCoachAppServiceImpl implements IFitnessCoachAppService {
         if (actionVo.getOperatorUserId() != null && Objects.equals("success", actionVo.getCheckinStatus())) {
             throw new ServiceException("该签到已确认，不能再标记异常");
         }
-        if (baseMapper.updateCheckinException(actionVo.getCheckinId(), operatorUserId, bo.getRemark()) <= 0) {
-            throw new ServiceException("标记异常失败");
-        }
+        operations.markException(actionVo.getCheckinId(), operatorUserId, bo.getRemark());
+        operations.audit(actionVo.getMemberId(), actionVo.getStoreId(), actionVo.getScheduleId(), bo.getReservationId(), actionVo.getCheckinId(), "coach_checkin_exception", StringUtils.defaultIfBlank(bo.getSource(), "mini"), bo.getRemark());
         return queryCheckinDetail(bo.getReservationId());
     }
 
@@ -320,7 +324,7 @@ public class FitnessCoachAppServiceImpl implements IFitnessCoachAppService {
                                                    String openid,
                                                    boolean activated,
                                                    String message) {
-        FitnessSecurityUtils.loginCoach(authInfo);
+        FitnessSecurityUtils.loginCoach(authInfo, openid == null ? "web" : "mini");
         authInfo.setPassword(null);
         FitnessCoachAppVo.LoginVo loginVo = new FitnessCoachAppVo.LoginVo();
         loginVo.setAccessToken(StpUtil.getTokenValue());
@@ -335,13 +339,10 @@ public class FitnessCoachAppServiceImpl implements IFitnessCoachAppService {
     }
 
     private String resolveOpenid(String code, String openid) {
-        if (StringUtils.isBlank(openid)) {
-            FitnessWechatMiniDto.SessionInfo sessionInfo = wechatMiniAuthService.code2Session(code);
-            openid = sessionInfo.getOpenid();
-        }
-        if (StringUtils.isBlank(openid)) {
-            throw new ServiceException("微信登录失败，未获取到 openid");
-        }
+        if (StringUtils.isBlank(code)) throw new ServiceException("请通过微信登录凭证登录");
+        FitnessWechatMiniDto.SessionInfo sessionInfo = wechatMiniAuthService.code2Session(code);
+        openid = sessionInfo.getOpenid();
+        if (StringUtils.isBlank(openid)) throw new ServiceException("微信登录未返回有效身份");
         return openid;
     }
 
@@ -400,7 +401,9 @@ public class FitnessCoachAppServiceImpl implements IFitnessCoachAppService {
     }
 
     private void validateCardConsume(FitnessCoachAppVo.CheckinActionVo actionVo, int consumeTimes, BigDecimal consumeAmount) {
+        if (consumeTimes < 0 || consumeAmount.signum() < 0) throw new ServiceException("核销课次和金额不得为负数");
         if (actionVo.getCardId() == null) {
+            if (consumeTimes != 0 || consumeAmount.signum() != 0) throw new ServiceException("无卡预约不能扣除卡权益");
             return;
         }
         if (!Objects.equals("unused", actionVo.getCardStatus()) && !Objects.equals("active", actionVo.getCardStatus())) {
@@ -423,10 +426,14 @@ public class FitnessCoachAppServiceImpl implements IFitnessCoachAppService {
     }
 
     private void consumeMemberCard(Long cardId, int consumeTimes, BigDecimal consumeAmount) {
-        FitMemberCard card = memberCardMapper.selectById(cardId);
+        FitMemberCard card = memberCardMapper.selectOne(new LambdaQueryWrapper<FitMemberCard>()
+            .eq(FitMemberCard::getCardId, cardId).last("FOR UPDATE"));
         if (card == null) {
             throw new ServiceException("会员卡不存在");
         }
+        if (!StringUtils.equalsAny(card.getCardStatus(), "unused", "active")
+            || card.getExpireTime() != null && !new Date().before(card.getExpireTime())) throw new ServiceException("会员卡已失效");
+        if (consumeTimes > defaultInt(card.getRemainTimes())) throw new ServiceException("剩余课次不足");
         int usedTimes = defaultInt(card.getUsedTimes()) + Math.max(consumeTimes, 0);
         int remainTimes = Math.max(defaultInt(card.getRemainTimes()) - Math.max(consumeTimes, 0), 0);
         BigDecimal balanceAmount = defaultDecimal(card.getBalanceAmount()).subtract(consumeAmount == null ? BigDecimal.ZERO : consumeAmount);
@@ -435,6 +442,7 @@ public class FitnessCoachAppServiceImpl implements IFitnessCoachAppService {
         }
         FitMemberCard update = new FitMemberCard();
         update.setCardId(card.getCardId());
+        update.setVersion(card.getVersion());
         update.setUsedTimes(usedTimes);
         update.setRemainTimes(remainTimes);
         update.setBalanceAmount(balanceAmount);
@@ -466,6 +474,7 @@ public class FitnessCoachAppServiceImpl implements IFitnessCoachAppService {
     }
 
     private void fillCheckinStatus(FitnessCoachAppVo.CheckinVo vo) {
+        if (vo.getCheckinId() == null) { vo.setDerivedCheckinStatus(FitnessMobileConstants.CHECKIN_NOT_STARTED); return; }
         if (Objects.equals("reversed", vo.getCheckinStatus())) {
             vo.setDerivedCheckinStatus(FitnessMobileConstants.CHECKIN_EXCEPTION);
             return;

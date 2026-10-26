@@ -88,4 +88,15 @@ public class FitnessCourseBo extends BaseEntity {
      */
     private String remark;
 
+
+    /** Display-only price in CNY; no online payment is created. */
+    private java.math.BigDecimal displayPrice;
+    private Integer listingDays;
+    private java.util.Date publishedAt;
+    private java.util.Date listingUntil;
+    private Integer bookingAdvanceDays;
+    private Integer bookingCloseMinutes;
+    private Integer cancelCloseMinutes;
+    private Integer checkinBeforeMinutes;
+    private Integer checkinAfterMinutes;
 }

@@ -8,6 +8,7 @@
 			</view>
 		</view>
 
+		<view class="section-card"><button @tap="createWebCode">生成一次性网页登录码</button><view class="menu-desc">仅在你自己的浏览器登录时使用，有效期2分钟，请勿转发。</view></view>
 		<view class="stats-grid">
 			<view class="stats-item" v-for="item in stats" :key="item.label">
 				<text class="stats-value">{{ item.value }}</text>
@@ -48,7 +49,7 @@
 </template>
 
 <script>
-	import { memberBindPhone, memberMineSummary } from '../../api/auth'
+	import { memberBindPhone, memberMineSummary, memberWebCode } from '../../api/auth'
 	import { getMemberSession, saveMemberSession } from '../../utils/auth'
 
 	export default {
@@ -59,6 +60,7 @@
 				summaryError: '',
 				summary: {},
 				menuList: [
+                    { title: '训练计划', desc: '定制循环计划，记录每一组重量与训练进步', path: '/pages/training/index' },
 					{ title: '我的资料', desc: '查看昵称、手机号与个人信息', path: '/pages/mine/profile' },
 					{ title: '我的预约', desc: '查看课程预约、取消和签到状态', path: '/pages/course/index?tab=reservation' },
 					{ title: '我的权益', desc: '查看次卡、月卡、私教课包与余额', path: '/pages/course/index?tab=card' },
@@ -82,6 +84,7 @@
 			this.loadSummary()
 		},
 		methods: {
+            async createWebCode() { try { const data=await memberWebCode(); uni.setClipboardData({data:data.code}); uni.showModal({title:'网页登录码已复制',content:'请在 t1.wedodiary.top/app/ 的会员入口粘贴。2分钟后过期，使用一次后失效。',showCancel:false}) } catch(e) { uni.showToast({title:e.message,icon:'none'}) } },
 			async loadSummary() {
 				if (this.loading) {
 					return

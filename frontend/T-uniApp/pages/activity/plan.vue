@@ -2,7 +2,7 @@
 	<view class="page-wrap">
 		<view class="header-card">
 			<text class="header-title">活动优惠卡项</text>
-			<text class="header-desc">展示正常卡项与活动卡优惠信息，线上支付暂未开放</text>
+			<text class="header-desc">展示门店卡项与活动优惠，请联系教练线下咨询</text>
 		</view>
 
 		<scroll-view class="type-scroll" scroll-x>

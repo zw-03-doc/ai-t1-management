@@ -196,6 +196,16 @@
                s.store_name AS storeName,
                c.default_coach_id AS defaultCoachId,
                coach.coach_name AS coachName,
+               c.display_price AS displayPrice,
+               c.listing_days AS listingDays,
+               c.published_at AS publishedAt,
+               c.listing_until AS listingUntil,
+               c.booking_advance_days AS bookingAdvanceDays,
+               c.booking_close_minutes AS bookingCloseMinutes,
+               c.cancel_close_minutes AS cancelCloseMinutes,
+               c.checkin_before_minutes AS checkinBeforeMinutes,
+               c.checkin_after_minutes AS checkinAfterMinutes,
+               coach.contact_wechat AS coachContactWechat,
                c.duration_minutes AS durationMinutes,
                c.capacity,
                c.cover_url AS coverUrl,
@@ -207,6 +217,8 @@
         LEFT JOIN fit_coach coach ON coach.coach_id = c.default_coach_id AND coach.del_flag = '0'
         WHERE c.del_flag = '0'
           AND c.status = '0'
+          AND (c.published_at IS NULL OR c.published_at &lt;= NOW())
+          AND (c.listing_until IS NULL OR c.listing_until &gt; NOW())
         <if test="bo != null and bo.storeId != null">
           AND c.store_id = #{bo.storeId}
         </if>
@@ -227,6 +239,16 @@
                s.store_name AS storeName,
                c.default_coach_id AS defaultCoachId,
                coach.coach_name AS coachName,
+               c.display_price AS displayPrice,
+               c.listing_days AS listingDays,
+               c.published_at AS publishedAt,
+               c.listing_until AS listingUntil,
+               c.booking_advance_days AS bookingAdvanceDays,
+               c.booking_close_minutes AS bookingCloseMinutes,
+               c.cancel_close_minutes AS cancelCloseMinutes,
+               c.checkin_before_minutes AS checkinBeforeMinutes,
+               c.checkin_after_minutes AS checkinAfterMinutes,
+               coach.contact_wechat AS coachContactWechat,
                c.duration_minutes AS durationMinutes,
                c.capacity,
                c.cover_url AS coverUrl,
@@ -237,6 +259,9 @@
         LEFT JOIN fit_store s ON s.store_id = c.store_id AND s.del_flag = '0'
         LEFT JOIN fit_coach coach ON coach.coach_id = c.default_coach_id AND coach.del_flag = '0'
         WHERE c.del_flag = '0'
+          AND c.status = '0'
+          AND (c.published_at IS NULL OR c.published_at &lt;= NOW())
+          AND (c.listing_until IS NULL OR c.listing_until &gt; NOW())
           AND c.course_id = #{courseId}
         LIMIT 1
     </select>
@@ -249,6 +274,16 @@
                s.store_name AS storeName,
                c.default_coach_id AS defaultCoachId,
                coach.coach_name AS coachName,
+               c.display_price AS displayPrice,
+               c.listing_days AS listingDays,
+               c.published_at AS publishedAt,
+               c.listing_until AS listingUntil,
+               c.booking_advance_days AS bookingAdvanceDays,
+               c.booking_close_minutes AS bookingCloseMinutes,
+               c.cancel_close_minutes AS cancelCloseMinutes,
+               c.checkin_before_minutes AS checkinBeforeMinutes,
+               c.checkin_after_minutes AS checkinAfterMinutes,
+               coach.contact_wechat AS coachContactWechat,
                c.duration_minutes AS durationMinutes,
                c.capacity,
                c.cover_url AS coverUrl,
@@ -260,7 +295,8 @@
         LEFT JOIN fit_coach coach ON coach.coach_id = c.default_coach_id AND coach.del_flag = '0'
         WHERE c.del_flag = '0'
           AND c.status = '0'
-          AND c.course_type NOT IN ('private', 'small')
+          AND (c.published_at IS NULL OR c.published_at &lt;= NOW())
+          AND (c.listing_until IS NULL OR c.listing_until &gt; NOW())
         ORDER BY c.course_id DESC
         LIMIT 6
 
@@ -281,6 +317,10 @@
                s.capacity,
                s.reserved_count AS reservedCount,
                s.signed_count AS signedCount,
+               s.display_price AS displayPrice,
+               s.reservation_open_time AS reservationOpenTime,
+               s.reservation_deadline AS reservationDeadline,
+               s.cancel_deadline AS cancelDeadline,
                (s.capacity - s.reserved_count) AS availableCount,
                s.schedule_status AS scheduleStatus,
                CASE WHEN r.reservation_id IS NOT NULL THEN TRUE ELSE FALSE END AS reservedByMe,
@@ -295,9 +335,13 @@
 
         LEFT JOIN fit_checkin_record cr ON cr.reservation_id = r.reservation_id AND cr.del_flag = '0'
         WHERE s.del_flag = '0'
-          AND s.schedule_status &lt;&gt; 'cancelled'
+          AND s.schedule_status = 'open'
+          AND c.status = '0'
+          AND (c.published_at IS NULL OR c.published_at &lt;= NOW())
+          AND (c.listing_until IS NULL OR c.listing_until &gt; NOW())
           AND s.end_time &gt; NOW()
-          AND c.course_type NOT IN ('private', 'small')
+          AND (NOT EXISTS (SELECT 1 FROM fit_schedule_student ss WHERE ss.schedule_id=s.schedule_id AND ss.tenant_id=s.tenant_id AND ss.del_flag='0')
+            OR EXISTS (SELECT 1 FROM fit_schedule_student ss WHERE ss.schedule_id=s.schedule_id AND ss.tenant_id=s.tenant_id AND ss.del_flag='0' AND ss.member_id=#{memberId}))
 
 
         <if test="bo != null and bo.storeId != null">
@@ -458,6 +502,8 @@
             update_time = NOW()
         WHERE schedule_id = #{scheduleId}
           AND del_flag = '0'
+          AND reserved_count + #{delta} &gt;= 0
+          AND (#{delta} &lt;= 0 OR (schedule_status = 'open' AND reserved_count &lt; capacity))
     </update>
 
     <select id="selectMyReservationList" resultType="org.dromara.fitness.domain.vo.FitnessMiniVo$ReservationVo">

@@ -100,6 +100,7 @@
 				loading: false,
 				overview: {},
 				quickList: [
+                    {title:'课程兴趣',desc:'查看学员关注的课程',icon:'↗',url:'/pages/coach/interest/index'},
 					{ title: '我的排课', desc: '查看今日与本周课程', icon: '🗓', url: '/pages/coach/schedule/index' },
 					{ title: '待核销', desc: '处理签到与消课', icon: '✅', url: '/pages/coach/checkin/index' },
 					{ title: '我的学员', desc: '查看学员和卡项', icon: '👥', url: '/pages/coach/student/index' },

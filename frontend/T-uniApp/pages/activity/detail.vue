@@ -27,7 +27,7 @@
 			</view>
 
 			<view class="panel action-panel">
-				<view class="action-tip">一期暂不支持线上支付，按活动类型查看优惠卡项或联系门店咨询。</view>
+				<view class="action-tip">按活动类型查看优惠卡项，联系门店或负责教练线下咨询。</view>
 				<button class="btn primary" @tap="handlePrimaryAction">{{ primaryActionText }}</button>
 				<button class="btn ghost" @tap="goBack">返回活动列表</button>
 			</view>
