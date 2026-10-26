@@ -35,8 +35,18 @@
 
 微信模拟器中的训练样例仅用于本机视觉验收，所有请求被本地 mock 拦截，拒绝写入且不联网；不作为真实会员或生产业务数据。验收完成后恢复原接口与登录状态。
 
-H5 与微信构建均通过。微信官方工具验收入口、指南、动作搜索、训练首页与逐组记录。逐组记录使用上述本机样例；禁用按钮采用明确暗底浅字，避免微信默认样式使文字不可辨认。
+H5 与微信构建均通过。微信官方工具验收入口、指南、动作搜索、会员首页、约课页、训练首页、逐组记录和教练工作台。登录后的页面使用上述本机样例；禁用按钮采用明确暗底浅字，避免微信默认样式使文字不可辨认。
 
 `frontend/T-uniApp` 下运行 `npm run test:training-ui`，16 项离线回归覆盖实际组筛选、热身/正式与 kg/lb、自重 0、历史组复用、公开模板与素材引用、教练会员参数、模板跳转、后台计时恢复、素材卸载、保存期间返回保护、热身-only 统计与微信模板编译。
 
 浏览器图形自动化因无法可靠识别 Windows 当前网址停止，H5 使用构建产物与 HTTP 访问检查，不宣称完成浏览器点击验收。
+
+## 微信模拟器截图
+
+[入口](ui-preview/portal.png) · [免费模板](ui-preview/guide.png) · [动作搜索](ui-preview/exercise-search.png)。
+
+[会员首页](ui-preview/home-example.png) · [约课](ui-preview/course-example.png) · [训练首页](ui-preview/training-example.png) · [逐组记录](ui-preview/workout-example.png) · [教练工作台](ui-preview/coach-example.png)：这五张明确使用“界面验收示例”，不是会员真实记录。验收完成后已恢复 wx.request 与 getStorageSync，没有向设备存储或生产写入样例身份。
+
+## 发布结果
+
+H5 于北京时间 17:59:49 更新为 `20261026-fitness-r4-final2`，对应界面源码 `024ab30`。全部 59 个 H5 文件通过 HTTPS 与 SHA-256 校验。管理后台继续使用 r2，API 继续使用 r3；数据库、Redis 与既有 OPS 服务保持运行。详见[部署记录](../deploy/DEPLOYMENT-2026-10-26.md)。

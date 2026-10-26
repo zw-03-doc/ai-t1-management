@@ -1,6 +1,6 @@
 # 2026-10-26 T1 部署记录
 
-北京时间 16:36 已将 `20261026-fitness-r3` 设为当前发布，应用源码基准为 `9adf0aa`。本轮只替换T1 API，前端继续运行字节一致的r2产物，数据库不重复初始化。
+北京时间 17:59:49 已将 `20261026-fitness-r4-final2` 设为当前发布，会员／教练 H5 对应源码 `024ab30f7a805b9be14deed1df04c9b5808cd7a2`。此次只更新T1 Web容器中的H5，管理后台与网关配置继续使用r2，API继续使用16:36发布的r3（源码 `9adf0aa`），数据库和Redis不变。完整r3发布目录与发布回执备份均保留。
 
 | 项目 | 实际结果 |
 | --- | --- |
@@ -9,11 +9,33 @@
 | 管理端 | `https://t1.wedodiary.top/` |
 | 会员／教练 H5 | `https://t1.wedodiary.top/app/` |
 | API | `https://t1.wedodiary.top/prod-api/` |
-| 当前发布 | `/opt/t1-management/current` → `/opt/t1-management/releases/20261026-fitness-r3` |
-| 发布包 SHA-256 | `25abea7237a2d37d9ee05bfc9bf5e91e22b77911c222c1c622ff1b106cf074cf` |
-| 后端 JAR SHA-256 | `8d9fa387cbde1bf5e81e7ff4a1f6ede05fb1154750cf5f13020b7d67e10e77de` |
+| 当前发布 | `/opt/t1-management/current` → `/opt/t1-management/releases/20261026-fitness-r4-final2` |
+| H5发布包 SHA-256 | `36ff9d000f60514e22148c4e79145c41cd0de489d6f311e0bdf31b822a5792ff` |
+| H5 manifest SHA-256 | `fc62dc93d31cbd8e69eccd8bec0bac6f63a24ec0da7cc1ec883df751fb1a1592` |
+| API发布 | `20261026-fitness-r3`，本次未重建 |
+| 后端 JAR SHA-256 | `8d9fa387cbde1bf5e81e7ff4a1f6ede05fb1154750cf5f13020b7d67e10e77de`，保持不变 |
+| 管理后台发布 | `20261026-fitness-r2`，476个文件保持不变 |
 
-## 已执行的验证
+## H5改版发布与验证（r4-final2）
+
+- 先核对源码与 `024ab30` 一致且前端工作区无未提交修改，再打包最新H5。发布包61个文件逐项校验通过；manifest记录17个改版页面、24项动作说明，以及5张与改版前Git版本逐字节一致的原图。
+- 新H5共59个文件，全部通过真实HTTPS请求与SHA-256逐项校验，包含页面入口、分包JS、CSS和图片。管理后台476个文件与r2 manifest逐项一致，管理主页及3个入口资源另外通过HTTP内容哈希检查。
+- 只执行指定 `web` 服务的 `up --no-deps --no-build --pull never`。API、MySQL、Redis、OPS Web/API/PostgreSQL共6个受保护容器的ID、启动时间、重启计数完全不变；共用网关未reload，未运行任何SQL。
+- 发布前后管理端与H5均HTTP200，`/prod-api/auth/code` HTTP200且业务码200；OPS为200，studio为302，结果一致。18:00:26从独立服务器再次核对系统可信证书链、准确主机名和TLS 1.3，H5主页字节与最终构建一致。
+- 新compose明确固定API JAR及配置挂载r3、管理后台及 `web.conf` 挂载r2、仅H5挂载r4-final2。因此 `current` 表示当前组合发布，不能把API误记为已升级到r4。
+- 先前r4、r4-final仅作为历史候选保留，不是回退目标。第一次候选切换因校验脚本把 `/app/assets/` 拼成错误路径而自动回退；修正后先完整核验旧H5的51个文件，再发布包含微信禁用按钮样式修复的r4-final2。本段最终验证均针对r4-final2。
+
+本次服务器证据：`/opt/t1-management/before-r4-final2.json`、当前回执 `deployment-receipt.json`、r4-final2目录中的 `manifest.json` 与 `static-verification.json`。切换前回执保存在 `/opt/t1-management/deployment-receipt-r3-before-ui-final2.json`；本机受限副本位于 `deploy/local/`，不提交Git。
+
+如需回退本次UI，先仅恢复Web：
+
+```sh
+docker compose -f /opt/t1-management/releases/20261026-fitness-r2/compose.yml up --no-deps --no-build --pull never -d web
+```
+
+核对旧H5、管理端、API与受保护容器后，把 `current` 恢复到完整r3目录，并用 `deployment-receipt-r3-before-ui-final2.json` 恢复当前回执。无需数据库回退、重建API或重启OPS。
+
+## 后端与基础设施验证（r3）
 
 - 从独立服务器在 16:06 查询 DNS，返回 `8.148.222.89`；HTTPS 按系统可信根和准确主机名验证通过，使用 TLS 1.3。
 - Let's Encrypt 证书匹配 `t1.wedodiary.top`。首次签发遇到目标机到CA的出站网络问题，经本次临时SSH通道完成后关闭通道；16:40:58–16:42:30 又清除代理环境，直接从目标机执行一次真实强制续签，成功签发、安装并reload。16:46从独立服务器验证公网实际使用新证书，TLS 1.3及系统可信链通过，有效期至北京时间2027-01-24 15:43。既有续签timer为active，安装路径与reload hook已登记，临时通道端口未监听；这验证了当前可直接续签，未提前宣称未来定时周期已发生。
