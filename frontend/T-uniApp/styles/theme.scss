@@ -1,0 +1,65 @@
+/* Shared T1 palette. Page components retain their own layout. */
+page {
+  --t1-bg: #111211;
+  --t1-surface: #1c1d1b;
+  --t1-text: #f6f4ef;
+  --t1-muted: #a2a49c;
+  --t1-accent: #ff7a35;
+  --t1-border: #30322f;
+  background: #111211;
+  color: #f6f4ef;
+  font-family:
+    -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei",
+    sans-serif;
+  font-size: 28rpx;
+  line-height: 1.55;
+}
+view,
+text,
+button,
+input,
+textarea {
+  box-sizing: border-box;
+}
+image {
+  display: block;
+}
+button {
+  font-family: inherit;
+}
+button::after {
+  border: 0;
+}
+button[disabled] {
+  background: #33362e !important;
+  color: #bfc3b7 !important;
+  opacity: 1 !important;
+}
+input,
+textarea {
+  caret-color: #ff7a35;
+}
+.t1-page {
+  width: 100%;
+  max-width: 760px;
+  margin: 0 auto;
+  padding: 32rpx 32rpx calc(164rpx + env(safe-area-inset-bottom));
+}
+.t1-label {
+  color: #a2a49c;
+  font-size: 23rpx;
+  letter-spacing: 2rpx;
+}
+.t1-card {
+  background: #1c1d1b;
+  border: 1px solid #30322f;
+  border-radius: 20rpx;
+  padding: 28rpx;
+}
+.t1-primary {
+  background: #ff7a35;
+  color: #17130f;
+  border-radius: 16rpx;
+  min-height: 92rpx;
+  font-weight: 700;
+}
