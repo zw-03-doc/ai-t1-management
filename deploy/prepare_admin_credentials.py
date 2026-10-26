@@ -54,6 +54,10 @@ def main() -> None:
     sql_path = local / ("rotate-admin.sql" if args.rotate else "bootstrap-admin.sql")
     sql_path.write_text(sql, encoding="utf-8")
     sql_path.chmod(0o600)
+    if args.rotate:
+        # An old bootstrap file would contain passwords that no longer match
+        # administrator.json, and must not be reused for a fresh installation.
+        (local / "bootstrap-admin.sql").unlink(missing_ok=True)
     print(f"Prepared {PASSWORD_LENGTH}-character credentials in {path}")
     print(f"SQL: {sql_path}; after applying a rotation, clear the sys_config cache through the administrator API")
 
