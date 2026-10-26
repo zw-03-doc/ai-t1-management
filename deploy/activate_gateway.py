@@ -58,7 +58,15 @@ def main():
         raise
     result = {"release": release.name, "backup": str(backup), "gateway_sha256": hashlib.sha256(destination.read_bytes()).hexdigest(), "checked_at": time.strftime("%Y-%m-%dT%H:%M:%S%z")}
     for host in ["t1.wedodiary.top", "ops.wedodiary.top", "studio.wedodiary.top"]:
-        response = run(["curl", "--max-time", "20", "--resolve", f"{host}:443:127.0.0.1", "--silent", "--show-error", "-o", "/dev/null", "-w", "%{http_code}", f"https://{host}/"])
+        # nginx -s reload only acknowledges the signal. Old workers can briefly
+        # serve their previous certificate before the new configuration is live.
+        for attempt in range(5):
+            response = subprocess.run(["curl", "--max-time", "20", "--resolve", f"{host}:443:127.0.0.1", "--silent", "--show-error", "-o", "/dev/null", "-w", "%{http_code}", f"https://{host}/"], capture_output=True)
+            if response.returncode == 0:
+                break
+            time.sleep(1)
+        if response.returncode:
+            raise SystemExit(f"Trusted HTTPS verification failed for {host}; curl exit {response.returncode}")
         result[host] = int(response.stdout.decode())
     old = json.loads(Path("/opt/t1-management/before-t1.json").read_text())
     live = json.loads(run(["docker", "inspect", "sunmoonlake-ops-web-1", "sunmoonlake-ops-api-1", "sunmoonlake-ops-postgres-1"]).stdout)

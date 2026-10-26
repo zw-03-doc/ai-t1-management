@@ -17,7 +17,7 @@
 
 1. 管理端构建设置 `VITE_APP_CONTEXT_PATH=/`、`VITE_APP_BASE_API=/prod-api`、`VITE_APP_ENCRYPT=false`；H5 构建路径 `/app/`。
 2. 用 `stage_bundle.py --release <release> --jar <jar> --admin <admin-dist> --h5 <h5-dist>` 打包。发布包含文件SHA-256清单和明确SQL来源。不得把机器秘密打进发布包。
-3. 上传并解包至发布目录。单独将随机管理员密码的 BCrypt 初始化语句交付 `/etc/t1-management/bootstrap-admin.sql`，权限0600。管理员明文密码仅存本机 `deploy/local/administrator.json`，该目录已忽略且应限制ACL。框架 `sys.user.initPassword` 同样设置独立随机强密码，并在该本机文件的 `coachInitialPassword` 字段交付；管理员创建教练后须在系统用户管理为每位教练重置独立密码并单独交付本人，不沿用框架默认密码。
+3. 本机安装Python bcrypt后执行 `python deploy/prepare_admin_credentials.py`，生成独立24字符随机密码（登录接口允许5–30字符）。上传并解包发布目录，单独将生成的 BCrypt 初始化语句交付 `/etc/t1-management/bootstrap-admin.sql`，权限0600。管理员明文密码仅存本机 `deploy/local/administrator.json`，该目录已忽略且应限制ACL。框架 `sys.user.initPassword` 同样设置独立随机强密码，并在该本机文件的 `coachInitialPassword` 字段交付；管理员创建教练后须在系统用户管理为每位教练重置独立密码并单独交付本人，不沿用框架默认密码。已有凭据不会被默认覆盖；明确授权轮换时使用 `--rotate`，执行生成的轮换SQL后通过管理员接口清理参数缓存。
 4. 在新发布目录执行 `python3 initialize_server.py`。脚本随机生成各用途独立秘密、启动MySQL/Redis、仅在空库执行基线与按版本排序的迁移，并禁用示例账号、移除示例OSS配置。新库明确跳过旧 `V1.1.3`，其约束由不删除历史的 `V1.2.0` 替代。数据库成功后删除服务器管理员初始化语句并写入初始化标记。
 5. 配置匹配本应用 AppID 的真实微信 secret 到 `/etc/t1-management/production.env`。没有匹配 secret 时保留缺项，不复制另一个应用的密钥。
 6. `docker compose -f <release>/compose.yml up -d api web` 启动新应用；检查API、静态页面和实际登录后更新 `current` 指针。该步骤不会改变 OPS 的容器。
