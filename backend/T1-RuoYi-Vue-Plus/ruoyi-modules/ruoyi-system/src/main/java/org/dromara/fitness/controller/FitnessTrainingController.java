@@ -10,6 +10,7 @@ import org.dromara.fitness.service.impl.FitnessTrainingMediaService;
 import org.springframework.core.io.Resource;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.multipart.MultipartFile;
+import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.web.bind.annotation.*;
 import java.util.List;
 
@@ -66,5 +67,11 @@ public class FitnessTrainingController {
     }
 
     @GetMapping("/media/{assetId}")
-    public ResponseEntity<Resource> media(@PathVariable String assetId) { return mediaService.read(assetId); }
+    public ResponseEntity<Resource> media(@PathVariable String assetId, HttpServletResponse response) {
+        ResponseEntity<Resource> result = mediaService.read(assetId);
+        // The authentication interceptor initializes the servlet response as JSON.
+        // Override it only after file authorization, including on the embedded servlet server.
+        response.setContentType(result.getHeaders().getContentType().toString());
+        return result;
+    }
 }

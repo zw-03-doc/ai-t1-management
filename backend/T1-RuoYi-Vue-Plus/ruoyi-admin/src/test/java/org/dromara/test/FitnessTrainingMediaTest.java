@@ -2,6 +2,7 @@ package org.dromara.test;
 
 import org.dromara.common.core.exception.ServiceException;
 import org.dromara.fitness.domain.dto.FitnessTrainingModels.*;
+import org.dromara.fitness.controller.FitnessTrainingController;
 import org.dromara.fitness.mapper.FitnessTrainingMapper;
 import org.dromara.fitness.service.impl.FitnessTrainingMediaService;
 import org.dromara.fitness.service.impl.FitnessTrainingService;
@@ -11,6 +12,12 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.test.util.ReflectionTestUtils;
+import org.springframework.test.web.servlet.setup.MockMvcBuilders;
+import org.springframework.web.servlet.HandlerInterceptor;
+import org.springframework.core.io.FileSystemResource;
+import org.springframework.http.ResponseEntity;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
 
 import java.nio.ByteBuffer;
 import java.nio.file.Files;
@@ -19,10 +26,32 @@ import java.nio.file.Path;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 @Tag("training")
 class FitnessTrainingMediaTest {
     @TempDir Path directory;
+
+    @Test
+    void authenticatedMediaOverridesJsonTypeSetBySecurityInterceptor() throws Exception {
+        FitnessTrainingService training = mock(FitnessTrainingService.class);
+        FitnessTrainingMediaService media = mock(FitnessTrainingMediaService.class);
+        String id = "00000000-0000-0000-0000-000000000001";
+        Path image = Files.write(directory.resolve("image.png"), new byte[]{(byte) 137, 80, 78, 71});
+        when(media.read(id)).thenReturn(ResponseEntity.ok().contentType(org.springframework.http.MediaType.IMAGE_PNG)
+            .body(new FileSystemResource(image)));
+        var mvc = MockMvcBuilders.standaloneSetup(new FitnessTrainingController(training, media))
+            .addInterceptors(new HandlerInterceptor() {
+                @Override public boolean preHandle(HttpServletRequest request, HttpServletResponse response, Object handler) {
+                    response.setContentType("application/json;charset=UTF-8");
+                    return true;
+                }
+            }).build();
+        mvc.perform(get("/fitness/training/media/" + id))
+            .andExpect(status().isOk()).andExpect(content().contentTypeCompatibleWith("image/png"));
+    }
 
     @Test
     void uploadChecksPlanPermissionThenWritesMetadataAndAudit() throws Exception {
