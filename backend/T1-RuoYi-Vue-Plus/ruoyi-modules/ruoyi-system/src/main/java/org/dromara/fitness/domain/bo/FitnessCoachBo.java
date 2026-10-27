@@ -95,4 +95,7 @@ public class FitnessCoachBo extends BaseEntity {
      */
     private String remark;
 
+
+    @jakarta.validation.constraints.Size(max = 100)
+    private String contactWechat;
 }

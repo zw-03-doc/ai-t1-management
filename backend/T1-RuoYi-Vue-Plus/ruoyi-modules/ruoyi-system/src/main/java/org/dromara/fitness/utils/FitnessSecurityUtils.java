@@ -23,6 +23,10 @@ public final class FitnessSecurityUtils {
     }
 
     public static void loginMember(FitnessMiniVo.MemberInfoVo memberInfoVo, String openid) {
+        loginMember(memberInfoVo, openid, "mini");
+    }
+
+    public static void loginMember(FitnessMiniVo.MemberInfoVo memberInfoVo, String openid, String device) {
         MemberLoginUser loginUser = new MemberLoginUser();
         loginUser.setTenantId(memberInfoVo.getTenantId());
         loginUser.setUserType(UserType.APP_USER.getUserType());
@@ -33,6 +37,8 @@ public final class FitnessSecurityUtils {
         loginUser.setUsername(buildMemberUsername(memberInfoVo));
         loginUser.setNickname(memberInfoVo.getDisplayName());
         SaLoginParameter parameter = new SaLoginParameter();
+        parameter.setDeviceType(device);
+        parameter.setIsShare(false);
         parameter.setTimeout(FitnessMobileConstants.DEFAULT_TIMEOUT);
         parameter.setActiveTimeout(FitnessMobileConstants.DEFAULT_ACTIVE_TIMEOUT);
         parameter.setExtra(LoginHelper.CLIENT_KEY, FitnessMobileConstants.MINI_CLIENT_ID);
@@ -40,6 +46,10 @@ public final class FitnessSecurityUtils {
     }
 
     public static void loginCoach(FitnessCoachAppVo.CoachProfileVo profileVo) {
+        loginCoach(profileVo, "mini");
+    }
+
+    public static void loginCoach(FitnessCoachAppVo.CoachProfileVo profileVo, String device) {
         CoachLoginUser loginUser = new CoachLoginUser();
         loginUser.setTenantId(profileVo.getTenantId());
         loginUser.setUserType(UserType.APP_USER.getUserType());
@@ -52,20 +62,26 @@ public final class FitnessSecurityUtils {
         parameter.setTimeout(FitnessMobileConstants.DEFAULT_TIMEOUT);
         parameter.setActiveTimeout(FitnessMobileConstants.DEFAULT_ACTIVE_TIMEOUT);
         parameter.setExtra(LoginHelper.CLIENT_KEY, FitnessMobileConstants.COACH_CLIENT_ID);
+        parameter.setDeviceType(device);
+        parameter.setIsShare(false);
         LoginHelper.login(loginUser, parameter);
     }
 
+    public static String getCurrentSource() {
+        return "web".equals(StpUtil.getLoginDeviceType()) ? "web" : "mini";
+    }
+
     public static MemberLoginUser getMemberLoginUser() {
-        MemberLoginUser loginUser = LoginHelper.getLoginUser();
-        if (loginUser == null || loginUser.getMemberId() == null) {
+        Object current = LoginHelper.getLoginUser();
+        if (!(current instanceof MemberLoginUser loginUser) || loginUser.getMemberId() == null) {
             throw new ServiceException("当前会员登录状态无效");
         }
         return loginUser;
     }
 
     public static CoachLoginUser getCoachLoginUser() {
-        CoachLoginUser loginUser = LoginHelper.getLoginUser();
-        if (loginUser == null || loginUser.getCoachId() == null) {
+        Object current = LoginHelper.getLoginUser();
+        if (!(current instanceof CoachLoginUser loginUser) || loginUser.getCoachId() == null) {
             throw new ServiceException("当前教练登录状态无效");
         }
         return loginUser;

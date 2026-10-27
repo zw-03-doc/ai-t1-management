@@ -1,0 +1,73 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="org.dromara.fitness.mapper.FitnessOperationsMapper">
+  <insert id="insertBehavior">
+    INSERT INTO fit_behavior_log (behavior_id, tenant_id, actor_id, actor_type, member_id, store_id,
+      schedule_id, reservation_id, checkin_id, action, source, remark, created_at)
+    VALUES (#{id}, #{tenantId}, #{actorId}, #{actorType}, #{memberId}, #{storeId},
+      #{scheduleId}, #{reservationId}, #{checkinId}, #{action}, #{source}, #{remark}, NOW())
+  </insert>
+  <select id="selectBehaviors" resultType="org.dromara.fitness.domain.vo.FitnessEngagementVo$Behavior">
+    SELECT b.*, COALESCE(m.real_name,m.nickname) AS memberName, st.store_name AS storeName,
+      CASE WHEN b.actor_type = 'member' THEN COALESCE(am.real_name,am.nickname) ELSE u.nick_name END AS actorName
+    FROM fit_behavior_log b
+    LEFT JOIN fit_member m ON m.member_id=b.member_id AND m.tenant_id=b.tenant_id
+    LEFT JOIN fit_member am ON am.member_id=b.actor_id AND am.tenant_id=b.tenant_id AND b.actor_type='member'
+    LEFT JOIN sys_user u ON u.user_id=b.actor_id AND u.tenant_id=b.tenant_id AND b.actor_type&lt;&gt;'member'
+    LEFT JOIN fit_store st ON st.store_id=b.store_id AND st.tenant_id=b.tenant_id
+    WHERE b.tenant_id=#{tenantId}
+    <if test="memberId != null">AND b.member_id=#{memberId}</if>
+    <if test="action != null and action != ''">AND b.action=#{action}</if>
+    ORDER BY b.created_at DESC, b.behavior_id DESC
+  </select>
+  <insert id="insertInterest">
+    INSERT INTO fit_course_interest (interest_id, tenant_id, member_id, course_id, coach_id,
+      session_id, event_id, active_seconds, source, created_at)
+    VALUES (#{id},#{tenantId},#{memberId},#{courseId},#{coachId},#{sessionId},#{eventId},#{seconds},#{source},NOW())
+  </insert>
+  <select id="countInterestEvent" resultType="int">
+    SELECT COUNT(*) FROM fit_course_interest
+    WHERE tenant_id=#{tenantId} AND member_id=#{memberId} AND event_id=#{eventId}
+  </select>
+  <select id="selectLastInterestTime" resultType="java.util.Date">
+    SELECT MAX(created_at) FROM fit_course_interest WHERE tenant_id=#{tenantId} AND member_id=#{memberId}
+  </select>
+  <select id="selectInterestCoach" resultType="java.lang.Long">
+    SELECT co.coach_id FROM fit_coach co
+    WHERE co.tenant_id=#{tenantId} AND co.del_flag='0' AND co.hire_status='0'
+      AND (co.coach_id=#{defaultCoachId} OR EXISTS (
+        SELECT 1 FROM fit_member_card mc WHERE mc.tenant_id=#{tenantId} AND mc.member_id=#{memberId}
+        AND mc.store_id=#{storeId} AND mc.bind_coach_id=co.coach_id AND mc.del_flag='0'
+        AND mc.card_status IN ('unused','active') AND (mc.expire_time IS NULL OR mc.expire_time&gt;NOW())))
+    ORDER BY CASE WHEN co.coach_id=#{defaultCoachId} THEN 1 ELSE 0 END, co.coach_id LIMIT 1
+  </select>
+  <select id="selectInterests" resultType="org.dromara.fitness.domain.vo.FitnessEngagementVo$Interest">
+    SELECT i.member_id AS memberId, COALESCE(m.real_name,m.nickname) AS memberName,
+      i.course_id AS courseId, c.course_name AS courseName, SUM(i.active_seconds) AS activeSeconds,
+      COUNT(DISTINCT i.session_id) AS viewCount, MAX(i.created_at) AS lastViewedAt
+    FROM fit_course_interest i
+    INNER JOIN fit_member m ON m.member_id=i.member_id AND m.tenant_id=i.tenant_id AND m.del_flag='0'
+    INNER JOIN fit_course c ON c.course_id=i.course_id AND c.tenant_id=i.tenant_id AND c.del_flag='0'
+    WHERE i.tenant_id=#{tenantId} AND i.coach_id=#{coachId} AND i.active_seconds&gt;0 AND i.created_at&gt;DATE_SUB(NOW(), INTERVAL 90 DAY)
+      AND (c.default_coach_id=#{coachId} OR EXISTS (
+        SELECT 1 FROM fit_member_card current_card WHERE current_card.tenant_id=i.tenant_id
+          AND current_card.member_id=i.member_id AND current_card.bind_coach_id=#{coachId}
+          AND current_card.del_flag='0' AND current_card.card_status IN ('unused','active')
+          AND (current_card.expire_time IS NULL OR current_card.expire_time&gt;NOW())))
+    <if test="memberId != null">AND i.member_id=#{memberId}</if>
+    GROUP BY i.member_id,m.real_name,m.nickname,i.course_id,c.course_name
+    ORDER BY activeSeconds DESC,lastViewedAt DESC
+  </select>
+  <select id="countCoachConflicts" resultType="int">
+    SELECT COUNT(*) FROM fit_course_schedule WHERE tenant_id=#{tenantId} AND coach_id=#{coachId}
+      AND del_flag='0' AND schedule_status NOT IN ('cancelled','finished')
+      AND start_time&lt;#{endTime} AND end_time&gt;#{startTime}
+    <if test="scheduleId != null">AND schedule_id&lt;&gt;#{scheduleId}</if>
+  </select>
+  <update id="transitionCheckin">
+    UPDATE fit_checkin_record SET operator_user_id=#{operatorId}, checkin_status=#{status},
+      consume_times=#{consumeTimes}, consume_amount=#{consumeAmount}, remark=#{remark}, update_time=NOW()
+    WHERE checkin_id=#{checkinId} AND tenant_id=#{tenantId} AND del_flag='0'
+      AND operator_user_id IS NULL AND checkin_status&lt;&gt;'reversed'
+  </update>
+</mapper>

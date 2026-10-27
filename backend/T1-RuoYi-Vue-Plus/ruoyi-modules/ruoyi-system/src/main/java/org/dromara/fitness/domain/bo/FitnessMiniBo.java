@@ -130,6 +130,8 @@ public final class FitnessMiniBo {
     @Data
     @EqualsAndHashCode(callSuper = true)
     public static class CheckinCreateBo extends BaseEntity {
+        @jakarta.validation.constraints.Pattern(regexp = "mini|web")
+        private String source;
 
         @NotNull(message = "预约ID不能为空")
         private Long reservationId;

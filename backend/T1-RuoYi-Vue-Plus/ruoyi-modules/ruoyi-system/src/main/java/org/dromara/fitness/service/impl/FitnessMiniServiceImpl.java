@@ -19,6 +19,7 @@ import org.dromara.fitness.service.support.FitnessWechatMiniAuthService;
 import org.dromara.fitness.utils.FitnessBizCodeUtils;
 import org.dromara.fitness.utils.FitnessSecurityUtils;
 import org.springframework.stereotype.Service;
+import org.dromara.fitness.service.support.FitnessOperationsService;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
@@ -45,22 +46,19 @@ public class FitnessMiniServiceImpl implements IFitnessMiniService {
     );
     private static final Set<String> BAD_LUCKY_SUFFIXES = Set.of("4444", "4848", "7414", "1474", "8147", "4242");
 
+    private final FitnessOperationsService operations;
     private final FitnessMiniMapper baseMapper;
     private final FitnessWechatMiniAuthService wechatMiniAuthService;
 
     @Override
     @Transactional(rollbackFor = Exception.class)
     public FitnessMiniVo.LoginVo wechatLogin(FitnessMiniBo.WechatLoginBo bo) {
-        if (StringUtils.isBlank(bo.getOpenid())) {
-            FitnessWechatMiniDto.SessionInfo sessionInfo = wechatMiniAuthService.code2Session(bo.getCode());
-            bo.setOpenid(sessionInfo.getOpenid());
-            if (StringUtils.isBlank(bo.getUnionId())) {
-                bo.setUnionId(sessionInfo.getUnionId());
-            }
-        }
-        if (StringUtils.isBlank(bo.getOpenid())) {
-            throw new ServiceException("微信登录失败，未获取到 openid");
-        }
+        if (StringUtils.isBlank(bo.getCode())) throw new ServiceException("请通过微信登录凭证登录");
+        FitnessWechatMiniDto.SessionInfo sessionInfo = wechatMiniAuthService.code2Session(bo.getCode());
+        bo.setOpenid(sessionInfo.getOpenid());
+        bo.setUnionId(sessionInfo.getUnionId());
+        bo.setMobile(null); // Only bindPhone may set a verified mobile number.
+        if (StringUtils.isBlank(bo.getOpenid())) throw new ServiceException("微信登录未返回有效身份");
         FitnessMiniVo.MemberInfoVo memberInfoVo = baseMapper.selectMemberByOpenid(bo.getOpenid());
         if (memberInfoVo == null) {
             if (StringUtils.isBlank(bo.getNickname())) {
@@ -81,6 +79,7 @@ public class FitnessMiniServiceImpl implements IFitnessMiniService {
         if (memberInfoVo == null) {
             throw new ServiceException("会员登录失败，请稍后重试");
         }
+        if (!"normal".equals(memberInfoVo.getMemberStatus())) throw new ServiceException("会员已停用，请联系门店");
         FitnessSecurityUtils.loginMember(memberInfoVo, bo.getOpenid());
         FitnessMiniVo.LoginVo loginVo = new FitnessMiniVo.LoginVo();
         loginVo.setAccessToken(StpUtil.getTokenValue());
@@ -170,6 +169,7 @@ public class FitnessMiniServiceImpl implements IFitnessMiniService {
     @Transactional(rollbackFor = Exception.class)
     public FitnessMiniVo.ReservationVo createReservation(FitnessMiniBo.ReservationCreateBo bo) {
         Long memberId = FitnessSecurityUtils.getCurrentMemberId();
+        operations.requireReservationWindow(bo.getScheduleId(), memberId);
         FitnessMiniVo.ReservationActionVo actionVo = baseMapper.selectScheduleReservationAction(memberId, bo.getScheduleId());
         if (actionVo == null) {
             throw new ServiceException("排课不存在或已下架");
@@ -178,7 +178,7 @@ public class FitnessMiniServiceImpl implements IFitnessMiniService {
         if (actionVo.getReservationDeadline() != null && now.after(actionVo.getReservationDeadline())) {
             throw new ServiceException("当前排课已过预约截止时间");
         }
-        if (actionVo.getStartTime() != null && now.after(actionVo.getStartTime())) {
+        if (actionVo.getStartTime() != null && !now.before(actionVo.getStartTime())) {
             throw new ServiceException("课程已开始，无法预约");
         }
         if (actionVo.getCapacity() != null && actionVo.getReservedCount() != null
@@ -197,8 +197,6 @@ public class FitnessMiniServiceImpl implements IFitnessMiniService {
             validateReservationCardRule(cardVo, actionVo);
             reservationType = "card";
             consumeMode = resolveConsumeMode(cardVo);
-        } else if (Objects.equals("private", actionVo.getCourseType()) || Objects.equals("small", actionVo.getCourseType())) {
-            throw new ServiceException("私教/小班课程预约需选择对应卡项");
         }
 
         Long reservationId = IdGeneratorUtil.nextLongId();
@@ -218,7 +216,8 @@ public class FitnessMiniServiceImpl implements IFitnessMiniService {
         if (rows <= 0) {
             throw new ServiceException("预约课程失败");
         }
-        baseMapper.updateScheduleReservedCount(actionVo.getScheduleId(), 1);
+        if (baseMapper.updateScheduleReservedCount(actionVo.getScheduleId(), 1) != 1) throw new ServiceException("名额已满，请刷新后重试");
+        operations.audit(memberId, actionVo.getStoreId(), actionVo.getScheduleId(), reservationId, null, "member_reservation", "mini", bo.getRemark());
         FitnessMiniVo.ReservationVo result = baseMapper.selectReservationById(memberId, reservationId);
         if (result == null) {
             throw new ServiceException("预约结果查询失败");
@@ -238,6 +237,7 @@ public class FitnessMiniServiceImpl implements IFitnessMiniService {
     @Transactional(rollbackFor = Exception.class)
     public void cancelReservation(Long reservationId) {
         Long memberId = FitnessSecurityUtils.getCurrentMemberId();
+        operations.lockReservation(reservationId);
         FitnessMiniVo.ReservationActionVo actionVo = baseMapper.selectReservationAction(memberId, reservationId);
         if (actionVo == null) {
             throw new ServiceException("预约记录不存在");
@@ -246,16 +246,18 @@ public class FitnessMiniServiceImpl implements IFitnessMiniService {
             throw new ServiceException("当前预约状态不可取消");
         }
         Date now = new Date();
-        if (actionVo.getCancelDeadline() != null && now.after(actionVo.getCancelDeadline())) {
+        if (actionVo.getCancelDeadline() != null && !now.before(actionVo.getCancelDeadline())) {
             throw new ServiceException("已超过取消预约截止时间");
         }
-        if (actionVo.getStartTime() != null && now.after(actionVo.getStartTime())) {
+        if (actionVo.getStartTime() != null && !now.before(actionVo.getStartTime())) {
             throw new ServiceException("课程已开始，无法取消预约");
         }
+        if (baseMapper.selectCheckinByReservationId(memberId, reservationId) != null) throw new ServiceException("已经签到的预约不能取消");
         if (baseMapper.updateReservationCancel(reservationId, "member_cancel", now) <= 0) {
             throw new ServiceException("取消预约失败");
         }
-        baseMapper.updateScheduleReservedCount(actionVo.getScheduleId(), -1);
+        if (baseMapper.updateScheduleReservedCount(actionVo.getScheduleId(), -1) != 1) throw new ServiceException("预约名额状态异常，请联系管理员");
+        operations.audit(memberId, actionVo.getStoreId(), actionVo.getScheduleId(), reservationId, null, "member_cancel_reservation", "mini", null);
     }
 
     @Override
@@ -306,7 +308,8 @@ public class FitnessMiniServiceImpl implements IFitnessMiniService {
         FitnessMiniVo.CardPlanVo planVo = queryCardPlanById(bo.getPlanId());
         Long orderId = IdGeneratorUtil.nextLongId();
         String orderNo = "ORD" + IdGeneratorUtil.nextId();
-        boolean payNow = Boolean.TRUE.equals(bo.getPayNow());
+        if (Boolean.TRUE.equals(bo.getPayNow())) throw new ServiceException("本系统不提供线上付款，请联系教练线下办理");
+        boolean payNow = false;
         BigDecimal payableAmount = nullSafe(planVo.getSalePrice());
         BigDecimal paidAmount = payNow ? payableAmount : BigDecimal.ZERO;
         Date paidTime = payNow ? new Date() : null;
@@ -389,26 +392,17 @@ public class FitnessMiniServiceImpl implements IFitnessMiniService {
     @Transactional(rollbackFor = Exception.class)
     public FitnessMiniVo.CheckinVo createCheckin(FitnessMiniBo.CheckinCreateBo bo) {
         Long memberId = FitnessSecurityUtils.getCurrentMemberId();
+        operations.lockReservation(bo.getReservationId());
         FitnessMiniVo.ReservationActionVo actionVo = baseMapper.selectReservationAction(memberId, bo.getReservationId());
         if (actionVo == null) {
             throw new ServiceException("预约记录不存在");
         }
-        if (!Objects.equals("reserved", actionVo.getReservationStatus())) {
-            throw new ServiceException("当前预约状态不可签到");
-        }
         FitnessMiniVo.CheckinVo existed = baseMapper.selectCheckinByReservationId(memberId, bo.getReservationId());
-        if (existed != null) {
-            fillCheckinStatus(existed);
-            return existed;
-        }
-        Long cardId = bo.getCardId() == null ? actionVo.getCardId() : bo.getCardId();
-        if (cardId != null) {
-            FitnessMiniVo.MemberCardVo cardVo = requireUsableCard(memberId, cardId);
-            if (StringUtils.equals(cardVo.getPlanType(), "time_card")) {
-                throw new ServiceException("时间卡（月卡/年卡）无需核销");
-            }
-        }
-
+        if (existed != null) { fillCheckinStatus(existed); return existed; }
+        if (!Objects.equals("reserved", actionVo.getReservationStatus())) throw new ServiceException("当前预约状态不可签到");
+        operations.requireCheckinWindow(actionVo.getScheduleId());
+        Long cardId = actionVo.getCardId();
+        if (bo.getCardId() != null && !Objects.equals(bo.getCardId(), cardId)) throw new ServiceException("签到不能变更预约所用卡项");
         Date now = new Date();
         int rows = baseMapper.insertCheckin(IdGeneratorUtil.nextLongId(),
             FitnessBizCodeUtils.defaultIfBlank(null, "CHK"),
@@ -418,7 +412,7 @@ public class FitnessMiniServiceImpl implements IFitnessMiniService {
             actionVo.getScheduleId(),
             memberId,
             cardId,
-            StringUtils.defaultIfBlank(bo.getCheckinType(), "normal"),
+            "member_self",
             now,
             bo.getRemark());
         if (rows <= 0) {
@@ -429,6 +423,7 @@ public class FitnessMiniServiceImpl implements IFitnessMiniService {
         if (checkinVo == null) {
             throw new ServiceException("签到结果查询失败");
         }
+        operations.audit(memberId, actionVo.getStoreId(), actionVo.getScheduleId(), bo.getReservationId(), checkinVo.getCheckinId(), "member_self_checkin", StringUtils.defaultIfBlank(bo.getSource(), "mini"), bo.getRemark());
         fillCheckinStatus(checkinVo);
         return checkinVo;
     }

@@ -21,6 +21,15 @@
                t.support_card_type AS supportCardType,
                t.status AS status,
                t.remark AS remark,
+               t.display_price AS displayPrice,
+               t.listing_days AS listingDays,
+               t.published_at AS publishedAt,
+               t.listing_until AS listingUntil,
+               t.booking_advance_days AS bookingAdvanceDays,
+               t.booking_close_minutes AS bookingCloseMinutes,
+               t.cancel_close_minutes AS cancelCloseMinutes,
+               t.checkin_before_minutes AS checkinBeforeMinutes,
+               t.checkin_after_minutes AS checkinAfterMinutes,
                t.create_time AS createTime
     </sql>
 

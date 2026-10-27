@@ -129,4 +129,8 @@ public class FitnessScheduleBo extends BaseEntity {
      * 备注
      */
     private String remark;
+
+    /** Price captured when scheduling. */
+    private java.math.BigDecimal displayPrice;
+    private java.util.Date reservationOpenTime;
 }

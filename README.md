@@ -17,7 +17,7 @@ docs/                       项目设计文档
 - Maven 3.8+
 - Node.js 20.19+
 - npm 8.19+
-- HBuilderX（运行 uni-app 时需要）
+- 微信开发者工具（小程序运行）；HBuilderX 可选
 
 ## 配置
 
@@ -49,9 +49,27 @@ mvn clean package -DskipTests
 
 ```powershell
 Set-Location frontend/T-plus-ui
-npm ci
+npm ci --legacy-peer-deps
 npm run dev
 ```
 
-uni-app 客户端可使用 HBuilderX 打开 `frontend/T-uniApp`。
+uni-app 会员与教练端（网页与小程序共用）：
 
+```powershell
+Set-Location frontend/T-uniApp
+npm ci --legacy-peer-deps
+npm run build:h5
+npm run build:mp-weixin
+```
+
+网页产物为 `dist/h5`，微信开发者工具打开 `dist/mp-weixin`。默认后端地址为 `https://t1.wedodiary.top/prod-api`；本地联调可用 `VITE_API_BASE_URL` 覆盖。微信 AppID 保留 `wx556bef49cde7a986`，后端必须配置对应的 secret，并在微信平台配置合法域名。
+
+## 业务与部署文档
+
+- [课程、门店、教练、预约与签到规则](docs/fitness-booking-and-checkin.md)
+- [训练计划、顺延、实际记录与附件授权](docs/training-design.md)
+- [隔离部署、初始化、升级与回退](deploy/README.md)
+- [2026-10-26 部署记录](deploy/DEPLOYMENT-2026-10-26.md)
+- [2026-10-26 验证结果与待验证事项](docs/verification-2026-10-26.md)
+
+管理端 `https://t1.wedodiary.top/`，会员/教练网页 `https://t1.wedodiary.top/app/`。价格只展示，课程咨询通过负责私教微信号进行，不接入线上支付。教练网页使用管理员创建的账号；会员网页使用小程序“我的”中生成的一次性登录码。

@@ -11,6 +11,7 @@ export interface FitnessCoachVO extends BaseEntity {
   storeName?: string;
   coachName: string;
   mobile?: string;
+  contactWechat?: string;
   gender?: string;
   avatarUrl?: string;
   skillTags?: string;
@@ -24,6 +25,7 @@ export interface FitnessCoachQuery extends PageQuery {
   coachNo?: string;
   coachName?: string;
   mobile?: string;
+  contactWechat?: string;
   storeId?: number | string;
   hireStatus?: string;
 }
@@ -36,6 +38,7 @@ export interface FitnessCoachForm {
   storeId?: number | string;
   coachName: string;
   mobile?: string;
+  contactWechat?: string;
   activationCode?: string;
   gender?: string;
 

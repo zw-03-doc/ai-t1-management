@@ -27,6 +27,7 @@ import org.dromara.fitness.service.IFitnessReservationService;
 import org.dromara.fitness.utils.FitnessBizCodeUtils;
 
 import org.springframework.stereotype.Service;
+import org.dromara.fitness.service.support.FitnessOperationsService;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.Collection;
@@ -43,6 +44,7 @@ import java.util.Objects;
 @Service
 public class FitnessReservationServiceImpl implements IFitnessReservationService {
 
+    private final FitnessOperationsService operations;
     private final FitnessReservationMapper baseMapper;
     private final FitnessScheduleMapper scheduleMapper;
     private final FitnessMemberMapper memberMapper;
@@ -68,6 +70,7 @@ public class FitnessReservationServiceImpl implements IFitnessReservationService
     @Lock4j(keys = {"'reservation:create:' + #bo.scheduleId + ':' + #bo.memberId"}, acquireTimeout = 3000)
     @Transactional(rollbackFor = Exception.class)
     public Boolean insertByBo(FitnessReservationBo bo) {
+        operations.requireReservationWindow(bo.getScheduleId(), bo.getMemberId());
         FitnessScheduleVo scheduleVo = validBeforeCreate(bo);
         ReservationRule reservationRule = resolveReservationRule(bo, scheduleVo);
         FitCourseReservation add = MapstructUtils.convert(bo, FitCourseReservation.class);
@@ -75,11 +78,11 @@ public class FitnessReservationServiceImpl implements IFitnessReservationService
         add.setReservationNo(FitnessBizCodeUtils.defaultIfBlank(bo.getReservationNo(), "RSV"));
         validReservationNoUnique(add.getReservationNo(), null);
         add.setTenantId(currentTenantId());
-        add.setStoreId(add.getStoreId() == null ? scheduleVo.getStoreId() : add.getStoreId());
+        add.setStoreId(scheduleVo.getStoreId());
         add.setCardId(reservationRule.cardId());
         add.setReservationType(reservationRule.reservationType());
         add.setReservationSource(StringUtils.defaultIfBlank(bo.getReservationSource(), "admin"));
-        add.setReservationStatus(StringUtils.defaultIfBlank(bo.getReservationStatus(), "reserved"));
+        add.setReservationStatus("reserved");
         add.setConsumeMode(StringUtils.defaultIfBlank(bo.getConsumeMode(), reservationRule.consumeMode()));
         add.setReservationTime(bo.getReservationTime() == null ? new Date() : bo.getReservationTime());
         if (scheduleMapper.updateReservedCount(add.getScheduleId(), 1) <= 0) {
@@ -91,14 +94,16 @@ public class FitnessReservationServiceImpl implements IFitnessReservationService
             scheduleMapper.updateReservedCount(add.getScheduleId(), -1);
             throw new ServiceException("预约失败");
         }
+        operations.audit(add.getMemberId(), add.getStoreId(), add.getScheduleId(), add.getReservationId(), null, "admin_reservation", "web", bo.getRemark());
         bo.setReservationId(add.getReservationId());
         return true;
     }
 
 
     @Override
+    @Transactional(rollbackFor = Exception.class)
     public Boolean updateByBo(FitnessReservationBo bo) {
-        FitCourseReservation db = baseMapper.selectById(bo.getReservationId());
+        FitCourseReservation db = operations.lockReservation(bo.getReservationId());
         if (db == null) {
             throw new ServiceException("预约记录不存在");
         }
@@ -112,7 +117,12 @@ public class FitnessReservationServiceImpl implements IFitnessReservationService
             || (bo.getMemberId() != null && !Objects.equals(bo.getMemberId(), db.getMemberId()))) {
             throw new ServiceException("不支持直接修改排课或会员，请取消后重新创建预约");
         }
-        FitCourseReservation update = MapstructUtils.convert(bo, FitCourseReservation.class);
+        if (bo.getReservationStatus() != null && !Objects.equals(bo.getReservationStatus(), db.getReservationStatus())) throw new ServiceException("预约状态只能通过取消或签到流程改变");
+        if (bo.getCardId() != null && !Objects.equals(bo.getCardId(), db.getCardId())) throw new ServiceException("更换卡项请取消后重新预约");
+        FitCourseReservation update = new FitCourseReservation();
+        update.setReservationId(db.getReservationId());
+        update.setRemark(bo.getRemark());
+        update.setVersion(db.getVersion());
         update.setReservationNo(FitnessBizCodeUtils.fillOrKeep(bo.getReservationNo(), db.getReservationNo(), "RSV"));
         validReservationNoUnique(update.getReservationNo(), bo.getReservationId());
         return baseMapper.updateById(update) > 0;
@@ -123,7 +133,7 @@ public class FitnessReservationServiceImpl implements IFitnessReservationService
     @Lock4j(keys = {"'reservation:cancel:' + #reservationId"}, acquireTimeout = 3000)
     @Transactional(rollbackFor = Exception.class)
     public Boolean cancelReservation(Long reservationId, String cancelReason) {
-        FitCourseReservation db = baseMapper.selectById(reservationId);
+        FitCourseReservation db = operations.lockReservation(reservationId);
         if (db == null) {
             throw new ServiceException("预约记录不存在");
         }
@@ -133,14 +143,17 @@ public class FitnessReservationServiceImpl implements IFitnessReservationService
         if (!Objects.equals("reserved", db.getReservationStatus())) {
             throw new ServiceException("当前预约状态不可取消");
         }
+        operations.requireNoCheckin(reservationId);
         FitCourseReservation update = new FitCourseReservation();
+        update.setVersion(db.getVersion());
         update.setReservationId(reservationId);
         update.setReservationStatus("cancelled");
         update.setCancelReason(StringUtils.defaultIfBlank(cancelReason, "admin_cancel"));
         update.setCancelTime(new Date());
         boolean flag = baseMapper.updateById(update) > 0;
         if (flag) {
-            scheduleMapper.updateReservedCount(db.getScheduleId(), -1);
+            if (scheduleMapper.updateReservedCount(db.getScheduleId(), -1) != 1) throw new ServiceException("预约名额状态异常，请联系管理员");
+            operations.audit(db.getMemberId(), db.getStoreId(), db.getScheduleId(), reservationId, null, "admin_cancel_reservation", "web", cancelReason);
         }
         return flag;
     }
@@ -207,9 +220,6 @@ public class FitnessReservationServiceImpl implements IFitnessReservationService
     private ReservationRule resolveReservationRule(FitnessReservationBo bo, FitnessScheduleVo scheduleVo) {
         Long cardId = bo.getCardId();
         if (cardId == null) {
-            if (isPrivateOrSmall(scheduleVo.getCourseType())) {
-                throw new ServiceException("私教/小班课程预约需选择对应卡项");
-            }
             return new ReservationRule(null, "store_experience", "free");
         }
         FitMemberCard card = memberCardMapper.selectById(cardId);

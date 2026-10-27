@@ -18,6 +18,7 @@ import org.dromara.fitness.mapper.FitnessReservationMapper;
 import org.dromara.fitness.mapper.FitnessScheduleMapper;
 import org.dromara.fitness.service.IFitnessCheckinService;
 import org.springframework.stereotype.Service;
+import org.dromara.fitness.service.support.FitnessOperationsService;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
@@ -34,6 +35,7 @@ import java.util.Objects;
 @Service
 public class FitnessCheckinServiceImpl implements IFitnessCheckinService {
 
+    private final FitnessOperationsService operations;
     private final FitnessCheckinMapper baseMapper;
     private final FitnessScheduleMapper scheduleMapper;
     private final FitnessMemberCardMapper memberCardMapper;
@@ -62,6 +64,8 @@ public class FitnessCheckinServiceImpl implements IFitnessCheckinService {
     @Lock4j(keys = {"'checkin:confirm:' + #checkinId"}, acquireTimeout = 3000)
     @Transactional(rollbackFor = Exception.class)
     public Boolean confirmCheckin(Long checkinId, FitnessCheckinBo bo) {
+        FitnessCheckinVo initial = queryById(checkinId);
+        operations.lockReservation(initial.getReservationId());
         FitnessCheckinVo actionVo = queryById(checkinId);
         if (Objects.equals("reversed", actionVo.getCheckinStatus())) {
             throw new ServiceException("该签到已标记异常，不能确认核销");
@@ -76,16 +80,7 @@ public class FitnessCheckinServiceImpl implements IFitnessCheckinService {
         BigDecimal consumeAmount = bo.getConsumeAmount() == null ? BigDecimal.ZERO : bo.getConsumeAmount();
         validateCardConsume(actionVo, consumeTimes, consumeAmount);
 
-        FitCheckinRecord update = new FitCheckinRecord();
-        update.setCheckinId(checkinId);
-        update.setOperatorUserId(LoginHelper.getUserId());
-        update.setConsumeTimes(consumeTimes);
-        update.setConsumeAmount(consumeAmount);
-        update.setCheckinStatus("success");
-        update.setRemark(bo.getRemark());
-        if (baseMapper.updateById(update) <= 0) {
-            throw new ServiceException("核销失败，请重试");
-        }
+        operations.confirmRecord(checkinId, LoginHelper.getUserId(), consumeTimes, consumeAmount, bo.getRemark());
         scheduleMapper.updateSignedCount(actionVo.getScheduleId(), 1);
         if (actionVo.getCardId() != null && (consumeTimes > 0 || consumeAmount.compareTo(BigDecimal.ZERO) > 0)) {
             consumeMemberCard(actionVo, consumeTimes, consumeAmount);
@@ -96,26 +91,29 @@ public class FitnessCheckinServiceImpl implements IFitnessCheckinService {
             reservation.setReservationStatus("signed");
             reservationMapper.updateById(reservation);
         }
+        operations.audit(actionVo.getMemberId(), actionVo.getStoreId(), actionVo.getScheduleId(), actionVo.getReservationId(), checkinId, "admin_confirm_checkin", "web", bo.getRemark());
         return true;
     }
 
     @Override
     @Lock4j(keys = {"'checkin:exception:' + #checkinId"}, acquireTimeout = 3000)
+    @Transactional(rollbackFor = Exception.class)
     public Boolean markCheckinException(Long checkinId, String remark) {
+        FitnessCheckinVo initial = queryById(checkinId);
+        operations.lockReservation(initial.getReservationId());
         FitnessCheckinVo actionVo = queryById(checkinId);
         if (actionVo.getOperatorUserId() != null && Objects.equals("success", actionVo.getCheckinStatus())) {
             throw new ServiceException("该签到已确认，不能再标记异常");
         }
-        FitCheckinRecord update = new FitCheckinRecord();
-        update.setCheckinId(checkinId);
-        update.setOperatorUserId(LoginHelper.getUserId());
-        update.setCheckinStatus("reversed");
-        update.setRemark(remark);
-        return baseMapper.updateById(update) > 0;
+        operations.markException(checkinId, LoginHelper.getUserId(), remark);
+        operations.audit(actionVo.getMemberId(), actionVo.getStoreId(), actionVo.getScheduleId(), actionVo.getReservationId(), checkinId, "admin_checkin_exception", "web", remark);
+        return true;
     }
 
     private void validateCardConsume(FitnessCheckinVo actionVo, int consumeTimes, BigDecimal consumeAmount) {
+        if (consumeTimes < 0 || consumeAmount.signum() < 0) throw new ServiceException("核销课次和金额不得为负数");
         if (actionVo.getCardId() == null) {
+            if (consumeTimes != 0 || consumeAmount.signum() != 0) throw new ServiceException("无卡预约不能扣除卡权益");
             return;
         }
         if (!Objects.equals("unused", actionVo.getCardStatus()) && !Objects.equals("active", actionVo.getCardStatus())) {
@@ -131,10 +129,14 @@ public class FitnessCheckinServiceImpl implements IFitnessCheckinService {
     }
 
     private void consumeMemberCard(FitnessCheckinVo actionVo, int consumeTimes, BigDecimal consumeAmount) {
-        FitMemberCard card = memberCardMapper.selectById(actionVo.getCardId());
+        FitMemberCard card = memberCardMapper.selectOne(new com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper<FitMemberCard>()
+            .eq(FitMemberCard::getCardId, actionVo.getCardId()).last("FOR UPDATE"));
         if (card == null) {
             throw new ServiceException("会员卡不存在");
         }
+        if (!Objects.equals(card.getMemberId(), actionVo.getMemberId()) || !StringUtils.equalsAny(card.getCardStatus(), "unused", "active")
+            || card.getExpireTime() != null && !new Date().before(card.getExpireTime())) throw new ServiceException("卡项不属于会员或已失效");
+        if (consumeTimes > defaultInt(card.getRemainTimes())) throw new ServiceException("剩余课次不足");
         int usedTimes = defaultInt(card.getUsedTimes()) + Math.max(consumeTimes, 0);
         int remainTimes = Math.max(defaultInt(card.getRemainTimes()) - Math.max(consumeTimes, 0), 0);
         BigDecimal balanceAmount = defaultDecimal(card.getBalanceAmount()).subtract(consumeAmount == null ? BigDecimal.ZERO : consumeAmount);
@@ -144,6 +146,7 @@ public class FitnessCheckinServiceImpl implements IFitnessCheckinService {
 
         FitMemberCard update = new FitMemberCard();
         update.setCardId(card.getCardId());
+        update.setVersion(card.getVersion());
         update.setUsedTimes(usedTimes);
         update.setRemainTimes(remainTimes);
         update.setBalanceAmount(balanceAmount);

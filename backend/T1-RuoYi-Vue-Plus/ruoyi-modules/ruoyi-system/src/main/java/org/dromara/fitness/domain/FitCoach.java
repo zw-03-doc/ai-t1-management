@@ -106,4 +106,6 @@ public class FitCoach extends TenantEntity {
     @TableLogic(value = "0", delval = "2")
     private String delFlag;
 
+
+    private String contactWechat;
 }

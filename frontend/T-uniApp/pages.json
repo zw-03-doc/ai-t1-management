@@ -9,13 +9,13 @@
     {
       "path": "pages/index/index",
       "style": {
-        "navigationBarTitleText": "T1健身首页"
+        "navigationBarTitleText": "T1 健身空间"
       }
     },
     {
       "path": "pages/course/index",
       "style": {
-        "navigationBarTitleText": "课程"
+        "navigationBarTitleText": "约课"
       }
     },
     {
@@ -36,8 +36,6 @@
         "navigationBarTitleText": "活动卡项"
       }
     },
-
-
     {
       "path": "pages/mine/index",
       "style": {
@@ -65,7 +63,7 @@
     {
       "path": "pages/coach/checkin/index",
       "style": {
-        "navigationBarTitleText": "待核销"
+        "navigationBarTitleText": "签到与核销"
       }
     },
     {
@@ -79,13 +77,37 @@
       "style": {
         "navigationBarTitleText": "教练我的"
       }
+    },
+    {
+      "path": "pages/training/index",
+      "style": {
+        "navigationBarTitleText": "训练计划"
+      }
+    },
+    {
+      "path": "pages/course/detail",
+      "style": {
+        "navigationBarTitleText": "课程详情"
+      }
+    },
+    {
+      "path": "pages/coach/interest/index",
+      "style": {
+        "navigationBarTitleText": "学员课程兴趣"
+      }
+    },
+    {
+      "path": "pages/guide/index",
+      "style": {
+        "navigationBarTitleText": "训练灵感"
+      }
     }
   ],
   "globalStyle": {
-    "navigationBarTextStyle": "black",
+    "navigationBarTextStyle": "white",
     "navigationBarTitleText": "T1健身",
-    "navigationBarBackgroundColor": "#F7F8FA",
-    "backgroundColor": "#F7F8FA"
+    "navigationBarBackgroundColor": "#111211",
+    "backgroundColor": "#111211"
   },
   "uniIdRouter": {}
 }

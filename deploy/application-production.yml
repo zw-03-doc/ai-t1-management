@@ -1,0 +1,66 @@
+server:
+  port: 8080
+  undertow:
+    threads: {io: 2, worker: 24}
+    max-http-post-size: 64MB
+spring:
+  boot.admin.client.enabled: false
+  datasource:
+    type: com.zaxxer.hikari.HikariDataSource
+    dynamic:
+      primary: master
+      strict: true
+      p6spy: false
+      datasource:
+        master:
+          type: com.zaxxer.hikari.HikariDataSource
+          driver-class-name: com.mysql.cj.jdbc.Driver
+          url: jdbc:mysql://mysql:3306/t1_fitness?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia%2FShanghai&useSSL=false&allowPublicKeyRetrieval=true&rewriteBatchedStatements=true&nullCatalogMeansCurrent=true
+          username: t1_app
+          password: ${T1_DATABASE_PASSWORD}
+      hikari:
+        max-pool-size: 8
+        min-idle: 2
+        connection-timeout: 30000
+        idle-timeout: 600000
+        max-lifetime: 1800000
+  data.redis:
+    host: redis
+    port: 6379
+    database: 0
+    password: ${T1_REDIS_PASSWORD}
+    timeout: 5s
+  servlet.multipart:
+    location: /app/temp
+    max-file-size: 30MB
+    max-request-size: 35MB
+  jackson.time-zone: Asia/Shanghai
+redisson:
+  threads: 2
+  netty-threads: 4
+  single-server-config:
+    client-name: t1-fitness
+    idle-connection-timeout: 10000
+    timeout: 3000
+    connection-minimum-idle-size: 2
+    connection-pool-size: 12
+    subscription-connection-minimum-idle-size: 1
+    subscription-connection-pool-size: 4
+snail-job.enabled: false
+snail-job.port: 28080
+api-decrypt.enabled: false
+springdoc.api-docs.enabled: false
+management:
+  endpoints.web.exposure.include: health
+  endpoint.health.show-details: never
+warm-flow.ui: false
+fitness:
+  schedule.local-enabled: true
+  media:
+    path: /app/media
+    directory: /app/media
+  wechat.mini:
+    appid: ${WECHAT_MINI_APPID:}
+    secret: ${WECHAT_MINI_SECRET:}
+mail.enabled: false
+justauth.address: https://t1.wedodiary.top

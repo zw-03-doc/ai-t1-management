@@ -283,3 +283,8 @@ export function coachMessageList(params = {}) {
 		auth: 'coach'
 	})
 }
+
+export const coachPasswordLogin = data => request({url:'/fitness/coachApp/auth/login',method:'POST',data})
+export const memberWebLogin = data => request({url:'/fitness/mini/auth/webLogin',method:'POST',data})
+export const memberWebCode = () => request({url:'/fitness/mini/auth/webCode',method:'POST',auth:'member'})
+export const coachProxyCheckin = data => request({url:'/fitness/coachApp/checkin/proxy',method:'POST',data,auth:'coach'})

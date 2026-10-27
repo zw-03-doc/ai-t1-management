@@ -1,5 +1,11 @@
 <template>
   <div>
+    <el-alert
+      title="排课时间均为北京时间；人数和价格为本场次设置，修改课程默认值不会改动既有场次。预约开始、截止留空时按课程规则计算。"
+      type="info"
+      :closable="false"
+      class="mb-4"
+    />
     <FitnessCrudPage v-bind="pageConfig as any">
       <template #header-actions="{ refresh }">
         <el-col :span="2">
@@ -127,6 +133,11 @@
             <el-time-picker v-model="scope.row.endClock" value-format="HH:mm:ss" format="HH:mm:ss" placeholder="结束时间" style="width: 100%" />
           </template>
         </el-table-column>
+        <el-table-column v-if="batchForm.scheduleMode !== 'normal'" label="本行学员" min-width="210"
+          ><template #default="scope"
+            ><el-select v-model="scope.row.studentMemberIds" multiple filterable remote :remote-method="loadBatchMemberOptions"
+              ><el-option v-for="opt in batchMemberOptions" :key="String(opt.value)" :label="opt.label" :value="opt.value" /></el-select></template
+        ></el-table-column>
         <el-table-column label="操作" width="110" align="center">
           <template #default="scope">
             <el-button type="danger" link :disabled="batchForm.rows.length === 1" @click="removeBatchRow(scope.$index)">删除</el-button>
@@ -197,7 +208,9 @@ const pageConfig = reactive({
     { label: '排课日期', prop: 'scheduleDate', type: 'date' },
     { label: '开始时间', prop: 'startTime', type: 'datetime' },
     { label: '结束时间', prop: 'endTime', type: 'datetime' },
-    { label: '可预约人数', prop: 'capacity', type: 'number' },
+    { label: '可预约人数', prop: 'capacity', type: 'number', min: 1 },
+    { label: '展示价格(元)', prop: 'displayPrice', type: 'number', precision: 2 },
+    { label: '预约开始', prop: 'reservationOpenTime', type: 'datetime' },
     { label: '预约截止', prop: 'reservationDeadline', type: 'datetime' },
     { label: '取消截止', prop: 'cancelDeadline', type: 'datetime' },
     { label: '排课状态', prop: 'scheduleStatus', type: 'select', options: statusOptions },
@@ -310,12 +323,7 @@ const openBatchDialog = async (refresh: () => Promise<void>) => {
   resetBatchForm();
   batchRefresh.value = refresh;
   batchDialog.visible = true;
-  await Promise.all([
-    loadBatchStoreOptions(''),
-    loadBatchCourseOptions(''),
-    loadBatchCoachOptions(''),
-    loadBatchMemberOptions('')
-  ]);
+  await Promise.all([loadBatchStoreOptions(''), loadBatchCourseOptions(''), loadBatchCoachOptions(''), loadBatchMemberOptions('')]);
 };
 
 const onBatchStoreVisibleChange = (visible: boolean) => {
@@ -368,7 +376,6 @@ const addBatchRow = () => {
   });
 };
 
-
 const removeBatchRow = (index: number) => {
   if (batchForm.rows.length <= 1) {
     return;
@@ -403,13 +410,12 @@ const validateBatchForm = () => {
     }
     if (needStudents) {
       const count = row.studentMemberIds?.length || 0;
-      if (count < 1 || count > 5) {
-        throw new Error(`第${idx + 1}行学员需选择1-5名`);
+      if (count < 1 || count > batchForm.capacity) {
+        throw new Error(`第${idx + 1}行学员需选择1-${batchForm.capacity}名`);
       }
     }
   });
 };
-
 
 const submitBatchCreate = async () => {
   if (batchDialog.submitting) {
@@ -427,7 +433,7 @@ const submitBatchCreate = async () => {
         courseId: batchForm.courseId,
         coachId: batchForm.coachId,
         scheduleMode: batchForm.scheduleMode,
-        studentMemberIds: batchForm.studentMemberIds,
+        studentMemberIds: row.studentMemberIds,
         scheduleDate: row.scheduleDate,
         startTime: buildDateTime(row.scheduleDate, row.startClock),
         endTime: buildDateTime(row.scheduleDate, row.endClock),

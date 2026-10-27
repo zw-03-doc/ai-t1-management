@@ -41,7 +41,7 @@ logging:
 
 # 用户配置
 user:
-  password:${T1_PASSWORD:}
+  password:
     # 密码最大错误次数
     maxRetryCount: 5
     # 密码锁定时间（默认10分钟）
@@ -82,6 +82,7 @@ spring:
     format:
       date-time: yyyy-MM-dd HH:mm:ss
   jackson:
+    time-zone: Asia/Shanghai
     # 日期格式化
     date-format: yyyy-MM-dd HH:mm:ss
     serialization:
@@ -162,7 +163,7 @@ mybatis-encryptor:
   # 编码方式 BASE64/HEX。默认BASE64
   encode: BASE64
   # 安全秘钥 对称算法的秘钥 如：AES，SM4
-  password:${T1_PASSWORD:}
+  password: ${T1_DATA_ENCRYPT_PASSWORD:}
   # 公私钥 非对称算法的公私钥 如：SM2，RSA
   publicKey:
   privateKey:

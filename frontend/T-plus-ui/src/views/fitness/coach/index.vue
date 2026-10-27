@@ -7,7 +7,6 @@ import FitnessCrudPage from '../components/FitnessCrudPage.vue';
 import { addCoach, delCoach, getCoach, listCoach, updateCoach } from '@/api/fitness/coach';
 import { loadStoreOptions } from '../components/remoteOptions';
 
-
 const hireStatusOptions = [
   { label: '在职', value: '0' },
   { label: '停用', value: '1' }
@@ -27,6 +26,7 @@ const pageConfig = reactive({
     { label: '教练编号', prop: 'coachNo' },
     { label: '教练姓名', prop: 'coachName' },
     { label: '手机号', prop: 'mobile' },
+    { label: '咨询微信号', prop: 'contactWechat' },
     { label: '任职状态', prop: 'hireStatus', type: 'select', options: hireStatusOptions }
   ],
   formFields: [
@@ -36,6 +36,7 @@ const pageConfig = reactive({
 
     { label: '教练姓名', prop: 'coachName' },
     { label: '手机号', prop: 'mobile' },
+    { label: '咨询微信号', prop: 'contactWechat' },
     { label: '性别', prop: 'gender', type: 'select', options: genderOptions },
     { label: '教练等级', prop: 'levelCode' },
     { label: '擅长标签', prop: 'skillTags' },
@@ -49,6 +50,7 @@ const pageConfig = reactive({
     { label: '所属门店', prop: 'storeName' },
     { label: '教练姓名', prop: 'coachName' },
     { label: '手机号', prop: 'mobile' },
+    { label: '咨询微信号', prop: 'contactWechat' },
 
     { label: '擅长标签', prop: 'skillTags' },
 
@@ -62,6 +64,7 @@ const pageConfig = reactive({
     coachNo: '',
     coachName: '',
     mobile: '',
+    contactWechat: '',
     hireStatus: ''
   },
   initialForm: {
@@ -70,6 +73,7 @@ const pageConfig = reactive({
     storeId: undefined,
     coachName: '',
     mobile: '',
+    contactWechat: '',
     gender: '0',
     levelCode: '',
     skillTags: '',
@@ -82,7 +86,6 @@ const pageConfig = reactive({
     coachName: [{ required: true, message: '教练姓名不能为空', trigger: 'blur' }],
     mobile: [{ required: true, message: '手机号不能为空', trigger: 'blur' }]
   },
-
 
   listFn: listCoach,
   getFn: getCoach,

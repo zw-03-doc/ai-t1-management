@@ -12,7 +12,12 @@
                 clearable
                 @keyup.enter="handleQuery"
               />
-              <el-select v-else-if="field.type === 'select'" v-model="queryParams[field.prop]" clearable :placeholder="field.placeholder || `请选择${field.label}`">
+              <el-select
+                v-else-if="field.type === 'select'"
+                v-model="queryParams[field.prop]"
+                clearable
+                :placeholder="field.placeholder || `请选择${field.label}`"
+              >
                 <el-option v-for="option in field.options || []" :key="String(option.value)" :label="option.label" :value="option.value" />
               </el-select>
               <el-select
@@ -28,11 +33,15 @@
                 :remote-method="(keyword) => handleRemoteSearch(field, 'query', keyword)"
                 @visible-change="(visible) => handleRemoteVisibleChange(field, 'query', visible)"
               >
-                <el-option v-for="option in getFieldOptions(field, 'query')" :key="String(option.value)" :label="option.label" :value="option.value" />
+                <el-option
+                  v-for="option in getFieldOptions(field, 'query')"
+                  :key="String(option.value)"
+                  :label="option.label"
+                  :value="option.value"
+                />
               </el-select>
 
               <el-date-picker
-
                 v-else-if="field.type === 'date'"
                 v-model="queryParams[field.prop]"
                 type="date"
@@ -65,7 +74,9 @@
             <el-button v-hasPermi="[`${permPrefix}:add`]" type="primary" plain icon="Plus" @click="handleAdd">新增</el-button>
           </el-col>
           <el-col v-if="allowDelete" :span="1.5">
-            <el-button v-hasPermi="[`${permPrefix}:remove`]" type="danger" plain icon="Delete" :disabled="multiple" @click="handleDelete()">批量删除</el-button>
+            <el-button v-hasPermi="[`${permPrefix}:remove`]" type="danger" plain icon="Delete" :disabled="multiple" @click="handleDelete()"
+              >批量删除</el-button
+            >
           </el-col>
           <el-col v-if="exportUrl" :span="1.5">
             <el-button v-hasPermi="[`${permPrefix}:export`]" type="warning" plain icon="Download" @click="handleExport">导出</el-button>
@@ -77,16 +88,24 @@
 
       <el-table v-loading="loading" border :data="list" @selection-change="handleSelectionChange">
         <el-table-column type="selection" width="55" align="center" />
-        <el-table-column v-for="column in tableColumns" :key="column.prop" :label="column.label" align="center" :prop="column.prop" :width="column.width" :show-overflow-tooltip="column.showOverflow !== false">
+        <el-table-column
+          v-for="column in tableColumns"
+          :key="column.prop"
+          :label="column.label"
+          align="center"
+          :prop="column.prop"
+          :width="column.width"
+          :show-overflow-tooltip="column.showOverflow !== false"
+        >
           <template #default="scope">
             <span v-if="column.type === 'date'">{{ proxy?.parseTime(scope.row[column.prop], column.format || '{y}-{m}-{d} {h}:{i}:{s}') }}</span>
             <el-tag
               v-else-if="column.type === 'tag'"
               :type="resolveTagType(column.options, scope.row[column.prop], column.tagType)"
               :class="resolveTagClass(column.options, scope.row[column.prop])"
-            >{{ resolveOptionLabel(column.options, scope.row[column.prop]) }}</el-tag>
+              >{{ resolveOptionLabel(column.options, scope.row[column.prop]) }}</el-tag
+            >
             <span v-else>{{ scope.row[column.prop] }}</span>
-
           </template>
         </el-table-column>
         <el-table-column label="操作" align="center" class-name="small-padding fixed-width" width="160">
@@ -122,8 +141,20 @@
                 :rows="field.rows || 3"
                 :placeholder="field.placeholder || `请输入${field.label}`"
               />
-              <el-input-number v-else-if="field.type === 'number'" v-model="form[field.prop]" :min="field.min ?? 0" style="width: 100%" />
-              <el-select v-else-if="field.type === 'select'" v-model="form[field.prop]" clearable :placeholder="field.placeholder || `请选择${field.label}`">
+              <el-input-number
+                v-else-if="field.type === 'number'"
+                v-model="form[field.prop]"
+                :min="field.min ?? 0"
+                :max="field.max"
+                :precision="field.precision"
+                style="width: 100%"
+              />
+              <el-select
+                v-else-if="field.type === 'select'"
+                v-model="form[field.prop]"
+                clearable
+                :placeholder="field.placeholder || `请选择${field.label}`"
+              >
                 <el-option v-for="option in field.options || []" :key="String(option.value)" :label="option.label" :value="option.value" />
               </el-select>
               <el-select
@@ -182,7 +213,6 @@ interface OptionItem {
   elTagClass?: string;
 }
 
-
 interface RemoteOptionRequest {
   keyword?: string;
   value?: string | number | boolean | null | undefined;
@@ -214,6 +244,8 @@ interface FormField {
   span?: number;
   rows?: number;
   min?: number;
+  max?: number;
+  precision?: number;
   limit?: number;
 }
 
@@ -289,7 +321,6 @@ function isRemoteField(field: FieldConfig): field is FieldConfig & { type: 'remo
   return (field.type === 'remoteSelect' || field.type === 'remoteSelectMultiple') && typeof field.remoteMethod === 'function';
 }
 
-
 function getRemoteKey(scope: FieldScope, prop: string) {
   return `${scope}_${prop}`;
 }
@@ -337,7 +368,6 @@ function resolveTagClass(options: OptionItem[] | undefined, value: any) {
   return options?.find((item) => String(item.value) === String(value))?.elTagClass || '';
 }
 
-
 async function loadRemoteOptions(field: FieldConfig, scope: FieldScope, keyword = '') {
   if (!isRemoteField(field)) {
     return;
@@ -348,9 +378,10 @@ async function loadRemoteOptions(field: FieldConfig, scope: FieldScope, keyword 
   remoteLoadingMap[key] = true;
   try {
     const options = await field.remoteMethod({ keyword, value: currentValue, model });
-    const currentOptions = currentValue === undefined || currentValue === null || currentValue === ''
-      ? []
-      : (remoteOptionsMap[key] || []).filter((item) => item.value === currentValue);
+    const currentOptions =
+      currentValue === undefined || currentValue === null || currentValue === ''
+        ? []
+        : (remoteOptionsMap[key] || []).filter((item) => item.value === currentValue);
     remoteOptionsMap[key] = mergeOptions(currentOptions, options || []);
   } finally {
     remoteLoadingMap[key] = false;
@@ -371,7 +402,6 @@ async function ensureRemoteOption(field: FieldConfig, scope: FieldScope) {
   const options = await field.remoteMethod({ value: currentValue, model });
   remoteOptionsMap[key] = mergeOptions(remoteOptionsMap[key], options || []);
 }
-
 
 function handleRemoteSearch(field: FieldConfig, scope: FieldScope, keyword: string) {
   loadRemoteOptions(field, scope, keyword);
@@ -460,7 +490,6 @@ const handleDelete = async (row?: any) => {
   await getList();
 };
 
-
 const handleExport = () => {
   if (!props.exportUrl) {
     return;
@@ -472,4 +501,3 @@ onMounted(() => {
   getList();
 });
 </script>
-
