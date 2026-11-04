@@ -52,11 +52,15 @@ def main() -> None:
     sql_target.mkdir()
     sql_sources = []
     for index, source in enumerate(sql_files, 1):
-        content = source.read_text(encoding="utf-8-sig")
+        # Preserve reviewed SQL line endings so candidate byte hashes remain valid.
+        content = source.read_bytes().decode("utf-8-sig")
         # Framework examples are not live storage configuration.
         content = re.sub(r"(?im)^insert into sys_oss_config[^\n]*\n?", "", content)
         name = f"{index:03}.sql"
-        (sql_target / name).write_text(content, encoding="utf-8", newline="\n")
+        (sql_target / name).write_text(content, encoding="utf-8", newline="")
+        if args.verification and source.name in verification.get("migrationSha256", {}):
+            if hashlib.sha256((sql_target / name).read_bytes()).hexdigest() != verification["migrationSha256"][source.name]:
+                raise SystemExit("Staged SQL differs from its candidate validation: " + source.name)
         sql_sources.append({"file": name, "source": source.relative_to(repo).as_posix()})
     manifest = {
         "release": args.release,
