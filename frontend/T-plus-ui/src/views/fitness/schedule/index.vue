@@ -1,7 +1,7 @@
 <template>
   <div>
     <el-alert
-      title="排课时间均为北京时间；人数和价格为本场次设置，修改课程默认值不会改动既有场次。预约开始、截止留空时按课程规则计算。"
+      title="公开预约对所有会员开放；指定学员必须填写名单。结课前请先核销到课会员，并在预约管理登记缺席或请假。所有时间均为北京时间。"
       type="info"
       :closable="false"
       class="mb-4"
@@ -16,7 +16,22 @@
       </template>
 
       <template #row-actions="{ row, refresh }">
-        <el-tooltip v-if="row.scheduleStatus !== 'cancelled'" content="取消排课" placement="top">
+        <el-button
+          v-hasPermi="['fitness:reservation:list']"
+          link
+          type="primary"
+          @click="openFitnessPage(router, 'reservation', { scheduleId: row.scheduleId })"
+          >处理预约</el-button
+        >
+        <el-button
+          v-if="['open', 'closed'].includes(row.scheduleStatus)"
+          v-hasPermi="['fitness:schedule:edit']"
+          link
+          type="success"
+          @click="handleFinish(row, refresh)"
+          >结束场次</el-button
+        >
+        <el-tooltip v-if="!['cancelled', 'finished'].includes(row.scheduleStatus)" content="取消排课" placement="top">
           <el-button v-hasPermi="['fitness:schedule:edit']" link type="danger" icon="CircleClose" @click="handleCancel(row, refresh)" />
         </el-tooltip>
       </template>
@@ -157,10 +172,23 @@
 
 <script setup name="FitnessSchedule" lang="ts">
 import FitnessCrudPage from '../components/FitnessCrudPage.vue';
-import { addSchedule, cancelSchedule, delSchedule, getSchedule, listSchedule, updateSchedule } from '@/api/fitness/schedule';
+import { openFitnessPage } from '../components/navigation';
+const router = useRouter();
+import { addSchedule, cancelSchedule, delSchedule, getSchedule, listSchedule, updateSchedule, finishSchedule } from '@/api/fitness/schedule';
 import { loadCoachOptions, loadCourseOptions, loadMemberOptions, loadStoreOptions } from '../components/remoteOptions';
 
 const { proxy } = getCurrentInstance() as ComponentInternalInstance;
+
+const handleFinish = async (row: any, refresh: () => Promise<void>) => {
+  try {
+    await proxy?.$modal.confirm('确认结束本场次？所有预约须已核销或登记缺席/请假，历史记录和人数将保留。');
+    await finishSchedule(row.scheduleId);
+    proxy?.$modal.msgSuccess('场次已结束');
+    await refresh();
+  } catch {
+    /* 取消或统一请求错误提示 */
+  }
+};
 
 type OptionItem = { label: string; value: string | number | boolean };
 type BatchRefreshFn = (() => Promise<void>) | null;
@@ -181,9 +209,8 @@ const statusOptions = [
 ];
 
 const modeOptions = [
-  { label: '普通排课', value: 'normal' },
-  { label: '私教定向', value: 'private' },
-  { label: '小班定向', value: 'small_group' }
+  { label: '公开预约', value: 'normal' },
+  { label: '指定学员', value: 'directed' }
 ];
 
 const pageConfig = reactive({
@@ -204,7 +231,7 @@ const pageConfig = reactive({
     { label: '课程', prop: 'courseId', type: 'remoteSelect', remoteMethod: loadCourseOptions },
     { label: '教练', prop: 'coachId', type: 'remoteSelect', remoteMethod: loadCoachOptions },
     { label: '排课模式', prop: 'scheduleMode', type: 'select', options: modeOptions },
-    { label: '学员(私教/小班)', prop: 'studentMemberIds', type: 'remoteSelectMultiple', remoteMethod: loadMemberOptions },
+    { label: '指定学员名单', prop: 'studentMemberIds', type: 'remoteSelectMultiple', remoteMethod: loadMemberOptions },
     { label: '排课日期', prop: 'scheduleDate', type: 'date' },
     { label: '开始时间', prop: 'startTime', type: 'datetime' },
     { label: '结束时间', prop: 'endTime', type: 'datetime' },
@@ -395,7 +422,7 @@ const validateBatchForm = () => {
   if (!batchForm.rows.length) {
     throw new Error('请至少添加1条日期行');
   }
-  const needStudents = batchForm.scheduleMode === 'private' || batchForm.scheduleMode === 'small_group';
+  const needStudents = batchForm.scheduleMode === 'directed';
   batchForm.rows.forEach((row, idx) => {
     if (!row.scheduleDate || !row.startClock || !row.endClock) {
       throw new Error(`第${idx + 1}行日期或时间未填写完整`);
@@ -433,7 +460,7 @@ const submitBatchCreate = async () => {
         courseId: batchForm.courseId,
         coachId: batchForm.coachId,
         scheduleMode: batchForm.scheduleMode,
-        studentMemberIds: row.studentMemberIds,
+        studentMemberIds: batchForm.scheduleMode === 'directed' ? row.studentMemberIds : [],
         scheduleDate: row.scheduleDate,
         startTime: buildDateTime(row.scheduleDate, row.startClock),
         endTime: buildDateTime(row.scheduleDate, row.endClock),

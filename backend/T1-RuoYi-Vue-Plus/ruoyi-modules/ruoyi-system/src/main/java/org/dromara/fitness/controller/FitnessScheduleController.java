@@ -86,4 +86,11 @@ public class FitnessScheduleController extends BaseController {
     public R<Void> remove(@NotEmpty(message = "主键不能为空") @PathVariable Long[] ids) {
         return toAjax(fitnessScheduleService.deleteWithValidByIds(Arrays.asList(ids), true));
     }
+
+    @SaCheckPermission("fitness:schedule:edit")
+    @Log(title = "结束场次", businessType = BusinessType.UPDATE)
+    @PutMapping("/{scheduleId}/finish")
+    public R<Void> finish(@PathVariable Long scheduleId) {
+        return toAjax(fitnessScheduleService.finishSchedule(scheduleId));
+    }
 }

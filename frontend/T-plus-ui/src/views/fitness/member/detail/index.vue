@@ -1,5 +1,15 @@
 <template>
   <div class="p-2" v-loading="loading">
+    <el-card class="mb-[12px]" shadow="never">
+      <el-space wrap>
+        <strong>{{ detail.member?.realName || detail.member?.nickname || '会员' }}的业务办理</strong>
+        <el-button v-hasPermi="['fitness:order:add']" type="primary" @click="openMemberPage('order')">办理课包 / 查看订单</el-button>
+        <el-button v-hasPermi="['fitness:reservation:list']" @click="openMemberPage('reservation')">预约课程</el-button>
+        <el-button v-hasPermi="['fitness:checkin:list']" @click="openMemberPage('checkin')">签到与核销</el-button>
+        <el-button v-hasPermi="['fitness:training:manage']" @click="openMemberPage('training')">训练档案</el-button>
+      </el-space>
+      <p class="text-[13px] text-gray-500">课包决定课程权益；绑定教练后，教练可为会员定制训练计划。训练计划顺延不会改变已预约课程。</p>
+    </el-card>
     <el-row :gutter="16">
       <!-- 左侧会员信息 -->
       <el-col :span="7" :xs="24">
@@ -26,7 +36,7 @@
                   {{ findDictLabel(memberStatusOptions, detail.member?.memberStatus) }}
                 </el-tag>
               </li>
-              <li><span class="label">注册来源</span><span class="value">{{ detail.member?.registerSource || '-' }}</span></li>
+              <li><span class="label">注册来源</span><span class="value">{{ sourceNames[detail.member?.registerSource] || '其他来源' }}</span></li>
               <li><span class="label">最近到店</span><span class="value">{{ detail.member?.lastVisitTime || '-' }}</span></li>
               <li><span class="label">创建时间</span><span class="value">{{ detail.member?.createTime || '-' }}</span></li>
             </ul>
@@ -138,6 +148,9 @@
                 <el-table-column label="教练" prop="coachName" min-width="80" />
                 <el-table-column label="签到时间" prop="checkinTime" min-width="140" />
                 <el-table-column label="核销人" prop="operatorUserName" width="80" />
+                <el-table-column label="核销进度" width="100">
+                  <template #default="{ row }">{{ row.checkinStatus === 'reversed' ? '待处理异常' : row.operatorUserId ? '已核销' : '待核销' }}</template>
+                </el-table-column>
                 <el-table-column label="消耗次数" prop="consumeTimes" width="80" align="center" />
                 <el-table-column label="消耗金额" prop="consumeAmount" width="90" align="right">
                   <template #default="{ row }">{{ row.consumeAmount ? '¥' + row.consumeAmount : '-' }}</template>
@@ -163,6 +176,7 @@
 import { getMemberDetail } from '@/api/fitness/member';
 import { useRoute, useRouter } from 'vue-router';
 import { useFitnessDictOptions, findDictLabel } from '../../components/useFitnessDictOptions';
+import { openFitnessPage } from '../../components/navigation';
 
 const route = useRoute();
 const router = useRouter();
@@ -171,6 +185,15 @@ const { proxy } = getCurrentInstance() as ComponentInternalInstance;
 const loading = ref(false);
 const activeTab = ref('cards');
 const detail = ref<any>({});
+const sourceNames: Record<string, string> = { admin: '门店建档', mini: '微信小程序', web: '会员网页', coach_app: '教练建档' };
+let detailRequest = 0;
+function openMemberPage(page: string) {
+  const memberId = String(detail.value.member?.memberId || route.query.memberId || '');
+  if (!memberId) return;
+  const query: Record<string, string> = { memberId };
+  if (page === 'order' && detail.value.member?.homeStoreId) query.storeId = String(detail.value.member.homeStoreId);
+  openFitnessPage(router, page, query);
+}
 
 const {
   fit_member_status: memberStatusOptions,
@@ -210,19 +233,21 @@ function reservationStatusTag(status?: string) {
   return map[status || ''] || 'info';
 }
 function checkinStatusTag(status?: string) {
-  const map: Record<string, 'success' | 'warning' | 'danger' | 'info'> = { confirmed: 'success', pending_confirm: 'warning', exception: 'danger', not_checkin: 'info' };
+  const map: Record<string, 'success' | 'warning' | 'danger' | 'info'> = { success: 'success', reversed: 'danger', confirmed: 'success', pending_confirm: 'warning', exception: 'danger', not_checkin: 'info' };
   return map[status || ''] || 'info';
 }
 
 async function fetchDetail() {
   const memberId = route.query.memberId as string;
+  const requestId = ++detailRequest;
+  detail.value = {};
   if (!memberId) return;
   loading.value = true;
   try {
     const res = await getMemberDetail(memberId);
-    detail.value = res.data;
+    if (requestId === detailRequest) detail.value = res.data;
   } finally {
-    loading.value = false;
+    if (requestId === detailRequest) loading.value = false;
   }
 }
 
@@ -230,7 +255,7 @@ function goBack() {
   router.back();
 }
 
-fetchDetail();
+watch(() => route.query.memberId, fetchDetail, { immediate: true });
 </script>
 
 <style scoped>

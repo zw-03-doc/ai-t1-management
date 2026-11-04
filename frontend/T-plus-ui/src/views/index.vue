@@ -3,19 +3,16 @@
     <section class="hero-card">
       <div class="hero-card__content">
         <div class="hero-card__main">
-          <div class="hero-card__eyebrow">一期工作台</div>
+          <div class="hero-card__eyebrow">门店工作台</div>
           <h2 class="hero-card__title">{{ greeting }}，{{ displayName }}</h2>
           <p class="hero-card__desc">
-            首页聚焦今日到店、收银、快捷处理和现场节奏，经营分析统一收敛到报表中心，避免和工作台重复。
+            查看今日课程与到店情况，及时处理预约、签到和线下收款。
           </p>
           <div class="hero-card__meta">
             <span>日期：{{ currentDateText }}</span>
-            <span>租户：{{ userStore.tenantId || '未识别' }}</span>
-            <span>状态：实时数据已接入</span>
           </div>
           <div class="hero-card__tags">
             <el-tag v-for="role in displayRoles" :key="role" round effect="light">{{ role }}</el-tag>
-            <el-tag type="success" round effect="light">工作台实时数据</el-tag>
           </div>
         </div>
         <div class="hero-card__side">
@@ -54,7 +51,7 @@
             <div class="panel-card__header">
               <div>
                 <div class="panel-card__title">快捷入口</div>
-                <div class="panel-card__subtitle">常用业务动作保留在首页，前台与店长可直接进入处理链路</div>
+                <div class="panel-card__subtitle">从这里进入常用业务</div>
               </div>
             </div>
           </template>
@@ -67,9 +64,9 @@
               type="button"
               @click="openRoute(action.route, action.shortcutName)"
             >
-              <div class="quick-card__code">{{ action.icon || action.shortcutCode || '快捷' }}</div>
+              <div class="quick-card__code">{{ action.shortcutName?.slice(0, 2) || '业务' }}</div>
               <div class="quick-card__title">{{ action.shortcutName }}</div>
-              <div class="quick-card__desc">{{ action.route }}</div>
+              <div class="quick-card__desc">{{ shortcutDescription(action.route) }}</div>
             </button>
           </div>
         </el-card>
@@ -81,7 +78,7 @@
             <div class="panel-card__header">
               <div>
                 <div class="panel-card__title">待办中心</div>
-                <div class="panel-card__subtitle">按首页设计文档保留待签到、待处理预约、待支付、到期提醒四类事项</div>
+                <div class="panel-card__subtitle">待签到、待处理预约、待收款与权益到期提醒</div>
               </div>
             </div>
           </template>
@@ -111,7 +108,7 @@
             <div class="panel-card__header">
               <div>
                 <div class="panel-card__title">今日课程与现场节奏</div>
-                <div class="panel-card__subtitle">展示待上课课程、签到压力和现场安排</div>
+                <div class="panel-card__subtitle">查看课程时间、负责教练与预约人数</div>
               </div>
             </div>
           </template>
@@ -143,6 +140,15 @@ import { computed, getCurrentInstance, onMounted, ref, type ComponentInternalIns
 import { useUserStore } from '@/store/modules/user';
 import { getHomeOverview } from '@/api/fitness/home';
 import type { FitnessHomeOverviewVO, FitnessHomeScheduleVO, FitnessHomeShortcutVO, FitnessHomeTodoVO } from '@/api/fitness/home/types';
+
+function shortcutDescription(path: string) {
+  if (path?.includes('checkin')) return '查看到场情况，确认核销与处理异常';
+  if (path?.includes('reservation')) return '办理预约，处理取消、请假与缺席';
+  if (path?.includes('order')) return '办理课包与登记线下收款';
+  if (path?.includes('schedule')) return '安排门店、教练、日期与学员';
+  if (path?.includes('member')) return '查看会员档案、权益与训练记录';
+  return '查看并办理相关业务';
+}
 
 interface MetricCard {
   badge: string;

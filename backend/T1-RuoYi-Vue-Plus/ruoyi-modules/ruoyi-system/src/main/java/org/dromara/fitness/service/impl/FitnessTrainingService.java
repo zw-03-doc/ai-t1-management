@@ -70,11 +70,22 @@ public class FitnessTrainingService {
         return accessiblePlan(actor(), planId, false);
     }
 
+    public MemberContext context(Long memberId) {
+        Actor actor = actor();
+        Long target = resolveMember(actor, memberId);
+        MemberContext context = mapper.selectMemberContext(actor.tenantId(), target);
+        require(context != null, "会员不存在");
+        context.setActorType(actor.type());
+        context.setCanEdit(!"admin".equals(actor.type()));
+        return context;
+    }
+
     @Transactional(rollbackFor = Exception.class)
     public Plan create(PlanInput input) {
         FitnessTrainingRules.validatePlan(input);
-        Actor actor = actor();
+        Actor actor = writeActor();
         Long memberId = resolveMember(actor, input.getMemberId());
+        require(Objects.equals(memberId, mapper.lockActiveMember(actor.tenantId(), memberId)), "会员状态已变化，请刷新后重试");
         validateMediaReferences(actor, input, null);
         Plan plan = new Plan();
         copyDefinition(input, plan);
@@ -94,8 +105,9 @@ public class FitnessTrainingService {
     @Transactional(rollbackFor = Exception.class)
     public Plan update(Long planId, PlanInput input) {
         FitnessTrainingRules.validatePlan(input);
-        Actor actor = actor();
+        Actor actor = writeActor();
         Plan plan = accessiblePlan(actor, planId, true);
+        require(Set.of("draft", "active").contains(plan.getStatus()), "已完成或归档计划请复制后编辑，或先续排循环");
         validateMediaReferences(actor, input, planId);
         require(input.getMemberId() == null || input.getMemberId().equals(plan.getMemberId()), "不能转移计划所属会员");
         require(!"active".equals(plan.getStatus()) || Objects.equals(input.getCycleDays(), plan.getCycleDays()),
@@ -107,7 +119,7 @@ public class FitnessTrainingService {
         if ("active".equals(plan.getStatus())) {
             Map<Integer, Day> days = input.getDays().stream().collect(Collectors.toMap(Day::getDayNumber, Function.identity()));
             for (Workout workout : mapper.selectWorkouts(actor.tenantId(), planId)) {
-                if ("completed".equals(workout.getStatus())) continue;
+                if (!Set.of("planned", "rest").contains(workout.getStatus())) continue;
                 Day day = days.get(workout.getDayNumber());
                 workout.setTitle(day.getTitle());
                 workout.setExercisesJson(json(day.getExercises()));
@@ -123,7 +135,7 @@ public class FitnessTrainingService {
     @Transactional(rollbackFor = Exception.class)
     public List<Workout> start(Long planId, StartInput input) {
         require(input != null, "启动参数不能为空");
-        Actor actor = actor();
+        Actor actor = writeActor();
         Plan plan = accessiblePlan(actor, planId, true);
         require("draft".equals(plan.getStatus()), "计划已启动，请勿重复启动");
         LocalDate start = input.getStartDate() == null ? LocalDate.now(SHANGHAI) : input.getStartDate();
@@ -153,22 +165,120 @@ public class FitnessTrainingService {
     }
 
     @Transactional(rollbackFor = Exception.class)
+    public Plan copy(Long planId, CopyInput input) {
+        Actor actor = writeActor();
+        Plan source = accessiblePlan(actor, planId, false);
+        PlanInput definition = new PlanInput();
+        definition.setMemberId(input != null && input.getMemberId() != null ? input.getMemberId() : source.getMemberId());
+        String requestedName = input == null ? null : input.getName();
+        definition.setName(requestedName == null || requestedName.isBlank()
+            ? source.getName().substring(0, Math.min(source.getName().length(), 94)) + " · 副本" : requestedName);
+        definition.setDescription(source.getDescription());
+        definition.setVisibility("private");
+        definition.setCycleDays(source.getCycleDays());
+        definition.setDays(source.getDays());
+        Plan result = create(definition);
+        audit(actor, result, "copy", Map.of("sourcePlanId", planId));
+        return result;
+    }
+
+    @Transactional(rollbackFor = Exception.class)
+    public List<Workout> extend(Long planId, StartInput input) {
+        require(input != null, "请填写续排日期和循环次数");
+        Actor actor = writeActor();
+        Plan plan = accessiblePlan(actor, planId, true);
+        require(Set.of("active", "completed").contains(plan.getStatus()), "仅进行中或已完成计划可续排，归档计划请先复制");
+        List<Workout> existing = mapper.selectWorkouts(actor.tenantId(), planId);
+        require(!existing.isEmpty(), "请先开启计划");
+        LocalDate lastDate = existing.stream().map(Workout::getPlannedDate).max(LocalDate::compareTo).orElseThrow();
+        LocalDate earliest = lastDate.plusDays(1).isAfter(LocalDate.now(SHANGHAI)) ? lastDate.plusDays(1) : LocalDate.now(SHANGHAI);
+        LocalDate start = input.getStartDate() == null ? earliest : input.getStartDate();
+        require(start.isAfter(lastDate) && !start.isBefore(LocalDate.now(SHANGHAI)) && !start.isAfter(LocalDate.now(SHANGHAI).plusDays(366)),
+            "续排日期须晚于原有日程，且位于今天至未来一年内");
+        int total = FitnessTrainingRules.validateCycles(plan.getCycleDays(), input.getCycles());
+        int lastSequence = existing.stream().mapToInt(Workout::getSequenceNumber).max().orElse(0);
+        Map<Integer, Day> days = plan.getDays().stream().collect(Collectors.toMap(Day::getDayNumber, Function.identity()));
+        for (int index = 0; index < total; index++) {
+            int sequence = lastSequence + index + 1;
+            Day day = days.get((sequence - 1) % plan.getCycleDays() + 1);
+            Workout workout = new Workout();
+            workout.setWorkoutId(IdWorker.getId()); workout.setTenantId(actor.tenantId()); workout.setPlanId(planId);
+            workout.setMemberId(plan.getMemberId()); workout.setSequenceNumber(sequence); workout.setDayNumber(day.getDayNumber());
+            workout.setTitle(day.getTitle()); workout.setOriginalDate(start.plusDays(index)); workout.setPlannedDate(start.plusDays(index));
+            workout.setStatus(day.getRestDay() ? "rest" : "planned"); workout.setExercisesJson(json(day.getExercises()));
+            mapper.insertWorkout(workout);
+        }
+        mapper.setPlanStatus(actor.tenantId(), planId, "active");
+        audit(actor, plan, "extend", Map.of("startDate", start, "cycles", input.getCycles(), "days", total));
+        return loadWorkouts(actor, planId);
+    }
+
+    @Transactional(rollbackFor = Exception.class)
+    public Plan complete(Long planId) {
+        Actor actor = writeActor();
+        Plan plan = accessiblePlan(actor, planId, true);
+        require("active".equals(plan.getStatus()), "仅进行中的计划可完成");
+        require(mapper.countOpenWorkouts(actor.tenantId(), planId) == 0, "还有未完成训练，请完成后结束，或归档停止后续安排");
+        mapper.setPlanStatus(actor.tenantId(), planId, "completed");
+        audit(actor, plan, "complete", Map.of("name", plan.getName()));
+        return hydrate(mapper.selectPlan(actor.tenantId(), planId, false));
+    }
+
+    @Transactional(rollbackFor = Exception.class)
+    public Plan archive(Long planId) {
+        Actor actor = writeActor();
+        Plan plan = accessiblePlan(actor, planId, true);
+        require(!"archived".equals(plan.getStatus()), "计划已经归档");
+        require(mapper.selectWorkouts(actor.tenantId(), planId).stream().noneMatch(w -> "in_progress".equals(w.getStatus())),
+            "请先完成已暂存的训练，再归档计划；已记录的组不会丢失");
+        int cancelled = mapper.cancelPendingWorkouts(actor.tenantId(), planId);
+        mapper.setPlanStatus(actor.tenantId(), planId, "archived");
+        audit(actor, plan, "archive", Map.of("cancelledSchedules", cancelled));
+        return hydrate(mapper.selectPlan(actor.tenantId(), planId, false));
+    }
+
+    public ShiftPreview previewShift(Long planId, ShiftInput input) {
+        Actor actor = writeActor();
+        return shiftPreview(actor, accessiblePlan(actor, planId, false), input);
+    }
+
+    private ShiftPreview shiftPreview(Actor actor, Plan plan, ShiftInput input) {
+        require(input != null && input.getFromDate() != null && input.getDays() != null, "请选择顺延的起始日期和天数");
+        FitnessTrainingRules.shiftedDate(input.getFromDate(), input.getDays());
+        require("active".equals(plan.getStatus()), "仅进行中的计划可顺延");
+        List<Workout> workouts = mapper.selectWorkouts(actor.tenantId(), plan.getPlanId());
+        Set<LocalDate> fixed = workouts.stream().filter(w -> Set.of("completed", "in_progress").contains(w.getStatus()))
+            .map(Workout::getPlannedDate).collect(Collectors.toSet());
+        ShiftPreview preview = new ShiftPreview();
+        preview.setVersion(plan.getVersion()); preview.setFromDate(input.getFromDate()); preview.setDays(input.getDays());
+        preview.setToDate(input.getFromDate().plusDays(input.getDays()));
+        boolean conflict = false;
+        for (Workout workout : workouts) {
+            if (!Set.of("planned", "rest").contains(workout.getStatus()) || workout.getPlannedDate().isBefore(input.getFromDate())) continue;
+            ShiftChange change = new ShiftChange();
+            change.setWorkoutId(workout.getWorkoutId()); change.setTitle(workout.getTitle()); change.setStatus(workout.getStatus());
+            change.setBeforeDate(workout.getPlannedDate()); change.setAfterDate(workout.getPlannedDate().plusDays(input.getDays()));
+            conflict |= fixed.contains(change.getAfterDate()); preview.getChanges().add(change);
+        }
+        preview.setAffectedCount(preview.getChanges().size());
+        preview.setCanApply(!conflict && preview.getAffectedCount() > 0);
+        preview.setMessage(conflict ? "目标日期已有正在进行或已完成训练，请换一个日期" : preview.getAffectedCount() == 0
+            ? "此日期之后没有可顺延的安排" : "仅移动尚未开始的训练与休息日，已暂存、已完成记录和约课时间保持不变");
+        return preview;
+    }
+
+    @Transactional(rollbackFor = Exception.class)
     public List<Workout> shift(Long planId, ShiftInput input) {
         require(input != null && input.getFromDate() != null && input.getDays() != null, "请指定起始日期和顺延天数");
         FitnessTrainingRules.shiftedDate(input.getFromDate(), input.getDays());
-        Actor actor = actor();
+        Actor actor = writeActor();
         Plan plan = accessiblePlan(actor, planId, true);
-        require("active".equals(plan.getStatus()), "请先启动计划");
-        List<Workout> workouts = mapper.selectWorkouts(actor.tenantId(), planId);
-        Set<LocalDate> completedDates = workouts.stream().filter(w -> "completed".equals(w.getStatus()))
-            .map(Workout::getPlannedDate).collect(Collectors.toSet());
-        for (Workout workout : workouts) {
-            if (!"completed".equals(workout.getStatus()) && !workout.getPlannedDate().isBefore(input.getFromDate())) {
-                require(!completedDates.contains(workout.getPlannedDate().plusDays(input.getDays())), "顺延后的日期已有完成训练，请选择其他天数");
-            }
-        }
+        require(input.getExpectedVersion() == null || Objects.equals(input.getExpectedVersion(), plan.getVersion()), "计划已发生变化，请重新预览顺延安排");
+        ShiftPreview preview = shiftPreview(actor, plan, input);
+        require(preview.isCanApply(), preview.getMessage());
         int changed = mapper.shiftWorkouts(actor.tenantId(), planId, input.getFromDate(), input.getDays());
         require(changed > 0, "该日期之后没有可顺延的训练日程");
+        mapper.touchPlan(actor.tenantId(), planId);
         audit(actor, plan, "shift", Map.of("fromDate", input.getFromDate(), "days", input.getDays(), "changed", changed));
         return loadWorkouts(actor, planId);
     }
@@ -184,24 +294,34 @@ public class FitnessTrainingService {
         require(input != null && input.getPerformedDate() != null, "请填写实际训练日期");
         require(!input.getPerformedDate().isAfter(LocalDate.now(SHANGHAI)), "不能记录未来的实际训练");
         require(input.getSets() != null && !input.getSets().isEmpty() && input.getSets().size() <= 300, "请填写 1 到 300 组实际训练");
-        Actor actor = actor();
+        Actor actor = writeActor();
         Workout initial = mapper.selectWorkout(actor.tenantId(), workoutId);
         require(initial != null, "训练日程不存在");
         // All writers lock the parent plan first, including corrections, edits and shifts.
         Plan plan = accessiblePlan(actor, initial.getPlanId(), true);
+        require(Set.of("active", "completed").contains(plan.getStatus()), "归档或尚未开启的计划不能修改训练记录");
         Workout workout = mapper.selectWorkout(actor.tenantId(), workoutId);
-        require(!"rest".equals(workout.getStatus()), "休息日不能提交训练记录，请先调整计划");
+        require(Set.of("planned", "in_progress", "completed").contains(workout.getStatus()), "休息日或已停止的日程不能记录训练");
+        boolean finish = !Boolean.FALSE.equals(input.getFinish());
+        require(finish || !"completed".equals(workout.getStatus()), "已完成的训练请保存修正记录，不能退回暂存状态");
         require(plan.getStartDate() != null && !input.getPerformedDate().isBefore(plan.getStartDate()), "实际训练日期不能早于计划开始日期");
         Map<String, Exercise> exercises = parseList(workout.getExercisesJson(), Exercise.class).stream()
             .collect(Collectors.toMap(Exercise::getKey, Function.identity()));
         List<SetLog> oldSets = mapper.selectPlanSets(actor.tenantId(), plan.getPlanId()).stream()
             .filter(s -> s.getWorkoutId().equals(workoutId)).toList();
         List<SetLog> saved = new ArrayList<>();
+        Set<String> usedTargets = new HashSet<>();
         int number = 0;
         for (SetInput entry : input.getSets()) {
             FitnessTrainingRules.validateSet(entry, true);
             Exercise exercise = exercises.get(entry.getExerciseKey());
             require(exercise != null, "实际记录中包含不属于该训练日的动作");
+            if (entry.getTargetSetIndex() != null) {
+                int target = entry.getTargetSetIndex();
+                require(target >= 0 && target < exercise.getTargets().size(), "目标组索引无效，请刷新后重试");
+                require(exercise.getTargets().get(target).getSetType().equals(entry.getSetType()), "目标组类别与训练记录不一致");
+                require(usedTargets.add(exercise.getKey() + ":" + target), "同一目标组不能重复记录");
+            }
             SetLog set = new SetLog();
             set.setSetId(IdWorker.getId());
             set.setTenantId(actor.tenantId());
@@ -215,14 +335,22 @@ public class FitnessTrainingService {
             set.setUnit(entry.getUnit());
             set.setWeightKg(FitnessTrainingRules.toKg(entry.getWeight(), entry.getUnit()));
             set.setRpe(entry.getRpe());
+            set.setTargetSetIndex(entry.getTargetSetIndex());
             saved.add(set);
         }
         mapper.deleteSets(actor.tenantId(), workoutId);
         saved.forEach(mapper::insertSet);
-        require(mapper.completeWorkout(actor.tenantId(), workoutId, input.getPerformedDate()) == 1, "训练状态已变化，请刷新重试");
-        audit(actor, plan, "log", Map.of("workoutId", workoutId, "before", oldSets, "after", input));
+        int updated = finish ? mapper.completeWorkout(actor.tenantId(), workoutId, input.getPerformedDate())
+            : mapper.saveWorkoutProgress(actor.tenantId(), workoutId, input.getPerformedDate());
+        require(updated == 1, "训练状态已变化，请刷新重试");
+        mapper.touchPlan(actor.tenantId(), plan.getPlanId());
+        audit(actor, plan, finish ? "log" : "progress", Map.of("workoutId", workoutId, "before", oldSets, "after", input));
+        if (finish && "active".equals(plan.getStatus()) && mapper.countOpenWorkouts(actor.tenantId(), plan.getPlanId()) == 0) {
+            mapper.setPlanStatus(actor.tenantId(), plan.getPlanId(), "completed");
+            audit(actor, plan, "complete", Map.of("automatic", true));
+        }
         workout.setPerformedDate(input.getPerformedDate());
-        workout.setStatus("completed");
+        workout.setStatus(finish ? "completed" : "in_progress");
         workout.setExercises(new ArrayList<>(exercises.values()));
         workout.setSets(saved);
         return workout;
@@ -240,11 +368,14 @@ public class FitnessTrainingService {
     public List<Audit> audit(Long planId) {
         Actor actor = actor();
         require("admin".equals(actor.type()), "仅管理员可查看训练操作审计");
+        if (planId != null) accessiblePlan(actor, planId, false);
         return mapper.selectAudit(actor.tenantId(), planId);
     }
 
     public Plan mediaWriteAccess(Long planId) {
-        return accessiblePlan(actor(), planId, false);
+        Plan plan = accessiblePlan(writeActor(), planId, false);
+        require(Set.of("draft", "active").contains(plan.getStatus()), "已完成或归档计划请复制后添加素材");
+        return plan;
     }
 
     public Media mediaReadAccess(String assetId) {
@@ -298,7 +429,7 @@ public class FitnessTrainingService {
         for (Day day : plan.getDays()) collectMediaIds(day.getExercises(), ids);
         // Completed snapshots retain their assets even when future exercise definitions change.
         for (Workout workout : mapper.selectWorkouts(actor.tenantId(), plan.getPlanId())) {
-            if ("completed".equals(workout.getStatus())) collectMediaIds(parseList(workout.getExercisesJson(), Exercise.class), ids);
+            if (Set.of("completed", "in_progress").contains(workout.getStatus())) collectMediaIds(parseList(workout.getExercisesJson(), Exercise.class), ids);
         }
         mapper.deleteMediaReferences(actor.tenantId(), plan.getPlanId());
         ids.forEach(id -> mapper.insertMediaReference(actor.tenantId(), plan.getPlanId(), id));
@@ -336,13 +467,24 @@ public class FitnessTrainingService {
         return new Actor(tenant, login.getUserId(), "coach", null, coachId);
     }
 
+    private Actor writeActor() {
+        Actor actor = actor();
+        require(!"admin".equals(actor.type()), "管理端仅查看训练档案，请由会员本人或其有效绑定教练编辑");
+        return actor;
+    }
+
     private Long resolveMember(Actor actor, Long requested) {
         Long memberId = requested;
         if ("member".equals(actor.type())) {
             require(memberId == null || memberId.equals(actor.memberId()), "无权操作其他会员的训练计划");
             memberId = actor.memberId();
         }
-        require(memberId != null && mapper.countActiveMember(actor.tenantId(), memberId) == 1, "请选择有效会员");
+        require(memberId != null, "请选择会员");
+        if ("admin".equals(actor.type())) {
+            require(mapper.selectMemberContext(actor.tenantId(), memberId) != null, "会员不存在或无权访问");
+            return memberId;
+        }
+        require(mapper.countActiveMember(actor.tenantId(), memberId) == 1, "请选择有效会员");
         if ("coach".equals(actor.type())) {
             require(mapper.countCoachMember(actor.tenantId(), actor.coachId(), memberId) > 0,
                 "仅可操作本门店有效绑定会员的训练计划");

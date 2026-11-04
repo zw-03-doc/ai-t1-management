@@ -20,6 +20,8 @@ import org.dromara.fitness.utils.FitnessBizCodeUtils;
 import org.dromara.fitness.utils.FitnessSecurityUtils;
 import org.springframework.stereotype.Service;
 import org.dromara.fitness.service.support.FitnessOperationsService;
+import org.dromara.fitness.service.support.FitnessIdentityService;
+import org.dromara.fitness.service.support.FitnessEntitlementService;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
@@ -47,6 +49,8 @@ public class FitnessMiniServiceImpl implements IFitnessMiniService {
     private static final Set<String> BAD_LUCKY_SUFFIXES = Set.of("4444", "4848", "7414", "1474", "8147", "4242");
 
     private final FitnessOperationsService operations;
+    private final FitnessIdentityService identities;
+    private final FitnessEntitlementService entitlements;
     private final FitnessMiniMapper baseMapper;
     private final FitnessWechatMiniAuthService wechatMiniAuthService;
 
@@ -91,23 +95,25 @@ public class FitnessMiniServiceImpl implements IFitnessMiniService {
     }
 
     @Override
-    @Transactional(rollbackFor = Exception.class)
-    public void bindPhone(FitnessMiniBo.BindPhoneBo bo) {
+    public FitnessMiniVo.LoginVo bindPhone(FitnessMiniBo.BindPhoneBo bo) {
         FitnessWechatMiniDto.PhoneInfo phoneInfo = wechatMiniAuthService.getPhoneInfo(bo.getPhoneCode());
         String mobile = StringUtils.defaultIfBlank(phoneInfo.getPhoneNumber(), phoneInfo.getPurePhoneNumber());
-        if (StringUtils.isBlank(mobile)) {
-            throw new ServiceException("获取微信手机号失败");
-        }
+        if (StringUtils.isBlank(mobile)) throw new ServiceException("获取微信手机号失败");
         bo.setMobile(mobile);
-        Long memberId = FitnessSecurityUtils.getCurrentMemberId();
-        String tenantId = FitnessSecurityUtils.getCurrentTenantId();
-        Long count = baseMapper.countMemberByMobile(tenantId, mobile, memberId);
-        if (count != null && count > 0) {
-            throw new ServiceException("该手机号已被其他会员绑定");
-        }
-        if (baseMapper.updateMemberPhone(memberId, bo) <= 0) {
-            throw new ServiceException("绑定手机号失败");
-        }
+        var login = FitnessSecurityUtils.getMemberLoginUser();
+        String device = StpUtil.getLoginDeviceType();
+        Long targetId = identities.bindVerifiedPhone(login.getTenantId(), login.getMemberId(), login.getOpenid(), bo);
+        // The identity transaction has committed before issuing a session for the newly claimed member.
+        var member = requireMember(targetId);
+        StpUtil.logout();
+        FitnessSecurityUtils.loginMember(member, login.getOpenid(), device);
+        FitnessMiniVo.LoginVo result = new FitnessMiniVo.LoginVo();
+        result.setAccessToken(StpUtil.getTokenValue());
+        result.setExpireIn(StpUtil.getTokenTimeout());
+        result.setClientId(FitnessMobileConstants.MINI_CLIENT_ID);
+        result.setOpenid(login.getOpenid());
+        result.setMemberInfo(member);
+        return result;
     }
 
     @Override
@@ -189,15 +195,10 @@ public class FitnessMiniServiceImpl implements IFitnessMiniService {
         if (activeCount != null && activeCount > 0) {
             throw new ServiceException("您已预约该课程，无需重复预约");
         }
-        Long cardId = bo.getCardId();
-        String reservationType = "store_experience";
-        String consumeMode = "free";
-        if (cardId != null) {
-            FitnessMiniVo.MemberCardVo cardVo = requireUsableCard(memberId, cardId);
-            validateReservationCardRule(cardVo, actionVo);
-            reservationType = "card";
-            consumeMode = resolveConsumeMode(cardVo);
-        }
+        var rule = entitlements.reservationRule(memberId, bo.getScheduleId(), bo.getCardId(), Boolean.TRUE.equals(bo.getExperience()));
+        Long cardId = rule.cardId();
+        String reservationType = rule.reservationType();
+        String consumeMode = rule.consumeMode();
 
         Long reservationId = IdGeneratorUtil.nextLongId();
         String reservationNo = FitnessBizCodeUtils.defaultIfBlank(null, "RSV");
@@ -489,6 +490,7 @@ public class FitnessMiniServiceImpl implements IFitnessMiniService {
         if (memberInfoVo == null) {
             throw new ServiceException("会员不存在");
         }
+        if (!"normal".equals(memberInfoVo.getMemberStatus())) throw new ServiceException("会员已停用，请联系门店", 401);
         return memberInfoVo;
     }
 

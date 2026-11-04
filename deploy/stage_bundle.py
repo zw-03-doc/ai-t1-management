@@ -16,6 +16,8 @@ def main() -> None:
     parser.add_argument("--jar", required=True, type=Path)
     parser.add_argument("--admin", required=True, type=Path)
     parser.add_argument("--h5", required=True, type=Path)
+    parser.add_argument("--verification", type=Path, help="Candidate validation receipt for incremental upgrades")
+    parser.add_argument("--source-revision", help="Git revision corresponding to the compiled artifacts")
     args = parser.parse_args()
     if not re.fullmatch(r"[a-zA-Z0-9-]+", args.release):
         raise SystemExit("Invalid release name")
@@ -26,8 +28,17 @@ def main() -> None:
     repo = deploy.parent
     target = deploy / "local" / args.release
     target.mkdir(parents=True, exist_ok=False)
-    for name in ["compose.yml", "application-production.yml", "web.conf", "gateway.conf", "initialize_server.py", "activate_gateway.py"]:
+    for name in ["compose.yml", "application-production.yml", "web.conf", "gateway.conf", "initialize_server.py", "activate_gateway.py", "upgrade_server.py", "verify_public_release.py", "verify_server_release.py"]:
         shutil.copy2(deploy / name, target / name)
+    if args.verification:
+        verification = json.loads(args.verification.read_text(encoding="utf-8"))
+        if not verification.get("passed") or verification.get("jarSha256") != hashlib.sha256(args.jar.read_bytes()).hexdigest():
+            raise SystemExit("Candidate receipt must pass and match the compiled JAR")
+        shutil.copy2(args.verification, target / "candidate-verification.json")
+    if args.source_revision:
+        if not re.fullmatch(r"[a-f0-9]{40}", args.source_revision):
+            raise SystemExit("Source revision must be a complete Git commit SHA")
+        (target / "source.json").write_text(json.dumps({"revision": args.source_revision}), encoding="utf-8")
     shutil.copy2(args.jar, target / "app.jar")
     shutil.copytree(args.admin, target / "admin")
     shutil.copytree(args.h5, target / "h5")
@@ -45,10 +56,11 @@ def main() -> None:
         # Framework examples are not live storage configuration.
         content = re.sub(r"(?im)^insert into sys_oss_config[^\n]*\n?", "", content)
         name = f"{index:03}.sql"
-        (sql_target / name).write_text(content, encoding="utf-8")
+        (sql_target / name).write_text(content, encoding="utf-8", newline="\n")
         sql_sources.append({"file": name, "source": source.relative_to(repo).as_posix()})
     manifest = {
         "release": args.release,
+        "source_revision": args.source_revision,
         "sql_sources": sql_sources,
         "sha256": {p.relative_to(target).as_posix(): hashlib.sha256(p.read_bytes()).hexdigest() for p in target.rglob("*") if p.is_file()},
     }

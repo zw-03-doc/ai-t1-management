@@ -17,3 +17,7 @@ export function confirmCheckin(checkinId: string | number, data?: Partial<Fitnes
 export function markCheckinException(checkinId: string | number, remark?: string) {
   return request({ url: `/fitness/checkin/${checkinId}/exception`, method: 'put', data: { remark } });
 }
+
+export function restoreCheckin(checkinId: string | number, remark: string) {
+  return request({ url: `/fitness/checkin/${checkinId}/restore`, method: 'put', data: { remark } });
+}

@@ -30,6 +30,7 @@ class FitnessOperationsServiceTest {
 
     private FitCourseSchedule schedule() {
         FitCourseSchedule s = new FitCourseSchedule(); s.setScheduleId(1L); s.setTenantId("000000"); s.setCourseId(2L);
+        s.setScheduleMode("normal");
         s.setStoreId(5L); s.setCoachId(7L); s.setScheduleStatus("open"); s.setCapacity(1); s.setReservedCount(0);
         s.setStartTime(new Date(System.currentTimeMillis()+3_600_000));
         s.setEndTime(new Date(System.currentTimeMillis()+7_200_000));
@@ -40,6 +41,8 @@ class FitnessOperationsServiceTest {
         when(stores.selectById(5L)).thenReturn(store);
         FitCoach coach = new FitCoach(); coach.setCoachId(7L); coach.setTenantId("000000"); coach.setStoreId(5L); coach.setHireStatus("0");
         when(coaches.selectOne(any())).thenReturn(coach);
+        FitMember member = new FitMember(); member.setMemberId(4L); member.setTenantId("000000"); member.setMemberStatus("normal");
+        when(members.selectOne(any())).thenReturn(member);
         return s;
     }
 
@@ -50,7 +53,7 @@ class FitnessOperationsServiceTest {
             assertThrows(ServiceException.class, () -> service.requireReservationWindow(1L, 4L));
             s.setScheduleStatus("open"); s.setReservedCount(1);
             assertThrows(ServiceException.class, () -> service.requireReservationWindow(1L, 4L));
-            s.setReservedCount(0); when(schedules.selectScheduleStudentIds(1L)).thenReturn(List.of(9L));
+            s.setReservedCount(0); s.setScheduleMode("directed"); when(schedules.selectScheduleStudentIds(1L)).thenReturn(List.of(9L));
             assertThrows(ServiceException.class, () -> service.requireReservationWindow(1L, 4L));
         }
     }

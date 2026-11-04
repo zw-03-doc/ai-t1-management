@@ -19,6 +19,10 @@ import org.dromara.fitness.domain.FitCoachWechatBind;
 import org.dromara.fitness.domain.bo.FitnessCoachBo;
 import org.dromara.fitness.domain.vo.FitnessCoachVo;
 import org.dromara.fitness.mapper.FitnessCoachMapper;
+import org.dromara.fitness.mapper.FitnessIdentityMapper;
+import org.dromara.fitness.mapper.FitnessStoreMapper;
+import org.dromara.fitness.service.support.FitnessSessionRevoker;
+import java.util.Set;
 import org.dromara.fitness.mapper.FitnessCoachWechatBindMapper;
 import org.dromara.fitness.service.IFitnessCoachService;
 import org.dromara.fitness.utils.FitnessBizCodeUtils;
@@ -51,6 +55,8 @@ public class FitnessCoachServiceImpl implements IFitnessCoachService {
     private static final String INIT_PASSWORD_CONFIG_KEY = "sys.user.initPassword";
 
     private final FitnessCoachMapper baseMapper;
+    private final FitnessIdentityMapper identities;
+    private final FitnessStoreMapper stores;
     private final FitnessCoachWechatBindMapper coachWechatBindMapper;
     private final ISysUserService sysUserService;
     private final ISysConfigService sysConfigService;
@@ -77,6 +83,7 @@ public class FitnessCoachServiceImpl implements IFitnessCoachService {
     @Transactional(rollbackFor = Exception.class)
     public Boolean insertByBo(FitnessCoachBo bo) {
         FitCoach add = MapstructUtils.convert(bo, FitCoach.class);
+        add.setUserId(null); // Account linkage is server-owned, never accept an arbitrary existing user.
         add.setCoachId(IdGeneratorUtil.nextLongId());
         add.setTenantId(currentTenantId());
         add.setCoachNo(FitnessBizCodeUtils.defaultIfBlank(bo.getCoachNo(), "COA"));
@@ -115,6 +122,7 @@ public class FitnessCoachServiceImpl implements IFitnessCoachService {
         if (flag) {
             FitCoach latestCoach = baseMapper.selectById(bo.getCoachId());
             syncCoachWechatBind(latestCoach);
+            if (!"0".equals(latestCoach.getHireStatus())) FitnessSessionRevoker.coach(latestCoach.getUserId());
             bo.setUserId(latestCoach.getUserId());
             bo.setActivationCode(latestCoach.getActivationCode());
         }
@@ -124,21 +132,47 @@ public class FitnessCoachServiceImpl implements IFitnessCoachService {
 
     @Override
     @Transactional(rollbackFor = Exception.class)
+    public Boolean changeStatus(Long coachId, String status) {
+        if (!Set.of("0", "1").contains(status)) throw new ServiceException("任职状态无效");
+        FitCoach coach = baseMapper.selectOne(new LambdaQueryWrapper<FitCoach>().eq(FitCoach::getCoachId, coachId).last("FOR UPDATE"));
+        if (coach == null) throw new ServiceException("教练不存在");
+        coach.setHireStatus(status);
+        if ("0".equals(status)) requireStore(coach.getStoreId());
+        syncCoachUserAccount(coach);
+        if (baseMapper.updateById(coach) != 1) throw new ServiceException("教练状态已变化，请刷新重试");
+        syncCoachWechatBind(coach);
+        if ("1".equals(status)) FitnessSessionRevoker.coach(coach.getUserId());
+        return true;
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
     public Boolean deleteWithValidByIds(Collection<Long> ids, Boolean isValid) {
-        if (isValid) {
-            long count = baseMapper.selectCount(new LambdaQueryWrapper<FitCoach>().in(FitCoach::getCoachId, ids));
-            if (count != ids.size()) {
-                throw new ServiceException("部分数据不存在或已被删除");
+        var coaches = baseMapper.selectList(new LambdaQueryWrapper<FitCoach>().in(FitCoach::getCoachId, ids).orderByAsc(FitCoach::getCoachId).last("FOR UPDATE"));
+        if (coaches.size() != ids.size()) throw new ServiceException("部分教练不存在或已被删除");
+        for (FitCoach coach : coaches) {
+            if (identities.countCoachReferences(coach.getTenantId(), coach.getCoachId()) > 0)
+                throw new ServiceException("教练已有课程、排课或会员关系，请使用停用；复职后可恢复在职");
+            SysUser user = coach.getUserId() == null ? null : sysUserMapper.selectById(coach.getUserId());
+            if (user != null && !Objects.equals(user.getRemark(), "教练档案自动创建/同步账号"))
+                throw new ServiceException("该教练关联独立系统账号，请停用并由系统管理员处理");
+            if (user != null) {
+                var roles = sysRoleMapper.selectRolesByUserId(user.getUserId());
+                if (roles.stream().anyMatch(role -> !FitnessRoleConstants.ROLE_KEY_JIAOLIAN.equals(role.getRoleKey()))
+                    || identities.countPrivilegedCoachAccount(user.getUserId()) > 0)
+                    throw new ServiceException("关联账号具有其他角色、岗位或后台菜单权限，请停用并由系统管理员处理");
+                sysUserService.deleteUserByIds(new Long[]{user.getUserId()});
             }
+            FitnessSessionRevoker.coach(coach.getUserId());
         }
-        boolean flag = baseMapper.deleteByIds(ids) > 0;
-        if (flag) {
-            coachWechatBindMapper.delete(new LambdaQueryWrapper<FitCoachWechatBind>().in(FitCoachWechatBind::getCoachId, ids));
-        }
-        return flag;
+        if (baseMapper.deleteByIds(ids) != ids.size()) throw new ServiceException("删除失败，请刷新重试");
+        coachWechatBindMapper.delete(new LambdaQueryWrapper<FitCoachWechatBind>().in(FitCoachWechatBind::getCoachId, ids));
+        return true;
     }
 
     private void validEntityBeforeSave(FitCoach entity) {
+        if (!Set.of("0", "1").contains(entity.getHireStatus())) throw new ServiceException("任职状态无效");
+        requireStore(entity.getStoreId());
         if (StringUtils.isBlank(entity.getMobile())) {
             throw new ServiceException("手机号不能为空");
         }
@@ -163,6 +197,12 @@ public class FitnessCoachServiceImpl implements IFitnessCoachService {
             .ne(entity.getCoachId() != null, FitCoach::getCoachId, entity.getCoachId()))) {
             throw new ServiceException("手机号已存在");
         }
+    }
+
+    private void requireStore(Long storeId) {
+        var store = storeId == null ? null : stores.selectById(storeId);
+        if (store == null || !Objects.equals(store.getTenantId(), currentTenantId()) || !"0".equals(store.getStatus()))
+            throw new ServiceException("请选择正常营业的所属门店");
     }
 
     private void syncCoachUserAccount(FitCoach coach) {
@@ -192,7 +232,10 @@ public class FitnessCoachServiceImpl implements IFitnessCoachService {
         if (sysUserMapper.updateById(updateUser) <= 0) {
             throw new ServiceException("同步教练账号失败");
         }
-        sysUserService.insertUserAuth(existUser.getUserId(), new Long[]{roleId});
+        var roleIds = sysRoleMapper.selectRolesByUserId(existUser.getUserId()).stream().map(org.dromara.system.domain.vo.SysRoleVo::getRoleId)
+            .collect(java.util.stream.Collectors.toSet());
+        roleIds.add(roleId);
+        sysUserService.insertUserAuth(existUser.getUserId(), roleIds.toArray(Long[]::new));
     }
 
     private Long createCoachUserAccount(FitCoach coach, Long roleId) {

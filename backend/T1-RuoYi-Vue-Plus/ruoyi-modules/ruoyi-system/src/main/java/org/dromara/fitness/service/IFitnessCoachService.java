@@ -25,6 +25,8 @@ public interface IFitnessCoachService {
 
     Boolean updateByBo(FitnessCoachBo bo);
 
+    Boolean changeStatus(Long coachId, String status);
+
     Boolean deleteWithValidByIds(Collection<Long> ids, Boolean isValid);
 
 }

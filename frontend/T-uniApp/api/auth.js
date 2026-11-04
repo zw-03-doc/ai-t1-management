@@ -1,4 +1,5 @@
 import { request } from '../utils/request'
+import { saveMemberSession } from '../utils/auth'
 
 // ==================== 会员端 ====================
 export function memberWechatLogin(data) {
@@ -16,13 +17,11 @@ export function memberHomeIndex() {
 	})
 }
 
-export function memberBindPhone(data) {
-	return request({
-		url: '/fitness/mini/auth/bindPhone',
-		method: 'POST',
-		data,
-		auth: 'member'
-	})
+export async function memberBindPhone(data) {
+    const session = await request({ url: '/fitness/mini/auth/bindPhone', method: 'POST', data, auth: 'member' })
+    if (!session?.accessToken || !session?.memberInfo?.memberId) throw new Error('会员身份更新失败，请重新登录')
+    saveMemberSession(session)
+    return session
 }
 
 export function memberMineSummary() {
@@ -288,3 +287,5 @@ export const coachPasswordLogin = data => request({url:'/fitness/coachApp/auth/l
 export const memberWebLogin = data => request({url:'/fitness/mini/auth/webLogin',method:'POST',data})
 export const memberWebCode = () => request({url:'/fitness/mini/auth/webCode',method:'POST',auth:'member'})
 export const coachProxyCheckin = data => request({url:'/fitness/coachApp/checkin/proxy',method:'POST',data,auth:'coach'})
+export const memberEligibleCards = scheduleId => request({url:`/fitness/mini/member/entitlements/${scheduleId}`,auth:'member'})
+export const coachRestoreCheckin = (checkinId, remark) => request({url:`/fitness/coachApp/checkin/${checkinId}/restore`,method:'POST',data:{remark},auth:'coach'})

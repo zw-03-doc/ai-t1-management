@@ -34,6 +34,8 @@ public class FitOrder extends TenantEntity {
 
     private Long memberId;
 
+    private Long bindCoachId;
+
     private String orderType;
 
     private String orderSource;

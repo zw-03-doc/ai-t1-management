@@ -37,6 +37,14 @@ public class FitnessOrderVo implements Serializable {
 
     private Long memberId;
 
+    private Long bindCoachId;
+
+    private String coachName;
+
+    private Long planId;
+
+    private String planName;
+
     @ExcelProperty("会员")
     private String memberName;
 

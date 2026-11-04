@@ -340,8 +340,7 @@
           AND (c.published_at IS NULL OR c.published_at &lt;= NOW())
           AND (c.listing_until IS NULL OR c.listing_until &gt; NOW())
           AND s.end_time &gt; NOW()
-          AND (NOT EXISTS (SELECT 1 FROM fit_schedule_student ss WHERE ss.schedule_id=s.schedule_id AND ss.tenant_id=s.tenant_id AND ss.del_flag='0')
-            OR EXISTS (SELECT 1 FROM fit_schedule_student ss WHERE ss.schedule_id=s.schedule_id AND ss.tenant_id=s.tenant_id AND ss.del_flag='0' AND ss.member_id=#{memberId}))
+          AND (s.schedule_mode='normal' OR (s.schedule_mode='directed' AND EXISTS (SELECT 1 FROM fit_schedule_student ss WHERE ss.schedule_id=s.schedule_id AND ss.tenant_id=s.tenant_id AND ss.del_flag='0' AND ss.member_id=#{memberId})))
 
 
         <if test="bo != null and bo.storeId != null">

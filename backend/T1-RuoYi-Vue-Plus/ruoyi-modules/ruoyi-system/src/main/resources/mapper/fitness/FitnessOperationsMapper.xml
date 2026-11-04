@@ -70,4 +70,9 @@
     WHERE checkin_id=#{checkinId} AND tenant_id=#{tenantId} AND del_flag='0'
       AND operator_user_id IS NULL AND checkin_status&lt;&gt;'reversed'
   </update>
+  <update id="restoreCheckin">
+    UPDATE fit_checkin_record SET operator_user_id=NULL, checkin_status='success',
+      consume_times=0, consume_amount=0, remark=#{remark}, update_time=NOW()
+    WHERE checkin_id=#{checkinId} AND tenant_id=#{tenantId} AND del_flag='0' AND checkin_status='reversed'
+  </update>
 </mapper>

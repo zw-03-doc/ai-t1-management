@@ -40,9 +40,8 @@ public class FitnessMiniController extends BaseController {
     @RepeatSubmit
     @RateLimiter(key = "#{T(org.dromara.common.satoken.utils.LoginHelper).getUserId()}", time = 60, count = 1, message = "操作过于频繁，请稍后再试")
     @PostMapping("/auth/bindPhone")
-    public R<Void> bindPhone(@Validated @RequestBody FitnessMiniBo.BindPhoneBo bo) {
-        fitnessMiniService.bindPhone(bo);
-        return R.ok();
+    public R<FitnessMiniVo.LoginVo> bindPhone(@Validated @RequestBody FitnessMiniBo.BindPhoneBo bo) {
+        return R.ok(fitnessMiniService.bindPhone(bo));
     }
 
     @SaCheckLogin

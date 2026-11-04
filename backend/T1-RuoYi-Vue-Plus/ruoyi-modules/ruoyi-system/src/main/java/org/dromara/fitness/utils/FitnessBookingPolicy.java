@@ -49,4 +49,13 @@ public final class FitnessBookingPolicy {
         if (end.getTime() - start.getTime() > 24 * 60 * 60_000L)
             throw new ServiceException("单次排课时长不能超过24小时");
     }
+
+    public static void validateAudience(String mode, java.util.List<Long> members, int capacity) {
+        if (!java.util.Set.of("normal", "directed").contains(java.util.Objects.toString(mode, "")))
+            throw new ServiceException("请选择公开预约或指定学员");
+        int size = members == null ? 0 : (int) members.stream().distinct().count();
+        if ("directed".equals(mode) && size == 0) throw new ServiceException("指定学员场次至少选择一名学员");
+        if ("normal".equals(mode) && size > 0) throw new ServiceException("公开预约无需指定学员，请清空名单或改为指定学员");
+        if (size > capacity) throw new ServiceException("定向学员数量不能超过场次名额");
+    }
 }

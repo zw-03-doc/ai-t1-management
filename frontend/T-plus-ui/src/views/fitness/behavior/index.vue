@@ -26,6 +26,23 @@
 </template>
 <script setup lang="ts" name="FitnessBehavior">
 import request from '@/utils/request';
+const actionLabels: Record<string, string> = {
+  admin_finish_schedule: '管理员结束场次',
+  member_reservation: '会员预约',
+  admin_reservation: '管理员预约',
+  member_cancel_reservation: '会员取消预约',
+  admin_cancel_reservation: '管理员取消预约',
+  member_checkin: '会员签到',
+  coach_proxy_checkin: '教练代签到',
+  coach_confirm_checkin: '教练核销',
+  admin_confirm_checkin: '管理员核销',
+  coach_checkin_exception: '教练标记异常',
+  admin_checkin_exception: '管理员标记异常',
+  admin_restore_checkin: '管理员恢复签到',
+  coach_restore_checkin: '教练恢复签到',
+  admin_resolve_reservation: '管理员处理缺席或请假',
+  coach_resolve_reservation: '教练处理缺席或请假'
+};
 const rows = ref<any[]>([]);
 const total = ref(0);
 const loading = ref(false);
@@ -34,7 +51,12 @@ async function load() {
   loading.value = true;
   try {
     const res: any = await request({ url: '/fitness/behavior/list', params: query });
-    rows.value = res.rows || [];
+    rows.value = (res.rows || []).map((row: any) => ({
+      ...row,
+      action: actionLabels[row.action] || row.action,
+      actorType: ({ member: '会员', coach: '教练', admin: '管理员' } as Record<string, string>)[row.actorType] || row.actorType,
+      source: ({ web: '网页', mini: '微信小程序' } as Record<string, string>)[row.source] || row.source
+    }));
     total.value = res.total || 0;
   } finally {
     loading.value = false;

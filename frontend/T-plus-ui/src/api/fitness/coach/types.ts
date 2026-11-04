@@ -22,6 +22,7 @@ export interface FitnessCoachVO extends BaseEntity {
 }
 
 export interface FitnessCoachQuery extends PageQuery {
+  keyword?: string;
   coachNo?: string;
   coachName?: string;
   mobile?: string;

@@ -16,6 +16,10 @@ export interface FitnessOrderVO extends BaseEntity {
   storeName?: string;
   memberId?: number | string;
   memberName?: string;
+  bindCoachId?: number | string;
+  coachName?: string;
+  planId?: number | string;
+  planName?: string;
   memberMobile?: string;
   orderType?: string;
   orderSource?: string;

@@ -7,6 +7,7 @@ import java.util.Date;
 import java.util.List;
 
 public interface FitnessOperationsMapper {
+    int restoreCheckin(@Param("checkinId") Long checkinId, @Param("tenantId") String tenantId, @Param("remark") String remark);
     int insertBehavior(@Param("id") Long id, @Param("tenantId") String tenantId,
         @Param("actorId") Long actorId, @Param("actorType") String actorType,
         @Param("memberId") Long memberId, @Param("storeId") Long storeId,

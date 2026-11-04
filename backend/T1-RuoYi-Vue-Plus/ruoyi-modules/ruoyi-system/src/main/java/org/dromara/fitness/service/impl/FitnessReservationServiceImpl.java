@@ -45,6 +45,7 @@ import java.util.Objects;
 public class FitnessReservationServiceImpl implements IFitnessReservationService {
 
     private final FitnessOperationsService operations;
+    private final org.dromara.fitness.service.support.FitnessEntitlementService entitlements;
     private final FitnessReservationMapper baseMapper;
     private final FitnessScheduleMapper scheduleMapper;
     private final FitnessMemberMapper memberMapper;
@@ -72,7 +73,7 @@ public class FitnessReservationServiceImpl implements IFitnessReservationService
     public Boolean insertByBo(FitnessReservationBo bo) {
         operations.requireReservationWindow(bo.getScheduleId(), bo.getMemberId());
         FitnessScheduleVo scheduleVo = validBeforeCreate(bo);
-        ReservationRule reservationRule = resolveReservationRule(bo, scheduleVo);
+        var reservationRule = entitlements.reservationRule(bo.getMemberId(), bo.getScheduleId(), bo.getCardId(), "store_experience".equals(bo.getReservationType()));
         FitCourseReservation add = MapstructUtils.convert(bo, FitCourseReservation.class);
         add.setReservationId(IdGeneratorUtil.nextLongId());
         add.setReservationNo(FitnessBizCodeUtils.defaultIfBlank(bo.getReservationNo(), "RSV"));
@@ -83,7 +84,7 @@ public class FitnessReservationServiceImpl implements IFitnessReservationService
         add.setReservationType(reservationRule.reservationType());
         add.setReservationSource(StringUtils.defaultIfBlank(bo.getReservationSource(), "admin"));
         add.setReservationStatus("reserved");
-        add.setConsumeMode(StringUtils.defaultIfBlank(bo.getConsumeMode(), reservationRule.consumeMode()));
+        add.setConsumeMode(reservationRule.consumeMode());
         add.setReservationTime(bo.getReservationTime() == null ? new Date() : bo.getReservationTime());
         if (scheduleMapper.updateReservedCount(add.getScheduleId(), 1) <= 0) {
             throw new ServiceException("预约失败，排课人数更新异常");
@@ -215,37 +216,6 @@ public class FitnessReservationServiceImpl implements IFitnessReservationService
         if (count > 0) {
             throw new ServiceException("预约编号已存在");
         }
-    }
-
-    private ReservationRule resolveReservationRule(FitnessReservationBo bo, FitnessScheduleVo scheduleVo) {
-        Long cardId = bo.getCardId();
-        if (cardId == null) {
-            return new ReservationRule(null, "store_experience", "free");
-        }
-        FitMemberCard card = memberCardMapper.selectById(cardId);
-        if (card == null || !Objects.equals(card.getMemberId(), bo.getMemberId())) {
-            throw new ServiceException("会员卡不存在或不属于当前会员");
-        }
-        if (!StringUtils.equalsAny(card.getCardStatus(), "unused", "active")) {
-            throw new ServiceException("会员卡当前状态不可预约");
-        }
-        if (StringUtils.equals(card.getPlanType(), "time_card")) {
-            throw new ServiceException("时间卡（月卡/年卡）无需预约和核销，请直接到店上课");
-        }
-        if (isPrivateOrSmall(scheduleVo.getCourseType())
-            && card.getBindCoachId() != null
-            && !Objects.equals(card.getBindCoachId(), scheduleVo.getCoachId())) {
-            throw new ServiceException("当前预约教练与私教卡绑定教练不一致");
-        }
-        String consumeMode = StringUtils.equals(card.getPlanType(), "stored_card") ? "amount" : "times";
-        return new ReservationRule(cardId, "card", consumeMode);
-    }
-
-    private boolean isPrivateOrSmall(String courseType) {
-        return Objects.equals("private", courseType) || Objects.equals("small", courseType);
-    }
-
-    private record ReservationRule(Long cardId, String reservationType, String consumeMode) {
     }
 
     private String currentTenantId() {

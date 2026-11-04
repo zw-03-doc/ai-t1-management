@@ -1,10 +1,19 @@
 <template>
-  <FitnessCrudPage v-bind="pageConfig as any" />
+  <div>
+    <el-alert type="info" :closable="false" class="mb-3" title="先建门店，再新增教练。网页登录账号为手机号；初始密码由管理员配置，可在系统用户中重置。微信首次登录使用表中激活码。离职请停用，复职可恢复。" />
+    <FitnessCrudPage v-bind="pageConfig as any">
+      <template #row-actions="{ row, refresh }">
+        <el-button v-hasPermi="['fitness:coach:edit']" link :type="row.hireStatus === '0' ? 'warning' : 'success'" :disabled="statusBusy" @click="toggleStatus(row, refresh)">
+          {{ row.hireStatus === '0' ? '停用' : '恢复' }}
+        </el-button>
+      </template>
+    </FitnessCrudPage>
+  </div>
 </template>
 
 <script setup name="FitnessCoach" lang="ts">
 import FitnessCrudPage from '../components/FitnessCrudPage.vue';
-import { addCoach, delCoach, getCoach, listCoach, updateCoach } from '@/api/fitness/coach';
+import { addCoach, delCoach, getCoach, listCoach, updateCoach, changeCoachStatus } from '@/api/fitness/coach';
 import { loadStoreOptions } from '../components/remoteOptions';
 
 const hireStatusOptions = [
@@ -83,6 +92,7 @@ const pageConfig = reactive({
   },
 
   rules: {
+    storeId: [{ required: true, message: '请选择所属门店', trigger: 'change' }],
     coachName: [{ required: true, message: '教练姓名不能为空', trigger: 'blur' }],
     mobile: [{ required: true, message: '手机号不能为空', trigger: 'blur' }]
   },
@@ -93,4 +103,18 @@ const pageConfig = reactive({
   updateFn: updateCoach,
   delFn: delCoach
 });
+const { proxy } = getCurrentInstance() as ComponentInternalInstance;
+const statusBusy = ref(false);
+async function toggleStatus(row: any, refresh: () => Promise<void>) {
+  if (statusBusy.value) return;
+  const status = row.hireStatus === '0' ? '1' : '0';
+  statusBusy.value = true;
+  try {
+    await proxy?.$modal.confirm(status === '1' ? `停用 ${row.coachName} 后，所有设备将退出登录，不能继续授课操作。保留历史记录，是否继续？` : `恢复 ${row.coachName} 的在职状态？恢复后需要重新登录。`);
+    await changeCoachStatus(row.coachId, status);
+    proxy?.$modal.msgSuccess(status === '1' ? '教练已停用，所有登录已失效' : '教练已恢复，请重新登录');
+    await refresh();
+  } catch (error) { /* Request errors are shown by the shared request handler. */ }
+  finally { statusBusy.value = false; }
+}
 </script>

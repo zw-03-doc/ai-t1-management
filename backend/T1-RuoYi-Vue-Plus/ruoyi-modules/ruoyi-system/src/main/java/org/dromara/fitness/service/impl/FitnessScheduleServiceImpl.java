@@ -77,7 +77,8 @@ public class FitnessScheduleServiceImpl implements IFitnessScheduleService {
         add.setReservedCount(0);
         add.setSignedCount(0);
         add.setScheduleStatus(StringUtils.defaultIfBlank(bo.getScheduleStatus(), "draft"));
-        add.setScheduleMode(resolveScheduleMode(bo));
+        add.setScheduleMode(bo.getScheduleMode());
+        if ("finished".equals(add.getScheduleStatus())) operations.requireScheduleCanFinish(add);
         validScheduleNoUnique(add.getScheduleNo(), null);
         boolean flag = baseMapper.insert(add) > 0;
         if (flag) {
@@ -104,14 +105,20 @@ public class FitnessScheduleServiceImpl implements IFitnessScheduleService {
             || !Objects.equals(db.getEndTime(), bo.getEndTime())))
             throw new ServiceException("已有预约的场次不能直接变更门店、课程、教练或时间，请取消预约后重新排课");
         if (reserved > 0 && !Objects.equals(db.getScheduleStatus(), bo.getScheduleStatus())
-            && !"closed".equals(bo.getScheduleStatus()) && !"open".equals(bo.getScheduleStatus()))
-            throw new ServiceException("有预约的场次不能直接取消或结束，请先处理预约");
+            && !java.util.Set.of("open", "closed", "finished").contains(Objects.toString(bo.getScheduleStatus(), "")))
+            throw new ServiceException("有预约历史的场次不能取消，请处理预约后结束场次");
+        if ("finished".equals(db.getScheduleStatus()) && !"finished".equals(bo.getScheduleStatus()))
+            throw new ServiceException("已结束场次不能重新开放，请新建场次");
+        if ("finished".equals(bo.getScheduleStatus())) operations.requireScheduleCanFinish(db);
+        if (reserved > 0 && (!Objects.equals(db.getScheduleMode(), bo.getScheduleMode())
+            || !new java.util.HashSet<>(baseMapper.selectScheduleStudentIds(db.getScheduleId())).equals(new java.util.HashSet<>(bo.getStudentMemberIds()))))
+            throw new ServiceException("已有预约，不能直接修改公开范围或定向名单");
         FitCourseSchedule update = MapstructUtils.convert(bo, FitCourseSchedule.class);
         update.setReservedCount(db.getReservedCount());
         update.setSignedCount(db.getSignedCount());
         update.setVersion(db.getVersion());
         update.setScheduleNo(FitnessBizCodeUtils.fillOrKeep(bo.getScheduleNo(), db.getScheduleNo(), "SCH"));
-        update.setScheduleMode(resolveScheduleMode(bo));
+        update.setScheduleMode(bo.getScheduleMode());
         validScheduleNoUnique(update.getScheduleNo(), bo.getScheduleId());
         boolean flag = baseMapper.updateById(update) > 0;
         if (flag) {
@@ -136,6 +143,18 @@ public class FitnessScheduleServiceImpl implements IFitnessScheduleService {
 
     @Override
     @Transactional(rollbackFor = Exception.class)
+    public Boolean finishSchedule(Long scheduleId) {
+        FitCourseSchedule current = operations.lockSchedule(scheduleId);
+        if ("finished".equals(current.getScheduleStatus())) return true;
+        operations.requireScheduleCanFinish(current);
+        current.setScheduleStatus("finished");
+        if (baseMapper.updateById(current) != 1) throw new ServiceException("场次状态已变化，请刷新后重试");
+        operations.audit(null, current.getStoreId(), scheduleId, null, null, "admin_finish_schedule", "web", "全部预约已完成核销或登记缺席/请假，保留历史人数");
+        return true;
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
     public Boolean deleteWithValidByIds(Collection<Long> ids, Boolean isValid) {
         if (isValid) {
             long count = baseMapper.selectCount(new LambdaQueryWrapper<FitCourseSchedule>().in(FitCourseSchedule::getScheduleId, ids));
@@ -155,21 +174,6 @@ public class FitnessScheduleServiceImpl implements IFitnessScheduleService {
     private void validBeforeSave(FitnessScheduleBo bo) {
         bo.setStudentMemberIds(cleanMemberIds(bo.getStudentMemberIds()));
         operations.prepareSchedule(bo);
-    }
-
-    private String resolveScheduleMode(FitnessScheduleBo bo) {
-        String courseType = baseMapper.selectCourseTypeById(bo.getCourseId());
-        if (Objects.equals("private", courseType)) {
-            return MODE_PRIVATE;
-        }
-        if (Objects.equals("small", courseType)) {
-            return MODE_SMALL_GROUP;
-        }
-        return StringUtils.defaultIfBlank(bo.getScheduleMode(), MODE_NORMAL);
-    }
-
-    private boolean isPrivateOrSmall(String courseType) {
-        return Objects.equals("private", courseType) || Objects.equals("small", courseType);
     }
 
     private List<Long> cleanMemberIds(List<Long> memberIds) {

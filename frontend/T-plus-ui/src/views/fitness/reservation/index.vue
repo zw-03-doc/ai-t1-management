@@ -1,16 +1,41 @@
 <template>
   <FitnessCrudPage v-bind="pageConfig as any">
     <template #row-actions="{ row, refresh }">
-      <el-tooltip v-if="row.reservationStatus !== 'cancelled'" content="取消预约" placement="top">
+      <el-tooltip v-if="row.reservationStatus === 'reserved' && !row.checkinId" content="取消预约" placement="top">
         <el-button v-hasPermi="['fitness:reservation:edit']" link type="danger" icon="CircleClose" @click="handleCancel(row, refresh)" />
       </el-tooltip>
+      <el-button
+        v-if="row.reservationStatus === 'reserved' && (!row.checkinId || row.checkinStatus === 'reversed')"
+        v-hasPermi="['fitness:reservation:edit']"
+        link
+        type="warning"
+        @click="handleResolve(row, 'absent', refresh)"
+        >登记缺席</el-button
+      >
+      <el-button
+        v-if="row.reservationStatus === 'reserved' && (!row.checkinId || row.checkinStatus === 'reversed')"
+        v-hasPermi="['fitness:reservation:edit']"
+        link
+        type="primary"
+        @click="handleResolve(row, 'leave', refresh)"
+        >登记请假</el-button
+      >
     </template>
   </FitnessCrudPage>
 </template>
 
 <script setup name="FitnessReservation" lang="ts">
 import FitnessCrudPage from '../components/FitnessCrudPage.vue';
-import { addReservation, cancelReservation, delReservation, getReservation, listReservation, updateReservation } from '@/api/fitness/reservation';
+import { ElMessageBox } from 'element-plus';
+import {
+  addReservation,
+  cancelReservation,
+  delReservation,
+  getReservation,
+  listReservation,
+  updateReservation,
+  resolveReservation
+} from '@/api/fitness/reservation';
 import { loadMemberCardOptions, loadMemberOptions, loadScheduleOptions } from '../components/remoteOptions';
 
 const { proxy } = getCurrentInstance() as ComponentInternalInstance;
@@ -32,7 +57,6 @@ const reservationTypeOptions = [
   { label: '卡项预约', value: 'card' }
 ];
 const consumeModeOptions = [
-
   { label: '次卡扣次', value: 'times' },
   { label: '储值扣费', value: 'amount' },
   { label: '免费体验', value: 'free' }
@@ -48,12 +72,12 @@ const pageConfig = reactive({
   idKey: 'reservationId',
   exportUrl: 'fitness/reservation/export',
   queryFields: [
+    { label: '排课场次', prop: 'scheduleId', type: 'remoteSelect', remoteMethod: loadScheduleOptions },
     { label: '预约编号', prop: 'reservationNo' },
     { label: '关键字', prop: 'keyword' },
     { label: '预约来源', prop: 'reservationSource', type: 'select', options: sourceOptions },
     { label: '预约类型', prop: 'reservationType', type: 'select', options: reservationTypeOptions },
     { label: '预约状态', prop: 'reservationStatus', type: 'select', options: statusOptions }
-
   ],
   formFields: [
     { label: '预约编号', prop: 'reservationNo', placeholder: '可手动填写，不填则自动生成' },
@@ -63,8 +87,6 @@ const pageConfig = reactive({
     { label: '预约类型', prop: 'reservationType', type: 'select', options: reservationTypeOptions },
     { label: '预约来源', prop: 'reservationSource', type: 'select', options: sourceOptions },
 
-    { label: '预约状态', prop: 'reservationStatus', type: 'select', options: statusOptions },
-    { label: '扣费模式', prop: 'consumeMode', type: 'select', options: consumeModeOptions },
     { label: '备注', prop: 'remark', type: 'textarea', span: 24 }
   ],
   tableColumns: [
@@ -84,6 +106,7 @@ const pageConfig = reactive({
     { label: '创建时间', prop: 'createTime', type: 'date' }
   ],
   initialQuery: {
+    scheduleId: undefined,
     pageNum: 1,
     pageSize: 10,
     reservationNo: '',
@@ -91,7 +114,6 @@ const pageConfig = reactive({
     reservationSource: '',
     reservationType: '',
     reservationStatus: ''
-
   },
   initialForm: {
     reservationId: undefined,
@@ -119,7 +141,7 @@ const pageConfig = reactive({
 
 const handleCancel = async (row: any, refresh: () => Promise<void>) => {
   try {
-    const { value } = await proxy?.$modal.prompt('请输入取消原因，可留空')!;
+    const { value } = await ElMessageBox.prompt('请输入取消原因，可留空')!;
     await cancelReservation(row.reservationId, value);
     proxy?.$modal.msgSuccess('预约已取消');
     await refresh();
@@ -127,5 +149,18 @@ const handleCancel = async (row: any, refresh: () => Promise<void>) => {
     // 用户取消
   }
 };
+const handleResolve = async (row: any, reservationStatus: string, refresh: () => Promise<void>) => {
+  try {
+    const { value } = await ElMessageBox.prompt(
+      '请填写处理原因。本次不扣课次或金额，处理结果会保留在记录中。',
+      reservationStatus === 'absent' ? '登记缺席' : '登记请假',
+      { inputValidator: (text: string) => !!text?.trim() || '请填写原因' }
+    )!;
+    await resolveReservation(row.reservationId, reservationStatus, value);
+    proxy?.$modal.msgSuccess('预约已处理');
+    await refresh();
+  } catch {
+    /* 取消或统一请求错误提示 */
+  }
+};
 </script>
-

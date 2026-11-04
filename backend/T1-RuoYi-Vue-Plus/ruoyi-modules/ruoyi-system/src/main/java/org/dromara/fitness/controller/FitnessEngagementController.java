@@ -17,6 +17,34 @@ import org.springframework.web.bind.annotation.*;
 @RequiredArgsConstructor
 public class FitnessEngagementController {
     private final FitnessOperationsService operations;
+    private final org.dromara.fitness.service.support.FitnessEntitlementService entitlements;
+
+    @SaCheckLogin
+    @GetMapping("/fitness/mini/member/entitlements/{scheduleId}")
+    public R<java.util.List<org.dromara.fitness.domain.FitMemberCard>> eligibleCards(@PathVariable Long scheduleId) {
+        return R.ok(entitlements.eligibleCards(org.dromara.fitness.utils.FitnessSecurityUtils.getCurrentMemberId(), scheduleId));
+    }
+
+    @SaCheckPermission("fitness:reservation:edit")
+    @PutMapping("/fitness/reservation/{reservationId}/resolve")
+    public R<Void> resolve(@PathVariable Long reservationId, @RequestBody org.dromara.fitness.domain.bo.FitnessReservationBo bo) {
+        operations.resolveReservation(reservationId, bo.getReservationStatus(), bo.getRemark(), null);
+        return R.ok();
+    }
+
+    @SaCheckPermission("fitness:checkin:edit")
+    @PutMapping("/fitness/checkin/{checkinId}/restore")
+    public R<Void> restore(@PathVariable Long checkinId, @RequestBody org.dromara.fitness.domain.bo.FitnessCheckinBo bo) {
+        operations.restoreCheckin(checkinId, bo.getRemark(), null);
+        return R.ok();
+    }
+
+    @SaCheckLogin
+    @PostMapping("/fitness/coachApp/checkin/{checkinId}/restore")
+    public R<Void> coachRestore(@PathVariable Long checkinId, @RequestBody org.dromara.fitness.domain.bo.FitnessCheckinBo bo) {
+        operations.restoreCheckin(checkinId, bo.getRemark(), org.dromara.fitness.utils.FitnessSecurityUtils.getCurrentCoachId());
+        return R.ok();
+    }
 
     @SaCheckLogin
     @RateLimiter(key = "#{T(org.dromara.common.satoken.utils.LoginHelper).getUserId()}", time = 60, count = 30, message = "浏览记录提交过于频繁")

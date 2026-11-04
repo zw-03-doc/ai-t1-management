@@ -48,6 +48,7 @@ import java.util.stream.Collectors;
 public class FitnessCoachAppServiceImpl implements IFitnessCoachAppService {
 
     private final FitnessOperationsService operations;
+    private final org.dromara.fitness.service.support.FitnessEntitlementService entitlements;
     private final FitnessCoachAppMapper baseMapper;
     private final FitnessCoachMapper coachMapper;
     private final FitnessCoachWechatBindMapper coachWechatBindMapper;
@@ -165,7 +166,8 @@ public class FitnessCoachAppServiceImpl implements IFitnessCoachAppService {
     @Lock4j(keys = {"'checkin:confirm:' + #bo.reservationId"}, acquireTimeout = 3000)
     @Transactional(rollbackFor = Exception.class)
     public FitnessCoachAppVo.CheckinVo confirmCheckin(FitnessCoachAppBo.CheckinConfirmBo bo) {
-        operations.lockReservation(bo.getReservationId());
+        FitCourseReservation locked = operations.lockReservation(bo.getReservationId());
+        if (!"reserved".equals(locked.getReservationStatus())) throw new ServiceException("当前预约已处理，不能重复核销");
         Long coachId = FitnessSecurityUtils.getCurrentCoachId();
         Long operatorUserId = FitnessSecurityUtils.getCurrentCoachUserId();
         FitnessCoachAppVo.CheckinActionVo actionVo = baseMapper.selectCoachCheckinAction(coachId, bo.getReservationId());
@@ -178,23 +180,11 @@ public class FitnessCoachAppServiceImpl implements IFitnessCoachAppService {
         if (actionVo.getOperatorUserId() != null) {
             throw new ServiceException("该签到已确认核销");
         }
-        int consumeTimes = bo.getConsumeTimes() == null
-            ? (actionVo.getCardId() == null || Objects.equals("time_card", actionVo.getPlanType()) ? 0 : 1)
-            : bo.getConsumeTimes();
-
-        BigDecimal consumeAmount = bo.getConsumeAmount() == null ? BigDecimal.ZERO : bo.getConsumeAmount();
-        validateCardConsume(actionVo, consumeTimes, consumeAmount);
-        operations.confirmRecord(actionVo.getCheckinId(), operatorUserId, consumeTimes, consumeAmount, bo.getRemark());
-        baseMapper.updateScheduleSignedCount(actionVo.getScheduleId(), 1);
-        if (actionVo.getCardId() != null && (consumeTimes > 0 || consumeAmount.compareTo(BigDecimal.ZERO) > 0)) {
-            consumeMemberCard(actionVo.getCardId(), consumeTimes, consumeAmount);
-        }
-        if (actionVo.getReservationId() != null) {
-            FitCourseReservation reservation = new FitCourseReservation();
-            reservation.setReservationId(actionVo.getReservationId());
-            reservation.setReservationStatus("signed");
-            reservationMapper.updateById(reservation);
-        }
+        var usage = entitlements.consume(locked, bo.getConsumeTimes(), bo.getConsumeAmount());
+        operations.confirmRecord(actionVo.getCheckinId(), operatorUserId, usage.times(), usage.amount(), bo.getRemark());
+        if (baseMapper.updateScheduleSignedCount(actionVo.getScheduleId(), 1) != 1) throw new ServiceException("场次状态已变化，请刷新后重试");
+        locked.setReservationStatus("signed");
+        if (reservationMapper.updateById(locked) != 1) throw new ServiceException("预约状态已变化，请刷新后重试");
         operations.audit(actionVo.getMemberId(), actionVo.getStoreId(), actionVo.getScheduleId(), bo.getReservationId(), actionVo.getCheckinId(), "coach_confirm_checkin", StringUtils.defaultIfBlank(bo.getSource(), "mini"), bo.getRemark());
         return queryCheckinDetail(bo.getReservationId());
     }
@@ -398,79 +388,6 @@ public class FitnessCoachAppServiceImpl implements IFitnessCoachAppService {
         FitnessCoachAppBo.CheckinQueryBo bo = new FitnessCoachAppBo.CheckinQueryBo();
         bo.setStatus("pending");
         return bo;
-    }
-
-    private void validateCardConsume(FitnessCoachAppVo.CheckinActionVo actionVo, int consumeTimes, BigDecimal consumeAmount) {
-        if (consumeTimes < 0 || consumeAmount.signum() < 0) throw new ServiceException("核销课次和金额不得为负数");
-        if (actionVo.getCardId() == null) {
-            if (consumeTimes != 0 || consumeAmount.signum() != 0) throw new ServiceException("无卡预约不能扣除卡权益");
-            return;
-        }
-        if (!Objects.equals("unused", actionVo.getCardStatus()) && !Objects.equals("active", actionVo.getCardStatus())) {
-            throw new ServiceException("会员卡状态不可核销");
-        }
-        if (Objects.equals("time_card", actionVo.getPlanType())) {
-            if (consumeTimes > 0 || consumeAmount.compareTo(BigDecimal.ZERO) > 0) {
-                throw new ServiceException("时间卡无需核销扣减");
-            }
-            return;
-        }
-
-        if (consumeTimes > 0 && actionVo.getRemainTimes() != null && consumeTimes > actionVo.getRemainTimes()) {
-            throw new ServiceException("剩余课次不足");
-        }
-        if (consumeAmount.compareTo(BigDecimal.ZERO) > 0 && actionVo.getBalanceAmount() != null
-            && consumeAmount.compareTo(actionVo.getBalanceAmount()) > 0) {
-            throw new ServiceException("余额不足，无法完成核销");
-        }
-    }
-
-    private void consumeMemberCard(Long cardId, int consumeTimes, BigDecimal consumeAmount) {
-        FitMemberCard card = memberCardMapper.selectOne(new LambdaQueryWrapper<FitMemberCard>()
-            .eq(FitMemberCard::getCardId, cardId).last("FOR UPDATE"));
-        if (card == null) {
-            throw new ServiceException("会员卡不存在");
-        }
-        if (!StringUtils.equalsAny(card.getCardStatus(), "unused", "active")
-            || card.getExpireTime() != null && !new Date().before(card.getExpireTime())) throw new ServiceException("会员卡已失效");
-        if (consumeTimes > defaultInt(card.getRemainTimes())) throw new ServiceException("剩余课次不足");
-        int usedTimes = defaultInt(card.getUsedTimes()) + Math.max(consumeTimes, 0);
-        int remainTimes = Math.max(defaultInt(card.getRemainTimes()) - Math.max(consumeTimes, 0), 0);
-        BigDecimal balanceAmount = defaultDecimal(card.getBalanceAmount()).subtract(consumeAmount == null ? BigDecimal.ZERO : consumeAmount);
-        if (balanceAmount.compareTo(BigDecimal.ZERO) < 0) {
-            throw new ServiceException("会员卡余额不足");
-        }
-        FitMemberCard update = new FitMemberCard();
-        update.setCardId(card.getCardId());
-        update.setVersion(card.getVersion());
-        update.setUsedTimes(usedTimes);
-        update.setRemainTimes(remainTimes);
-        update.setBalanceAmount(balanceAmount);
-        update.setCardStatus(resolveCardStatus(card.getCardStatus(), card.getTotalTimes(), remainTimes));
-        if (memberCardMapper.updateById(update) <= 0) {
-            throw new ServiceException("更新会员卡权益失败");
-        }
-    }
-
-    private String resolveCardStatus(String currentStatus, Integer totalTimes, Integer remainTimes) {
-        if (StringUtils.equalsAny(currentStatus, "frozen", "expired")) {
-            return currentStatus;
-        }
-        if (defaultInt(totalTimes) > 0 && defaultInt(remainTimes) <= 0) {
-            return "exhausted";
-        }
-        if (Objects.equals("unused", currentStatus) || Objects.equals("exhausted", currentStatus)) {
-            return "active";
-        }
-        return currentStatus;
-    }
-
-    private int defaultInt(Integer value) {
-        return value == null ? 0 : value;
-    }
-
-    private BigDecimal defaultDecimal(BigDecimal value) {
-        return value == null ? BigDecimal.ZERO : value;
     }
 
     private void fillCheckinStatus(FitnessCoachAppVo.CheckinVo vo) {

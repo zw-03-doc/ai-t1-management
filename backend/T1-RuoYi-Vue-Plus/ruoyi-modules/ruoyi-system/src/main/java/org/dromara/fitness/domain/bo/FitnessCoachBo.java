@@ -26,6 +26,8 @@ public class FitnessCoachBo extends BaseEntity {
     @NotNull(message = "教练ID不能为空", groups = { EditGroup.class })
     private Long coachId;
 
+    private String keyword;
+
     /**
      * 教练编号
      */

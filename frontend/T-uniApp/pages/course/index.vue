@@ -306,6 +306,7 @@
           >
           <view class="actions" v-if="item.reservationStatus === 'reserved'">
             <button
+              v-if="!item.checkinId"
               class="btn ghost"
               :disabled="isActioning('cancel', item.reservationId)"
               @tap="cancelReservation(item)"
@@ -317,6 +318,7 @@
               }}
             </button>
             <button
+              v-if="!item.checkinId"
               class="btn"
               :disabled="isActioning('checkin', item.reservationId)"
               @tap="memberCheckin(item)"
@@ -328,6 +330,9 @@
               }}
             </button>
           </view>
+          <view v-if="item.checkinStatus === 'reversed'" class="muted"
+            >请联系授课教练核实异常；恢复后再确认本次到课。</view
+          >
         </view>
         <view v-if="!reservationList.length" class="empty"
           ><text class="empty-title">下一次训练，从预约开始</text
@@ -416,6 +421,7 @@ import {
   memberCancelReservation,
   memberCreateCheckin,
   memberMyCards,
+  memberEligibleCards,
   memberMyOrders,
 } from "../../api/auth";
 
@@ -731,21 +737,12 @@ export default {
       const d = `${date.getUTCDate()}`.padStart(2, "0");
       return `${y}-${m}-${d}`;
     },
-    async buildReservationPayload(item, cardCache = {}) {
-      const payload = { scheduleId: item.scheduleId };
-      if (item.courseType === "private" || item.courseType === "small") {
-        const coachKey = `${item.storeId || "none"}:${item.coachId || "none"}`;
-        let cardId = cardCache[coachKey];
-        if (!cardId) {
-          cardId = await this.pickReservationCard(item);
-          if (!cardId) {
-            throw new Error("已取消选择，剩余课程未预约");
-          }
-          cardCache[coachKey] = cardId;
-        }
-        if (cardId !== "without-card") payload.cardId = cardId;
-      }
-      return payload;
+    async buildReservationPayload(item) {
+      const cardId = await this.pickReservationCard(item);
+      if (!cardId) throw new Error("已取消选择，剩余课程未预约");
+      return cardId === "without-card"
+        ? { scheduleId: item.scheduleId, experience: true }
+        : { scheduleId: item.scheduleId, cardId, experience: false };
     },
     async batchReserveByDateRows() {
       if (this.actioningKey || !this.batchDateRows.length) {
@@ -825,14 +822,7 @@ export default {
       this.setActioning("reserve", item.scheduleId);
       try {
         uni.showLoading({ title: "预约中..." });
-        const payload = { scheduleId: item.scheduleId };
-        if (item.courseType === "private" || item.courseType === "small") {
-          const cardId = await this.pickReservationCard(item);
-          if (!cardId) {
-            return;
-          }
-          if (cardId !== "without-card") payload.cardId = cardId;
-        }
+        const payload = await this.buildReservationPayload(item);
         await memberCreateReservation(payload);
         uni.showToast({ title: "预约成功", icon: "success" });
         await Promise.all([
@@ -849,41 +839,38 @@ export default {
       }
     },
     async pickReservationCard(scheduleItem) {
-      const cards = (await memberMyCards()) || [];
-      const availableCards = cards.filter((card) => {
-        if (!card || !card.cardId) {
-          return false;
-        }
-        if (card.planType === "time_card" || card.planType === "stored_card") {
-          return false;
-        }
-        if (
-          card.bindCoachId &&
-          scheduleItem.coachId &&
-          card.bindCoachId !== scheduleItem.coachId
-        ) {
-          return false;
-        }
-        return true;
-      });
+      const availableCards =
+        (await memberEligibleCards(scheduleItem.scheduleId)) || [];
       uni.hideLoading();
       return new Promise((resolve) => {
-        uni.showActionSheet({
-          itemList: [
-            "无卡预约 · 线下咨询",
-            ...availableCards.map(
-              (card) =>
-                `${card.cardName || "卡项"}（${card.coachName || "未绑定教练"}）`,
-            ),
-          ],
-          success: (res) =>
-            resolve(
-              res.tapIndex === 0
-                ? "without-card"
-                : availableCards[res.tapIndex - 1].cardId,
-            ),
-          fail: () => resolve(null),
-        });
+        const showPage = (start) => {
+          const page = availableCards.slice(start, start + 4);
+          const canPage = availableCards.length > 4;
+          uni.showActionSheet({
+            itemList: [
+              "无卡体验 · 本次不扣权益",
+              ...page.map(
+                (card) =>
+                  `${card.cardName || "会员卡"} · ${card.planType === "time_card" ? "期限内使用，不扣次" : card.planType === "stored_card" ? "余额¥" + Number(card.balanceAmount || 0).toFixed(2) + "，到课确认金额" : "剩余" + card.remainTimes + "次"}`,
+              ),
+              ...(canPage
+                ? [
+                    start + 4 < availableCards.length
+                      ? "更多会员卡 →"
+                      : "返回首批会员卡",
+                  ]
+                : []),
+            ],
+            success: (res) => {
+              if (res.tapIndex === 0) resolve("without-card");
+              else if (res.tapIndex <= page.length)
+                resolve(page[res.tapIndex - 1].cardId);
+              else showPage(start + 4 < availableCards.length ? start + 4 : 0);
+            },
+            fail: () => resolve(null),
+          });
+        };
+        showPage(0);
       });
     },
 

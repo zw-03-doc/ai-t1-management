@@ -101,6 +101,8 @@ public final class FitnessMiniBo {
     @EqualsAndHashCode(callSuper = true)
     public static class ReservationCreateBo extends BaseEntity {
 
+        private Boolean experience;
+
         @NotNull(message = "排课ID不能为空")
         private Long scheduleId;
 

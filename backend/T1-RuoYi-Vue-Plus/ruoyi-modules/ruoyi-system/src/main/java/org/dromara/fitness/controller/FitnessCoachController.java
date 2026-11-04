@@ -73,6 +73,17 @@ public class FitnessCoachController extends BaseController {
         return toAjax(fitnessCoachService.updateByBo(bo));
     }
 
+    public record StatusChange(@jakarta.validation.constraints.Pattern(regexp = "0|1", message = "任职状态无效")
+                               @jakarta.validation.constraints.NotBlank String status) {}
+
+    @SaCheckPermission("fitness:coach:edit")
+    @Log(title = "教练任职状态", businessType = BusinessType.UPDATE)
+    @RepeatSubmit
+    @PutMapping("/{coachId}/status")
+    public R<Void> changeStatus(@PathVariable Long coachId, @Validated @RequestBody StatusChange body) {
+        return toAjax(fitnessCoachService.changeStatus(coachId, body.status()));
+    }
+
     @SaCheckPermission("fitness:coach:remove")
     @Log(title = "教练", businessType = BusinessType.DELETE)
     @DeleteMapping("/{ids}")

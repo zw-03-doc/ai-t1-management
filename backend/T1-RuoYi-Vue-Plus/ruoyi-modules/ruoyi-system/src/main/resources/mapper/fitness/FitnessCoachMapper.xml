@@ -35,6 +35,7 @@
     </sql>
 
     <sql id="baseQueryWhere">
+        <if test="bo != null and bo.keyword != null and bo.keyword != ''">AND (t.coach_no LIKE CONCAT('%', #{bo.keyword}, '%') OR t.coach_name LIKE CONCAT('%', #{bo.keyword}, '%') OR t.mobile LIKE CONCAT('%', #{bo.keyword}, '%') OR t.contact_wechat LIKE CONCAT('%', #{bo.keyword}, '%'))</if>
         <if test="bo != null and bo.coachNo != null and bo.coachNo != ''">AND t.coach_no LIKE CONCAT('%', #{bo.coachNo}, '%')</if>
         <if test="bo != null and bo.coachName != null and bo.coachName != ''">AND t.coach_name LIKE CONCAT('%', #{bo.coachName}, '%')</if>
 

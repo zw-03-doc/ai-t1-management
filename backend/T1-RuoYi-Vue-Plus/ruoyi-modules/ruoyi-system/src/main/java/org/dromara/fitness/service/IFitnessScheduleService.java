@@ -27,5 +27,7 @@ public interface IFitnessScheduleService {
 
     Boolean cancelSchedule(Long scheduleId, String cancelReason);
 
+    Boolean finishSchedule(Long scheduleId);
+
     Boolean deleteWithValidByIds(Collection<Long> ids, Boolean isValid);
 }

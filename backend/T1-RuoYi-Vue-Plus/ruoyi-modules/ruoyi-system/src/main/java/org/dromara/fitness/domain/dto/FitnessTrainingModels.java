@@ -74,9 +74,46 @@ public final class FitnessTrainingModels {
     }
 
     @Data
+    public static class CopyInput {
+        private Long memberId;
+        private String name;
+    }
+
+    @Data
+    public static class MemberContext {
+        private Long memberId;
+        private String displayName;
+        private String memberStatus;
+        private String actorType;
+        private boolean canEdit;
+    }
+
+    @Data
     public static class ShiftInput {
         private LocalDate fromDate;
         private Integer days = 1;
+        private Integer expectedVersion;
+    }
+
+    @Data
+    public static class ShiftPreview {
+        private Integer version;
+        private LocalDate fromDate;
+        private LocalDate toDate;
+        private Integer days;
+        private int affectedCount;
+        private boolean canApply;
+        private String message;
+        private List<ShiftChange> changes = new ArrayList<>();
+    }
+
+    @Data
+    public static class ShiftChange {
+        private Long workoutId;
+        private String title;
+        private String status;
+        private LocalDate beforeDate;
+        private LocalDate afterDate;
     }
 
     @Data
@@ -84,12 +121,16 @@ public final class FitnessTrainingModels {
     public static class SetInput extends TargetSet {
         private String exerciseKey;
         private String exerciseName;
+        /** Zero-based target position within the immutable workout exercise; null for extra sets. */
+        private Integer targetSetIndex;
     }
 
     @Data
     public static class LogInput {
         private LocalDate performedDate;
         private List<SetInput> sets = new ArrayList<>();
+        /** Keep the legacy endpoint's completion behavior when older clients omit this flag. */
+        private Boolean finish = true;
     }
 
     @Data

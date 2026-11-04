@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="org.dromara.fitness.mapper.FitnessIdentityMapper">
+    <select id="lockMember" resultType="org.dromara.fitness.domain.FitMember">
+        SELECT * FROM fit_member WHERE tenant_id = #{tenant} AND member_id = #{memberId} AND del_flag = '0' FOR UPDATE
+    </select>
+    <select id="lockPhoneOwners" resultType="org.dromara.fitness.domain.FitMember">
+        SELECT * FROM fit_member WHERE tenant_id = #{tenant} AND mobile = #{mobile} AND del_flag = '0' ORDER BY member_id FOR UPDATE
+    </select>
+    <select id="countMemberBusiness" resultType="long">
+        SELECT (SELECT COUNT(*) FROM fit_member_card WHERE tenant_id=#{tenant} AND member_id=#{memberId})
+          + (SELECT COUNT(*) FROM fit_order WHERE tenant_id=#{tenant} AND member_id=#{memberId})
+          + (SELECT COUNT(*) FROM fit_course_reservation WHERE tenant_id=#{tenant} AND member_id=#{memberId})
+          + (SELECT COUNT(*) FROM fit_checkin_record WHERE tenant_id=#{tenant} AND member_id=#{memberId})
+          + (SELECT COUNT(*) FROM fit_schedule_student WHERE tenant_id=#{tenant} AND member_id=#{memberId})
+          + (SELECT COUNT(*) FROM fit_training_plan WHERE tenant_id=#{tenant} AND member_id=#{memberId})
+    </select>
+    <update id="retireBlankIdentity">
+        UPDATE fit_member SET wx_openid=NULL, wx_unionid=NULL, member_status='lost', del_flag='2', update_time=NOW()
+        WHERE tenant_id=#{tenant} AND member_id=#{memberId} AND del_flag='0' AND member_status='normal'
+    </update>
+    <update id="claimIdentity">
+        UPDATE fit_member SET wx_openid=#{openid}, wx_unionid=#{unionid}, update_time=NOW()
+        WHERE tenant_id=#{tenant} AND member_id=#{memberId} AND del_flag='0' AND member_status='normal'
+          AND (wx_openid IS NULL OR wx_openid='')
+    </update>
+    <select id="countCoachReferences" resultType="long">
+        SELECT (SELECT COUNT(*) FROM fit_member_card WHERE tenant_id=#{tenant} AND bind_coach_id=#{coachId} AND del_flag='0')
+          + (SELECT COUNT(*) FROM fit_course_schedule WHERE tenant_id=#{tenant} AND coach_id=#{coachId} AND del_flag='0')
+          + (SELECT COUNT(*) FROM fit_course WHERE tenant_id=#{tenant} AND default_coach_id=#{coachId} AND del_flag='0')
+          + (SELECT COUNT(*) FROM fit_order WHERE tenant_id=#{tenant} AND bind_coach_id=#{coachId} AND del_flag='0')
+          + (SELECT COUNT(*) FROM fit_training_plan p JOIN fit_coach c ON c.user_id=p.creator_id AND c.tenant_id=p.tenant_id WHERE c.coach_id=#{coachId} AND p.tenant_id=#{tenant} AND p.creator_type='coach')
+    </select>
+    <select id="countPrivilegedCoachAccount" resultType="long">
+        SELECT (SELECT COUNT(*) FROM sys_user_post WHERE user_id=#{userId})
+          + (SELECT COUNT(*) FROM sys_role_menu rm JOIN sys_user_role ur ON ur.role_id=rm.role_id WHERE ur.user_id=#{userId})
+    </select>
+</mapper>

@@ -18,6 +18,11 @@
       >
         ‹ 返回学员列表
       </button>
+      <view v-if="role === 'coach' && memberId" class="member-context card">
+        <text class="eyebrow accent">当前学员</text>
+        <view class="name">{{ memberContext ? memberContext.displayName : '正在确认学员…' }}</view>
+        <view class="hint">以下计划、日程和记录均属于这位学员；仅有效绑定教练可编辑。</view>
+      </view>
       <view v-if="!authenticated" class="card empty-card"
         ><view class="section-title">把每一次进步留下来</view
         ><view class="muted space-top"
@@ -132,7 +137,7 @@
             ><view class="plan-end"
               ><text
                 :class="['badge', { 'badge-accent': plan.status === 'active' }]"
-                >{{ plan.status === "active" ? "进行中" : "待开启" }}</text
+                >{{ planStatus(plan) }}</text
               ><text class="arrow">↗</text></view
             ></view
           >
@@ -181,9 +186,9 @@
           <view class="card"
             ><view class="section-head"
               ><text class="badge badge-accent">{{
-                selected.status === "active" ? "进行中" : "待开启"
+                planStatus(selected)
               }}</text
-              ><button class="text-button" @tap="editSelected">
+              ><button v-if="canEditPlan" class="text-button" :disabled="busy" @tap="editSelected">
                 编辑计划 ↗
               </button></view
             ><view class="detail-title">{{ selected.name }}</view
@@ -208,7 +213,7 @@
                 ><text class="metric-label">每循环训练日</text></view
               ></view
             >
-            <view v-if="selected.status !== 'active'" class="start-form"
+            <view v-if="selected.status === 'draft'" class="start-form"
               ><view class="form-row"
                 ><text>从哪天开始</text
                 ><picker
@@ -236,6 +241,21 @@
                 开启训练计划
               </button></view
             >
+            <view class="actions lifecycle-actions">
+              <button class="secondary compact" :disabled="busy" @tap="copySelected">复制为私人新计划</button>
+              <button v-if="selected.status === 'active' || selected.status === 'completed'" class="primary compact" :disabled="busy" @tap="showExtend">续排循环</button>
+            </view>
+            <view v-if="extending" class="start-form">
+              <view class="form-row"><text>新一轮开始日期</text><picker mode="date" :value="extendDate" :start="earliestExtendDate" :end="addDays(currentDate, 366)" @change="extendDate = $event.detail.value"><view class="picker-box">{{ extendDate }} ▾</view></picker></view>
+              <view class="form-row"><view><text>追加循环次数</text><view class="hint">追加 {{ Number(extendCycles || 0) * selected.cycleDays }} 天，原日程和记录保留。</view></view><input class="number-input" type="number" v-model.number="extendCycles" /></view>
+              <button class="primary" :disabled="busy" @tap="extendPlan">确认续排</button>
+            </view>
+            <view class="actions">
+              <button v-if="selected.status === 'active' && !pendingWorkoutCount" class="text-button" :disabled="busy" @tap="completePlan">标记计划完成</button>
+              <button v-if="selected.status !== 'archived'" class="text-button" :disabled="busy" @tap="archivePlan">归档并停止后续安排</button>
+            </view>
+            <view v-if="selected.status === 'completed'" class="hint">本轮训练已全部完成。可续排下一轮，也可复制后调整循环长度。</view>
+            <view v-if="selected.status === 'archived'" class="hint">已停止后续安排，历史训练只读保留。复制后可重新编辑和开启。</view>
           </view>
           <view class="segmented"
             ><view
@@ -267,7 +287,7 @@
                   >{{ filter.label }}</view
                 ></view
               ><view class="hint schedule-tip"
-                >有事没练？将这天及后续未完成安排顺延一天。</view
+                >有事没练？选择新的日期，预览这天及后续尚未开始的安排。</view
               ><view v-if="!filteredWorkouts.length" class="card empty-card"
                 ><view class="name">{{
                   scheduleFilter === "completed"
@@ -328,7 +348,7 @@
                     >原定 {{ workout.originalDate }} · 已顺延</view
                   ><view v-if="workout.status === 'completed'" class="hint"
                     >实际完成于 {{ workout.performedDate }}</view
-                  ><view v-if="workout.status !== 'rest'" class="actions"
+                  ><view v-if="workout.status !== 'rest' && workout.status !== 'cancelled'" class="actions"
                     ><button
                       :class="
                         workout.status === 'completed'
@@ -339,23 +359,23 @@
                       @tap="openLog(workout)"
                     >
                       {{
-                        workout.status === "completed" ? "查看记录" : "记录训练"
+                        workout.status === "completed" ? "查看记录" : workout.status === "in_progress" ? "继续训练" : "记录训练"
                       }}</button
                     ><button
-                      v-if="workout.status !== 'completed'"
+                      v-if="workout.status === 'planned' && selected.status === 'active'"
                       class="secondary compact"
                       :disabled="busy"
                       @tap="shift(workout)"
                     >
-                      顺延一天
+                      调整日期
                     </button></view
                   ><button
-                    v-else
+                    v-else-if="workout.status === 'rest' && selected.status === 'active'"
                     class="text-button rest-shift"
                     :disabled="busy"
                     @tap="shift(workout)"
                   >
-                    从这天顺延 →
+                    从这天调整日期 →
                   </button></view
                 ></view
               >
@@ -417,7 +437,7 @@
           >
           <view v-if="detailTab === 'outline'"
             ><view class="hint schedule-tip"
-              >编辑后只更新未完成的安排，已经完成的记录会保留。</view
+              >编辑只更新尚未开始的安排，已暂存和已完成的训练保持原有动作与目标。</view
             ><view
               v-for="day in selected.days"
               :key="day.dayNumber"
@@ -440,7 +460,7 @@
                   exercise.instructions
                 }}</view></view
               ></view
-            ><button class="primary" @tap="editSelected">
+            ><button v-if="canEditPlan" class="primary" :disabled="busy" @tap="editSelected">
               调整动作与目标
             </button></view
           >
@@ -479,7 +499,7 @@
                 type="number"
                 :disabled="editor.status === 'active'"
                 v-model.number="editor.cycleDays"
-                @blur="resizeDays" /></view
+                @blur="changeCycleDays" /></view
             ><view class="form-row"
               ><view
                 ><text>公开免费分享</text
@@ -493,6 +513,10 @@
                   editor.visibility = $event.detail.value ? 'public' : 'private'
                 " /></view
           ></view>
+          <view v-if="cycleBackup" class="card cycle-warning">
+            <view class="hint">刚移出循环末尾的日期。保存前仍可恢复。</view>
+            <button class="secondary compact space-top" :disabled="busy" @tap="restoreCycleDays">恢复为 {{ cycleBackup.length }} 天循环</button>
+          </view>
           <scroll-view
             scroll-x
             class="horizontal-scroll"
@@ -743,10 +767,24 @@
       </view>
     </view>
     <T1Nav
-      v-if="role === 'member' && !editor && !logging && !libraryOpen"
+      v-if="role === 'member' && !editor && !logging && !libraryOpen && !shifting"
       role="member"
       current="training"
     />
+    <view v-if="shifting" class="sheet-mask shift-mask">
+      <view class="sheet shift-sheet">
+        <view class="sheet-header"><view><text class="eyebrow accent">调整训练日期</text><view class="section-title">{{ shifting.title }}</view></view><button class="close-button" :disabled="busy" @tap="shifting = null">×</button></view>
+        <view class="sheet-body shift-controls">
+          <view class="form-row"><text>原定 {{ shifting.plannedDate }}</text><picker mode="date" :value="shiftDate" :start="addDays(shifting.plannedDate, 1)" :end="addDays(shifting.plannedDate, 365)" @change="shiftDate = $event.detail.value; shiftPreview = null"><view class="picker-box">移到 {{ shiftDate }} ▾</view></picker></view>
+          <button class="secondary" :disabled="busy" :loading="busy" @tap="previewShift">预览受影响日程</button>
+          <view v-if="shiftPreview" class="hint space-top">{{ shiftPreview.message }} · 共 {{ shiftPreview.affectedCount }} 天</view>
+        </view>
+        <scroll-view scroll-y class="library-scroll"><view class="sheet-body">
+          <view v-for="change in (shiftPreview ? shiftPreview.changes : [])" :key="change.workoutId" class="shift-change"><view class="name">{{ change.title }}</view><view class="muted">{{ change.beforeDate }} → {{ change.afterDate }}</view></view>
+        </view></scroll-view>
+        <view class="log-footer"><button class="primary" :disabled="busy || !shiftPreview || !shiftPreview.canApply" @tap="applyShift">按预览确认顺延</button></view>
+      </view>
+    </view>
     <view v-if="libraryOpen" class="sheet-mask"
       ><view class="sheet library-sheet"
         ><view class="sheet-header"
@@ -847,7 +885,7 @@
             ×
           </button></view
         >
-        <view class="rest-timer"
+        <view v-if="!logReadOnly" class="rest-timer"
           ><view class="timer-main"
             ><view
               ><text class="timer-label">组间休息</text
@@ -891,7 +929,7 @@
                 ><text>实际训练日期</text
                 ><view class="hint">按北京时间记录</view></view
               ><picker
-                mode="date"
+                mode="date" :disabled="logReadOnly || busy"
                 :value="performedDate"
                 :start="selected && selected.startDate"
                 :end="currentDate"
@@ -929,7 +967,7 @@
                   }}</view></view
                 ><button
                   class="text-button accent"
-                  @tap="usePrevious(exercise)"
+                  v-if="!logReadOnly" :disabled="busy" @tap="usePrevious(exercise)"
                 >
                   沿用上次
                 </button></view
@@ -1007,7 +1045,7 @@
                       ><text class="hint">第 {{ setNumber(setIndex) }} 组</text
                       ><button
                         class="remove-button"
-                        @tap="removeLogSet(setIndex)"
+                        v-if="!logReadOnly" :disabled="busy" @tap="removeLogSet(setIndex)"
                       >
                         ×
                       </button></view
@@ -1016,20 +1054,20 @@
                         ><text class="input-caption">实际次数</text
                         ><input
                           type="number"
-                          v-model.number="set.reps"
+                          v-model.number="set.reps" :disabled="logReadOnly || busy"
                           placeholder="次数"
                           placeholder-class="input-placeholder" /></view
                       ><view class="set-field"
                         ><text class="input-caption">实际重量</text
                         ><input
                           type="digit"
-                          v-model.number="set.weight"
+                          v-model.number="set.weight" :disabled="logReadOnly || busy"
                           placeholder="必填"
                           placeholder-class="input-placeholder" /></view
                       ><view class="unit-field"
                         ><text class="input-caption">单位</text
                         ><picker
-                          :range="units"
+                          :range="units" :disabled="logReadOnly || busy"
                           :value="set.unit === 'lb' ? 1 : 0"
                           @change="
                             set.unit =
@@ -1041,7 +1079,7 @@
                         ></view
                       ><button
                         :class="['complete-set-button', { checked: set.done }]"
-                        @tap="completeSet(set)"
+                        :disabled="logReadOnly || busy" @tap="completeSet(set)"
                       >
                         {{ set.done ? "✓" : "○" }}
                       </button></view
@@ -1049,7 +1087,7 @@
                       ><text class="hint">主观强度 RPE</text
                       ><input
                         type="digit"
-                        v-model.number="set.rpe"
+                        v-model.number="set.rpe" :disabled="logReadOnly || busy"
                         placeholder="选填 1–10"
                         placeholder-class="input-placeholder"
                       /><text
@@ -1060,28 +1098,29 @@
                     ></view
                   ></view
                 ><button
-                  class="add-set-button"
+                  v-if="!logReadOnly" :disabled="busy" class="add-set-button"
                   @tap="addLogSet(exercise, group.key)"
                 >
                   ＋ 添加{{ group.label }}
                 </button></view
               > </view
             ><view class="hint log-save-hint"
-              >保存已勾选的
-              {{ completedLogSets }} 组。未勾选的组不会进入训练统计。</view
+              >{{ logReadOnly ? '已归档计划的训练记录只读保留。' : '暂存会保留已勾选组和剩余目标；完成本次训练后才计入进步统计。未勾选的实际输入不会暂存。' }}</view
             ></view
           ></scroll-view
         >
         <view class="log-footer"
-          ><button class="secondary" :disabled="busy" @tap="closeLog">
-            稍后再练</button
+          ><button v-if="logReadOnly" class="secondary" @tap="closeLog">关闭记录</button>
+          <button v-else-if="logging.status !== 'completed'" class="secondary" :disabled="busy || !completedLogSets" @tap="saveLog(false)">
+            暂存进度</button
           ><button
+            v-if="!logReadOnly"
             class="primary"
             :disabled="busy || !completedLogSets"
             :loading="busy"
-            @tap="saveLog"
+            @tap="saveLog(true)"
           >
-            保存 {{ completedLogSets }} 组训练
+            {{ logging.status === 'completed' ? '保存修正记录' : '完成本次训练' }}
           </button></view
         >
       </view></view
@@ -1124,6 +1163,7 @@ export default {
     return {
       role: "member",
       memberId: "",
+      memberContext: null,
       authenticated: false,
       currentDate: today(),
       templates: [],
@@ -1134,6 +1174,14 @@ export default {
       selected: null,
       editor: null,
       dayIndex: 0,
+      cycleBackup: null,
+      extending: false,
+      extendDate: today(),
+      extendCycles: 1,
+      shifting: null,
+      shiftDate: today(),
+      shiftPreview: null,
+      lastProgressSaved: false,
       workouts: [],
       points: [],
       completedWorkouts: 0,
@@ -1187,6 +1235,19 @@ export default {
     currentDay() {
       return this.editor && this.editor.days[this.dayIndex];
     },
+    canEditPlan() {
+      return this.selected && ["draft", "active"].includes(this.selected.status);
+    },
+    logReadOnly() {
+      return this.selected && this.selected.status === "archived";
+    },
+    pendingWorkoutCount() {
+      return this.workouts.filter(w => ["planned", "in_progress"].includes(w.status)).length;
+    },
+    earliestExtendDate() {
+      const last = this.workouts.reduce((date, workout) => workout.plannedDate > date ? workout.plannedDate : date, "");
+      return last && this.addDays(last, 1) > this.currentDate ? this.addDays(last, 1) : this.currentDate;
+    },
     todayLabel() {
       return `${this.currentDate.slice(5, 7)} 月 ${this.currentDate.slice(8)} 日`;
     },
@@ -1196,6 +1257,8 @@ export default {
       );
       return (
         ordered.find(
+          (w) => w.status === "in_progress",
+        ) || ordered.find(
           (w) => w.plannedDate === this.currentDate && w.status === "planned",
         ) ||
         ordered.find(
@@ -1212,6 +1275,7 @@ export default {
     },
     focusLabel() {
       if (!this.focusWorkout) return "下一次进步，从计划开始";
+      if (this.focusWorkout.status === "in_progress") return "继续上次暂存的训练";
       if (this.focusWorkout.plannedDate === this.currentDate)
         return this.focusWorkout.status === "rest" ? "今日休息" : "今日训练";
       return this.focusWorkout.plannedDate < this.currentDate
@@ -1224,7 +1288,7 @@ export default {
           this.scheduleFilter === "all" ||
           (this.scheduleFilter === "completed"
             ? w.status === "completed"
-            : w.status === "planned"),
+            : ["planned", "in_progress"].includes(w.status)),
       );
     },
     visibleWorkouts() {
@@ -1335,6 +1399,7 @@ export default {
       this.libraryOpen = false;
       return true;
     }
+    if (this.shifting) { this.shifting = null; return true; }
     if (this.logging) {
       this.closeLog();
       return true;
@@ -1375,6 +1440,8 @@ export default {
       return `热身 ${sets.filter((s) => s.setType === "warmup").length} 组 · 正式 ${sets.filter((s) => s.setType === "working").length} 组`;
     },
     statusLabel(workout) {
+      if (workout.status === "in_progress") return "已暂存 · 待完成";
+      if (workout.status === "cancelled") return "已停止";
       return workout.status === "completed"
         ? "已完成"
         : workout.status === "rest"
@@ -1382,6 +1449,12 @@ export default {
           : workout.plannedDate < this.currentDate
             ? "待补练"
             : "待训练";
+    },
+    planStatus(plan) {
+      return { draft: "待开启", active: "进行中", completed: "已完成", archived: "已归档" }[plan.status] || plan.status;
+    },
+    addDays(date, count) {
+      return new Date(Date.parse(date + "T00:00:00Z") + count * 86400000).toISOString().slice(0, 10);
     },
     formatWeight(value) {
       return Number(Number(value || 0).toFixed(2));
@@ -1422,16 +1495,18 @@ export default {
       this.loading = true;
       this.error = "";
       try {
-        const [templates, plans] = await Promise.all([
+        const [templates, plans, context] = await Promise.all([
           this.api("/templates"),
           this.api(
             "/plans",
             "GET",
             this.memberId ? { memberId: this.memberId } : {},
           ),
+          this.api("/context", "GET", this.memberId ? { memberId: this.memberId } : {}),
         ]);
         this.templates = templates || [];
         this.plans = plans || [];
+        this.memberContext = context || null;
         this.featuredPlan =
           this.plans.find((plan) => plan.status === "active") ||
           this.plans[0] ||
@@ -1474,6 +1549,7 @@ export default {
     async openPlan(plan) {
       return this.act(async () => {
         this.selected = await this.api(`/plans/${plan.planId}`);
+        this.extending = false;
         this.detailTab = "schedule";
         this.scheduleFilter = "pending";
         this.scheduleLimit = 20;
@@ -1509,6 +1585,7 @@ export default {
       return { setType: type, reps: 10, weight: "", unit: "kg", rpe: "" };
     },
     newPlan() {
+      this.cycleBackup = null;
       this.editor = {
         name: "",
         description: "",
@@ -1540,6 +1617,7 @@ export default {
           ? template
           : await this.api(`/plans/${template.planId}`);
         this.editor = this.normalizeEditor(full);
+        this.cycleBackup = null;
         delete this.editor.planId;
         delete this.editor.templateId;
         delete this.editor.status;
@@ -1552,6 +1630,8 @@ export default {
       });
     },
     editSelected() {
+      if (!this.canEditPlan) return;
+      this.cycleBackup = null;
       this.editor = this.normalizeEditor(this.selected);
       this.dayIndex = 0;
       this.warmMedia([this.currentDay]);
@@ -1576,6 +1656,10 @@ export default {
         return false;
       }
       const days = this.editor.days;
+      if (count < days.length) {
+        this.toast("缩短循环会移除日期，请先确认变更");
+        return false;
+      }
       this.editor.days = Array.from(
         { length: count },
         (_, index) =>
@@ -1588,6 +1672,33 @@ export default {
       );
       this.dayIndex = Math.min(this.dayIndex, count - 1);
       return true;
+    },
+    async changeCycleDays() {
+      if (!this.editor || this.busy) return;
+      const editor = this.editor;
+      const count = Number(editor.cycleDays);
+      const previousCount = editor.days.length;
+      if (!Number.isInteger(count) || count < 1 || count > 31) {
+        editor.cycleDays = previousCount; this.toast("循环天数需要在 1–31 天之间"); return;
+      }
+      if (count >= previousCount) { this.resizeDays(); return; }
+      editor.cycleDays = previousCount;
+      this.busy = true;
+      try {
+        const affected = editor.days.slice(count);
+        const accepted = await confirm("缩短循环？", `第 ${count + 1}–${previousCount} 天的 ${affected.reduce((sum, day) => sum + day.exercises.length, 0)} 个动作将移出计划。保存前可以恢复。`);
+        if (!accepted || this.editor !== editor) return;
+        this.cycleBackup = clone(editor.days);
+        editor.days = editor.days.slice(0, count); editor.cycleDays = count;
+        this.dayIndex = Math.min(this.dayIndex, count - 1);
+      } finally { this.busy = false; }
+    },
+    restoreCycleDays() {
+      if (!this.cycleBackup || this.busy) return;
+      const current = this.editor.days;
+      this.editor.days = this.cycleBackup.map((day, index) => current[index] || clone(day));
+      this.editor.cycleDays = this.editor.days.length; this.cycleBackup = null;
+      this.toast("已恢复移出的日期，现有日期的修改保留");
     },
     async toggleRest(event) {
       const day = this.currentDay;
@@ -1744,9 +1855,10 @@ export default {
       return result;
     },
     savePlan() {
-      this.act(async () => {
+      return this.act(async () => {
         const saved = await this.persistEditor();
         this.editor = null;
+        this.cycleBackup = null;
         this.selected = saved;
         this.detailTab = saved.status === "active" ? "schedule" : "outline";
         await this.refreshPlan();
@@ -1754,8 +1866,35 @@ export default {
         uni.pageScrollTo({ scrollTop: 0, duration: 150 });
       });
     },
+    copySelected() {
+      return this.act(async () => {
+        const copy = await this.api(`/plans/${this.selected.planId}/copy`, "POST", {});
+        this.selected = copy; this.editor = this.normalizeEditor(copy); this.cycleBackup = null; this.dayIndex = 0;
+        this.workouts = []; this.points = []; this.completedWorkouts = 0;
+        this.toast("已复制为私人草稿，可调整后开启");
+      });
+    },
+    showExtend() { this.extendDate = this.earliestExtendDate; this.extendCycles = 1; this.extending = !this.extending; },
+    extendPlan() {
+      return this.act(async () => {
+        const cycles = Number(this.extendCycles);
+        if (!Number.isInteger(cycles) || cycles < 1 || cycles * this.selected.cycleDays > 366) throw new Error("每次续排 1–366 天，请调整循环次数");
+        await this.api(`/plans/${this.selected.planId}/extend`, "POST", { startDate: this.extendDate, cycles });
+        this.selected = await this.api(`/plans/${this.selected.planId}`); this.extending = false;
+        await this.refreshPlan(); this.detailTab = "schedule"; this.toast("新一轮日程已续排，历史记录保留");
+      });
+    },
+    async completePlan() {
+      if (!await confirm("完成这份计划？", "已完成记录会保留，之后可以继续续排循环或复制新计划。")) return;
+      this.act(async () => { this.selected = await this.api(`/plans/${this.selected.planId}/complete`, "POST"); this.toast("计划已完成"); });
+    },
+    async archivePlan() {
+      if (this.workouts.some(w => w.status === "in_progress")) return this.toast("请先完成已暂存的训练，再归档计划");
+      if (!await confirm("归档并停止后续安排？", "已完成训练、重量和行为记录全部保留。未开始的日程会停止；需要重新使用时可复制为新计划。")) return;
+      this.act(async () => { this.selected = await this.api(`/plans/${this.selected.planId}/archive`, "POST"); this.extending = false; await this.refreshPlan(); this.toast("计划已归档，历史记录保留"); });
+    },
     startPlan() {
-      this.act(async () => {
+      return this.act(async () => {
         if (
           !Number.isInteger(Number(this.cycles)) ||
           Number(this.cycles) < 1 ||
@@ -1775,20 +1914,22 @@ export default {
       });
     },
     async shift(workout) {
-      if (
-        !(await confirm(
-          "从这天顺延一天？",
-          `${workout.plannedDate} 及后续未完成的安排会顺延一天，已完成记录保持原日期。已预约课程的时间不会改变。`,
-        ))
-      )
-        return;
+      this.shifting = workout; this.shiftDate = this.addDays(workout.plannedDate, 1); this.shiftPreview = null;
+      await this.previewShift();
+    },
+    async previewShift() {
       await this.act(async () => {
-        await this.api(`/plans/${this.selected.planId}/shift`, "POST", {
-          fromDate: workout.plannedDate,
-          days: 1,
-        });
-        await this.refreshPlan();
-        this.toast("后续安排已顺延一天");
+        const days = Math.round((Date.parse(this.shiftDate) - Date.parse(this.shifting.plannedDate)) / 86400000);
+        if (days < 1 || days > 365) throw new Error("请选择原日期之后 1–365 天内的日期");
+        this.shiftPreview = await this.api(`/plans/${this.selected.planId}/shift/preview`, "GET", { fromDate: this.shifting.plannedDate, days });
+      });
+    },
+    applyShift() {
+      if (!this.shiftPreview || !this.shiftPreview.canApply) return;
+      return this.act(async () => {
+        const preview = this.shiftPreview;
+        await this.api(`/plans/${this.selected.planId}/shift`, "POST", { fromDate: preview.fromDate, days: preview.days, expectedVersion: preview.version });
+        this.shifting = null; this.shiftPreview = null; await this.refreshPlan(); this.toast("日程已按预览顺延");
       });
     },
     ensureMedia(url) {
@@ -1891,27 +2032,21 @@ export default {
         imageUrls: ex.imageUrls || [],
         videoUrl: ex.videoUrl || "",
       }));
-      this.logSets =
-        workout.sets && workout.sets.length
-          ? clone(workout.sets).map((set) => ({
-              ...set,
-              localId: uid(),
-              done: true,
-            }))
-          : (workout.exercises || []).flatMap((ex) =>
-              (ex.targets || []).map((set) => ({
-                ...clone(set),
-                localId: uid(),
-                done: false,
-                targetWeight: set.weight,
-                targetUnit: set.unit,
-                weight: "",
-                rpe: "",
-                exerciseKey: ex.key,
-                exerciseName: ex.name,
-              })),
-            );
+      this.logSets = this.restoreLogSets(workout);
+      this.lastProgressSaved = false;
       this.warmMedia([{ exercises: this.logging.exercises }]);
+    },
+    restoreLogSets(workout) {
+      const saved = clone(workout.sets || []).map(set => ({ ...set, localId: uid(), done: true }));
+      if (workout.status === "completed" || this.logReadOnly) return saved;
+      const matched = new Set();
+      const targets = (workout.exercises || []).flatMap(ex => (ex.targets || []).map((target, targetSetIndex) => {
+        const index = saved.findIndex(set => set.exerciseKey === ex.key && set.targetSetIndex === targetSetIndex);
+        if (index >= 0) { matched.add(index); return { ...saved[index], targetWeight: target.weight, targetUnit: target.unit }; }
+        return { ...clone(target), localId: uid(), done: false, targetSetIndex, targetWeight: target.weight,
+          targetUnit: target.unit, weight: "", rpe: "", exerciseKey: ex.key, exerciseName: ex.name };
+      }));
+      return targets.concat(saved.filter((set, index) => !matched.has(index)));
     },
     toggleGuide(key) {
       this.expandedGuides = {
@@ -1964,6 +2099,7 @@ export default {
       );
     },
     async usePrevious(exercise) {
+      if (this.logReadOnly || this.busy) return;
       const prior = this.previousFor(exercise);
       if (!prior.length) return;
       const rows = this.logSets.filter(
@@ -2000,6 +2136,7 @@ export default {
         ).length;
     },
     addLogSet(exercise, type) {
+      if (this.logReadOnly || this.busy) return;
       if (this.logSets.length >= 300)
         return this.toast("一次训练最多记录 300 组");
       this.logSets.push({
@@ -2011,6 +2148,7 @@ export default {
       });
     },
     async removeLogSet(index) {
+      if (this.logReadOnly || this.busy) return;
       if (
         !this.logSets[index].done ||
         (await confirm(
@@ -2021,6 +2159,7 @@ export default {
         this.logSets.splice(index, 1);
     },
     completeSet(set) {
+      if (this.logReadOnly || this.busy) return;
       if (set.done) {
         set.done = false;
         return;
@@ -2035,6 +2174,7 @@ export default {
     },
     async closeLog() {
       if (this.busy) return;
+      if (this.logReadOnly) { this.logging = null; return; }
       if (
         !(await confirm(
           "离开本次记录？",
@@ -2045,14 +2185,15 @@ export default {
       this.logging = null;
       this.resetRestTimer();
     },
-    async saveLog() {
+    async saveLog(finish = true) {
+      if (this.logReadOnly || this.busy) return;
       const done = this.logSets.filter((set) => set.done);
       if (!done.length) return this.toast("先完成并勾选至少一组");
       if (
-        done.length < this.logSets.length &&
+        finish && done.length < this.logSets.length &&
         !(await confirm(
-          "保存已完成的训练？",
-          `本次保存已勾选的 ${done.length} 组，其余 ${this.logSets.length - done.length} 组不会计入记录。`,
+          "结束本次训练？",
+          `仅将已勾选的 ${done.length} 组计入已完成训练，其余 ${this.logSets.length - done.length} 组不会计入。还要继续练时请选择暂存进度。`,
         ))
       )
         return;
@@ -2061,15 +2202,18 @@ export default {
           ...this.validateSet(set, true),
           exerciseKey: set.exerciseKey,
           exerciseName: set.exerciseName,
+          targetSetIndex: set.targetSetIndex == null ? null : set.targetSetIndex,
         }));
-        await this.api(`/workouts/${this.logging.workoutId}/log`, "PUT", {
+        const saved = await this.api(`/workouts/${this.logging.workoutId}/log`, "PUT", {
           performedDate: this.performedDate,
           sets,
+          finish,
         });
-        this.logging = null;
-        this.resetRestTimer();
+        if (finish) { this.logging = null; this.resetRestTimer(); }
+        else { this.logging.status = "in_progress"; this.logging.sets = saved.sets || sets; this.lastProgressSaved = true; }
+        if (this.selected) this.selected = await this.api(`/plans/${this.selected.planId}`);
         await this.refreshPlan();
-        this.toast("每一组努力，都已记下");
+        this.toast(finish ? "本次训练已完成" : "进度已暂存，可继续练或稍后回来");
       });
     },
     setRestDuration(seconds) {
@@ -2133,6 +2277,12 @@ export default {
 </script>
 
 <style scoped>
+.shift-sheet { height: 85vh; }
+.shift-controls { padding-top: 24rpx; padding-bottom: 24rpx; flex-shrink: 0; }
+.shift-change { border-bottom: 1px solid #30322f; padding: 20rpx 0; }
+.member-context .name { margin: 12rpx 0; }
+.lifecycle-actions { flex-wrap: wrap; }
+.cycle-warning { border-color: #9c653d; }
 .training-page {
   min-height: 100vh;
   background: #111211;

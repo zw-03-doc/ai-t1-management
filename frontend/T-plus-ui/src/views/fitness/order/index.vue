@@ -1,14 +1,42 @@
 <template>
+  <div>
+  <el-alert type="info" :closable="false" class="mb-3" title="录单只记录线下办理。先选择会员、门店和卡项，确认线下收款后才发卡；私教卡须选择绑定教练。" />
   <FitnessCrudPage v-bind="pageConfig as any">
     <template #row-actions="{ row, refresh }">
-      <el-tooltip v-if="row.orderStatus !== 'paid' && row.orderStatus !== 'cancelled'" content="确认支付" placement="top">
+      <el-tooltip v-if="row.orderStatus === 'pending'" content="确认线下收款" placement="top">
         <el-button v-hasPermi="['fitness:order:edit']" link type="success" icon="CircleCheck" @click="handlePay(row, refresh)" />
       </el-tooltip>
-      <el-tooltip v-if="row.orderStatus !== 'cancelled'" content="取消订单" placement="top">
+      <el-tooltip v-if="row.orderStatus === 'pending'" content="取消订单" placement="top">
         <el-button v-hasPermi="['fitness:order:edit']" link type="danger" icon="CircleClose" @click="handleCancel(row, refresh)" />
       </el-tooltip>
     </template>
   </FitnessCrudPage>
+  <el-dialog v-model="payDialog.visible" title="确认线下收款并发卡" width="560px" :close-on-click-modal="!paying" :close-on-press-escape="!paying" :show-close="!paying">
+    <el-descriptions :column="1" border>
+      <el-descriptions-item label="会员">{{ payDialog.order.memberName }} {{ payDialog.order.memberMobile }}</el-descriptions-item>
+      <el-descriptions-item label="门店">{{ payDialog.order.storeName }}</el-descriptions-item>
+      <el-descriptions-item label="卡项方案">{{ payDialog.order.planName || '请核对订单明细' }}</el-descriptions-item>
+      <el-descriptions-item label="应收金额">¥{{ Number(payDialog.order.payableAmount || 0).toFixed(2) }}</el-descriptions-item>
+    </el-descriptions>
+    <el-form label-width="100px" class="mt-4">
+      <el-form-item label="绑定教练">
+        <el-select v-model="payDialog.bindCoachId" filterable remote :remote-method="searchPayCoaches" :loading="coachLoading" :disabled="paying" placeholder="私教卡必选；普通卡可不绑定" @visible-change="visible => visible && searchPayCoaches('')">
+          <el-option v-for="coach in payCoaches" :key="String(coach.value)" :label="coach.label" :value="coach.value" />
+        </el-select>
+      </el-form-item>
+      <el-form-item label="收款方式">
+        <el-select v-model="payDialog.payMethod" :disabled="paying">
+          <el-option v-for="method in payMethodOptions" :key="method.value" :label="method.label" :value="method.value" />
+        </el-select>
+      </el-form-item>
+    </el-form>
+    <el-alert type="warning" :closable="false" title="请确认门店已实际收到上述金额。此操作不会发起线上扣款，确认后立即发卡。" />
+    <template #footer>
+      <el-button :disabled="paying" @click="payDialog.visible=false">取消</el-button>
+      <el-button type="primary" :loading="paying" @click="confirmPayment">已收款，确认发卡</el-button>
+    </template>
+  </el-dialog>
+  </div>
 </template>
 
 <script setup name="FitnessOrder" lang="ts">
@@ -30,14 +58,14 @@ const orderSourceOptions = [
   { label: '教练端', value: 'coach_app' }
 ];
 const orderStatusOptions = [
-  { label: '待支付', value: 'pending' },
-  { label: '已支付', value: 'paid' },
+  { label: '待收款', value: 'pending' },
+  { label: '已收款并发卡', value: 'paid' },
   { label: '已取消', value: 'cancelled' },
   { label: '已退款', value: 'refunded' },
   { label: '已关闭', value: 'closed' }
 ];
 const payMethodOptions = [
-  { label: '微信支付', value: 'wechat' },
+  { label: '线下微信收款', value: 'wechat' },
   { label: '现金', value: 'cash' },
   { label: '转账', value: 'transfer' },
   { label: '会员卡抵扣', value: 'card' },
@@ -67,12 +95,8 @@ const pageConfig = reactive({
     { label: '绑定教练', prop: 'bindCoachId', type: 'remoteSelect', remoteMethod: loadCoachOptions },
     { label: '订单类型', prop: 'orderType', type: 'select', options: orderTypeOptions },
     { label: '订单来源', prop: 'orderSource', type: 'select', options: orderSourceOptions },
-    { label: '订单状态', prop: 'orderStatus', type: 'select', options: orderStatusOptions },
     { label: '支付方式', prop: 'payMethod', type: 'select', options: payMethodOptions },
-    { label: '立即支付', prop: 'payNow', type: 'select', options: payNowOptions },
-    { label: '优惠金额', prop: 'discountAmount', type: 'number' },
-    { label: '应付金额', prop: 'payableAmount', type: 'number' },
-    { label: '实付金额', prop: 'paidAmount', type: 'number' },
+    { label: '优惠金额', prop: 'discountAmount', type: 'number', precision: 2 },
     { label: '收银员', prop: 'cashierUserId', type: 'remoteSelect', remoteMethod: loadSystemUserOptions },
     { label: '备注', prop: 'remark', type: 'textarea', span: 24 }
   ],
@@ -80,6 +104,8 @@ const pageConfig = reactive({
     { label: '订单号', prop: 'orderNo' },
     { label: '门店', prop: 'storeName' },
     { label: '会员', prop: 'memberName' },
+    { label: '卡项方案', prop: 'planName' },
+    { label: '绑定教练', prop: 'coachName' },
     { label: '订单类型', prop: 'orderType', type: 'tag', options: orderTypeOptions },
     { label: '订单来源', prop: 'orderSource', type: 'tag', options: orderSourceOptions },
     { label: '订单状态', prop: 'orderStatus', type: 'tag', options: orderStatusOptions },
@@ -125,16 +151,45 @@ const pageConfig = reactive({
   delFn: delOrder
 });
 
-const handlePay = async (row: any, refresh: () => Promise<void>) => {
+const paying = ref(false);
+const openingPay = ref(false);
+const coachLoading = ref(false);
+const payCoaches = ref<any[]>([]);
+const payDialog = reactive({ visible: false, order: {} as any, bindCoachId: undefined as string | number | undefined, payMethod: 'cash' });
+let payRefresh: (() => Promise<void>) | undefined;
+let coachRequest = 0;
+async function searchPayCoaches(keyword: string) {
+  const requestId = ++coachRequest;
+  coachLoading.value = true;
   try {
-    const { value } = await proxy?.$modal.prompt('请输入支付方式，如 cash / wechat / transfer / card / mix')!;
-    await payOrder(row.orderId, { payMethod: value || 'cash', payNow: true });
-    proxy?.$modal.msgSuccess('订单支付成功');
-    await refresh();
-  } catch {
-    // 用户取消
-  }
+    const options = await loadCoachOptions({ keyword, value: payDialog.bindCoachId, model: { storeId: payDialog.order.storeId, hireStatus: '0' } });
+    if (requestId === coachRequest) payCoaches.value = options;
+  } finally { if (requestId === coachRequest) coachLoading.value = false; }
+}
+const handlePay = async (row: any, refresh: () => Promise<void>) => {
+  if (openingPay.value || paying.value) return;
+  openingPay.value = true;
+  try {
+    const { data } = await getOrder(row.orderId);
+    payDialog.order = data;
+    payDialog.bindCoachId = data.bindCoachId;
+    payDialog.payMethod = payMethodOptions.some(option => option.value === data.payMethod) ? data.payMethod! : 'cash';
+    payCoaches.value = data.bindCoachId ? [{ value: data.bindCoachId, label: data.coachName || '原绑定教练（请核对）' }] : [];
+    payRefresh = refresh;
+    payDialog.visible = true;
+    await searchPayCoaches('');
+  } finally { openingPay.value = false; }
 };
+async function confirmPayment() {
+  if (paying.value) return;
+  paying.value = true;
+  try {
+    await payOrder(payDialog.order.orderId, { payMethod: payDialog.payMethod, bindCoachId: payDialog.bindCoachId, payableAmount: payDialog.order.payableAmount, payNow: true });
+    payDialog.visible = false;
+    proxy?.$modal.msgSuccess('线下收款已确认，会员卡已发放');
+    await payRefresh?.();
+  } finally { paying.value = false; }
+}
 
 const handleCancel = async (row: any, refresh: () => Promise<void>) => {
   try {

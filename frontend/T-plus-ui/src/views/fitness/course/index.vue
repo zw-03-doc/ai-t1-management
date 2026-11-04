@@ -31,6 +31,7 @@ const pageConfig = reactive({
   idKey: 'courseId',
   exportUrl: 'fitness/course/export',
   queryFields: [
+    { label: '归属门店', prop: 'storeId', type: 'remoteSelect', remoteMethod: loadStoreOptions },
     { label: '课程编号', prop: 'courseNo' },
     { label: '课程名称', prop: 'courseName' },
     { label: '课程类型', prop: 'courseType', type: 'select', options: courseTypeOptions },
@@ -72,6 +73,7 @@ const pageConfig = reactive({
     { label: '创建时间', prop: 'createTime', type: 'date' }
   ],
   initialQuery: {
+    storeId: '',
     pageNum: 1,
     pageSize: 10,
     courseNo: '',

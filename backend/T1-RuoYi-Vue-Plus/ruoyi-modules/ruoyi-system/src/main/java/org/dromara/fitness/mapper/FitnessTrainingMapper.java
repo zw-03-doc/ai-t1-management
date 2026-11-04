@@ -9,6 +9,8 @@ import java.util.List;
 public interface FitnessTrainingMapper {
     Long selectCoachId(@Param("tenantId") String tenantId, @Param("userId") Long userId);
     int countActiveMember(@Param("tenantId") String tenantId, @Param("memberId") Long memberId);
+    MemberContext selectMemberContext(@Param("tenantId") String tenantId, @Param("memberId") Long memberId);
+    Long lockActiveMember(@Param("tenantId") String tenantId, @Param("memberId") Long memberId);
     int countCoachMember(@Param("tenantId") String tenantId, @Param("coachId") Long coachId, @Param("memberId") Long memberId);
     List<Plan> selectPlans(@Param("tenantId") String tenantId, @Param("memberId") Long memberId);
     List<Plan> selectPublicPlans(@Param("tenantId") String tenantId);
@@ -16,6 +18,12 @@ public interface FitnessTrainingMapper {
     int insertPlan(@Param("plan") Plan plan);
     int updatePlan(@Param("plan") Plan plan);
     int startPlan(@Param("tenantId") String tenantId, @Param("planId") Long planId, @Param("startDate") LocalDate startDate);
+    int setPlanStatus(@Param("tenantId") String tenantId, @Param("planId") Long planId, @Param("status") String status);
+    int touchPlan(@Param("tenantId") String tenantId, @Param("planId") Long planId);
+    int countOpenWorkouts(@Param("tenantId") String tenantId, @Param("planId") Long planId);
+    int cancelPendingWorkouts(@Param("tenantId") String tenantId, @Param("planId") Long planId);
+    int saveWorkoutProgress(@Param("tenantId") String tenantId, @Param("workoutId") Long workoutId,
+                            @Param("performedDate") LocalDate performedDate);
     int insertWorkout(@Param("workout") Workout workout);
     List<Workout> selectWorkouts(@Param("tenantId") String tenantId, @Param("planId") Long planId);
     Workout selectWorkout(@Param("tenantId") String tenantId, @Param("workoutId") Long workoutId);

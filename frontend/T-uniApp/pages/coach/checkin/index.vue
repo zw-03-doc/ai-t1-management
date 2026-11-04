@@ -83,6 +83,14 @@
         <view v-if="activeTab === 'confirmed'" class="consume-note">{{
           consumeText(item)
         }}</view>
+        <button
+          v-if="activeTab === 'exception'"
+          class="secondary-btn"
+          :disabled="!!actioningReservationId"
+          @tap="restoreItem(item)"
+        >
+          恢复为待核销
+        </button>
         <view v-if="activeTab === 'pending'" class="action-row"
           ><button
             class="primary-btn"
@@ -133,6 +141,7 @@ import {
   coachConfirmCheckin,
   coachExceptionCheckin,
   coachProxyCheckin,
+  coachRestoreCheckin,
 } from "../../../api/auth";
 
 import T1Nav from "../../../components/T1Nav.vue";
@@ -178,6 +187,35 @@ export default {
     this.refreshAll();
   },
   methods: {
+    async restoreItem(item) {
+      if (this.actioningReservationId) return;
+      const result = await new Promise((resolve) =>
+        uni.showModal({
+          title: "恢复异常签到",
+          content: "请说明恢复原因。恢复后需要重新确认核销。",
+          editable: true,
+          placeholderText: "必填：恢复原因",
+          success: resolve,
+          fail: () => resolve({ confirm: false }),
+        }),
+      );
+      if (!result.confirm) return;
+      const remark = String(result.content || "").trim();
+      if (!remark) {
+        uni.showToast({ title: "请填写恢复原因", icon: "none" });
+        return;
+      }
+      this.actioningReservationId = item.reservationId;
+      try {
+        await coachRestoreCheckin(item.checkinId, remark);
+        uni.showToast({ title: "已恢复待核销", icon: "success" });
+        await this.refreshAll();
+      } catch (error) {
+        uni.showToast({ title: error.message || "恢复失败", icon: "none" });
+      } finally {
+        this.actioningReservationId = null;
+      }
+    },
     async proxyItem(item) {
       if (!item || !item.reservationId || this.actioningReservationId) return;
       this.actioningReservationId = item.reservationId;
@@ -321,6 +359,31 @@ export default {
         return;
       }
       let consumeAmount = 0;
+      let consumeTimes = 0;
+      if (
+        item.cardId &&
+        !["time_card", "stored_card"].includes(item.planType)
+      ) {
+        const input = await new Promise((resolve) =>
+          uni.showModal({
+            title: `本次课次（剩余${item.remainTimes || 0}次）`,
+            editable: true,
+            content: "1",
+            success: resolve,
+            fail: () => resolve({ confirm: false }),
+          }),
+        );
+        if (!input.confirm) return;
+        consumeTimes = Number(input.content);
+        if (
+          !Number.isInteger(consumeTimes) ||
+          consumeTimes <= 0 ||
+          consumeTimes > Number(item.remainTimes || 0)
+        ) {
+          uni.showToast({ title: "请填写有效课次", icon: "none" });
+          return;
+        }
+      }
       if (item.cardId && item.planType === "stored_card") {
         const input = await new Promise((resolve) =>
           uni.showModal({
@@ -336,6 +399,7 @@ export default {
         if (
           !Number.isFinite(consumeAmount) ||
           consumeAmount <= 0 ||
+          consumeAmount > Number(item.balanceAmount || 0) ||
           !/^\d+(\.\d{1,2})?$/.test(input.content.trim())
         ) {
           uni.showToast({
@@ -347,9 +411,9 @@ export default {
       }
       const ok = await this.confirmDialog(
         consumeAmount
-          ? `确认从该储值卡核销 ${consumeAmount} 元吗？`
+          ? `本次扣款 ¥${consumeAmount.toFixed(2)}，剩余 ¥${(Number(item.balanceAmount || 0) - consumeAmount).toFixed(2)}。确认会员已到课？`
           : item.cardId && !["time_card", "stored_card"].includes(item.planType)
-            ? "确认会员已到课，并核销 1 课次？"
+            ? `本次扣 ${consumeTimes} 次，剩余 ${Number(item.remainTimes || 0) - consumeTimes} 次。确认会员已到课？`
             : "确认会员已到课？本次不扣费。",
       );
       if (!ok) {
@@ -360,10 +424,7 @@ export default {
         uni.showLoading({ title: "核销中..." });
         await coachConfirmCheckin({
           reservationId: item.reservationId,
-          consumeTimes:
-            item.cardId && !["time_card", "stored_card"].includes(item.planType)
-              ? 1
-              : 0,
+          consumeTimes,
           consumeAmount,
           remark: "教练端确认核销",
         });
@@ -381,8 +442,20 @@ export default {
       if (!item || !item.reservationId || this.actioningReservationId) {
         return;
       }
-      const ok = await this.confirmDialog("确认将该签到标记为异常吗？");
-      if (!ok) {
+      const result = await new Promise((resolve) =>
+        uni.showModal({
+          title: "标记签到异常",
+          content: "请填写实际异常原因，处理记录会保留。",
+          editable: true,
+          placeholderText: "必填：异常原因",
+          success: resolve,
+          fail: () => resolve({ confirm: false }),
+        }),
+      );
+      if (!result.confirm) return;
+      const remark = String(result.content || "").trim();
+      if (!remark) {
+        uni.showToast({ title: "请填写异常原因", icon: "none" });
         return;
       }
       this.actioningReservationId = item.reservationId;
@@ -390,7 +463,7 @@ export default {
         uni.showLoading({ title: "提交中..." });
         await coachExceptionCheckin({
           reservationId: item.reservationId,
-          remark: "教练端标记异常",
+          remark,
         });
         uni.showToast({ title: "已标记异常", icon: "success" });
         await this.refreshAll();

@@ -18,6 +18,8 @@ export interface FitnessMemberVO extends BaseEntity {
 }
 
 export interface FitnessMemberQuery extends PageQuery {
+  homeStoreId?: string | number;
+  keyword?: string;
   memberNo?: string;
   realName?: string;
   mobile?: string;

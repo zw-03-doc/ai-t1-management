@@ -208,6 +208,8 @@ public final class FitnessCoachAppVo {
 
         private Date checkinTime;
 
+        private BigDecimal balanceAmount;
+
 
         private Integer consumeTimes;
 

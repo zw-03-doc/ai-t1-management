@@ -1,5 +1,10 @@
 <template>
   <div class="p-2">
+    <el-alert v-if="hasContext" class="mb-[10px]" type="info" :closable="false" show-icon>
+      <template #title>已带入当前门店或会员，筛选条件与新增表单会自动填写。
+        <el-button link type="primary" @click="clearContext">查看全部</el-button>
+      </template>
+    </el-alert>
     <transition :enter-active-class="proxy?.animate.searchAnimate.enter" :leave-active-class="proxy?.animate.searchAnimate.leave">
       <div v-show="showSearch" class="mb-[10px]">
         <el-card shadow="hover">
@@ -31,6 +36,7 @@
                 :loading="getRemoteLoading('query', field.prop)"
                 :placeholder="field.placeholder || `请输入${field.label}`"
                 :remote-method="(keyword) => handleRemoteSearch(field, 'query', keyword)"
+                no-data-text="暂无匹配结果，请输入姓名、编号或手机号搜索"
                 @visible-change="(visible) => handleRemoteVisibleChange(field, 'query', visible)"
               >
                 <el-option
@@ -39,6 +45,9 @@
                   :label="option.label"
                   :value="option.value"
                 />
+                <template #footer>
+                  <el-button v-if="remoteMoreMap[getRemoteKey('query', field.prop)]" text :loading="getRemoteLoading('query', field.prop)" @click="loadMore(field, 'query')">加载更多</el-button>
+                </template>
               </el-select>
 
               <el-date-picker
@@ -124,7 +133,7 @@
       <pagination v-show="total > 0" v-model:page="queryParams.pageNum" v-model:limit="queryParams.pageSize" :total="total" @pagination="getList" />
     </el-card>
 
-    <el-dialog v-model="dialog.visible" :title="dialog.title" width="820px" append-to-body>
+    <el-dialog v-model="dialog.visible" :title="dialog.title" width="820px" append-to-body :before-close="closeDialog">
       <el-form ref="formRef" :model="form" :rules="rules" label-width="110px">
         <el-row>
           <el-col v-for="field in formFields" :key="field.prop" :span="field.span || 12">
@@ -158,8 +167,9 @@
                 <el-option v-for="option in field.options || []" :key="String(option.value)" :label="option.label" :value="option.value" />
               </el-select>
               <el-select
-                v-else-if="field.type === 'remoteSelect'"
+                v-else-if="['remoteSelect', 'remoteSelectMultiple'].includes(field.type || '')"
                 v-model="form[field.prop]"
+                :multiple="field.type === 'remoteSelectMultiple'"
                 clearable
                 filterable
                 remote
@@ -167,9 +177,13 @@
                 :loading="getRemoteLoading('form', field.prop)"
                 :placeholder="field.placeholder || `请输入${field.label}`"
                 :remote-method="(keyword) => handleRemoteSearch(field, 'form', keyword)"
+                no-data-text="暂无匹配结果，请输入姓名、编号或手机号搜索"
                 @visible-change="(visible) => handleRemoteVisibleChange(field, 'form', visible)"
               >
                 <el-option v-for="option in getFieldOptions(field, 'form')" :key="String(option.value)" :label="option.label" :value="option.value" />
+                <template #footer>
+                  <el-button v-if="remoteMoreMap[getRemoteKey('form', field.prop)]" text :loading="getRemoteLoading('form', field.prop)" @click="loadMore(field, 'form')">加载更多</el-button>
+                </template>
               </el-select>
               <el-date-picker
                 v-else-if="field.type === 'date'"
@@ -206,6 +220,7 @@
 </template>
 
 <script setup name="FitnessCrudPage" lang="ts">
+import { useRoute, useRouter } from 'vue-router';
 interface OptionItem {
   label: string;
   value: string | number | boolean;
@@ -215,12 +230,13 @@ interface OptionItem {
 
 interface RemoteOptionRequest {
   keyword?: string;
-  value?: string | number | boolean | null | undefined;
+  pageNum?: number;
+  value?: string | number | boolean | Array<string | number | boolean> | null | undefined;
   model?: Record<string, any>;
 }
 
-type RemoteMethod = (params: RemoteOptionRequest) => Promise<OptionItem[]>;
-type QueryFieldType = 'input' | 'select' | 'remoteSelect' | 'date' | 'datetime';
+type RemoteMethod = (params: RemoteOptionRequest) => Promise<OptionItem[] & { hasMore?: boolean }>;
+type QueryFieldType = 'input' | 'select' | 'remoteSelect' | 'remoteSelectMultiple' | 'date' | 'datetime';
 type FormFieldType = 'input' | 'textarea' | 'number' | 'select' | 'remoteSelect' | 'remoteSelectMultiple' | 'date' | 'datetime' | 'imageUpload';
 
 type FieldScope = 'query' | 'form';
@@ -292,6 +308,22 @@ const props = withDefaults(
 );
 
 const { proxy } = getCurrentInstance() as ComponentInternalInstance;
+const route = useRoute();
+const router = useRouter();
+const contextKeys = ['storeId', 'homeStoreId', 'memberId', 'coachId', 'scheduleId'];
+const hasContext = computed(() => contextKeys.some((key) => typeof route.query[key] === 'string'));
+function applyContext(model: Record<string, any>) {
+  for (const key of contextKeys) {
+    if (key !== props.idKey && (key in props.initialQuery || key in props.initialForm)
+      && typeof route.query[key] === 'string') model[key] = route.query[key];
+  }
+  return model;
+}
+function clearContext() {
+  const query = { ...route.query };
+  contextKeys.forEach((key) => delete query[key]);
+  router.replace({ path: route.path, query });
+}
 const loading = ref(false);
 const showSearch = ref(true);
 const list = ref<any[]>([]);
@@ -303,13 +335,18 @@ const queryFormRef = ref<ElFormInstance>();
 const formRef = ref<ElFormInstance>();
 const remoteOptionsMap = reactive<Record<string, OptionItem[]>>({});
 const remoteLoadingMap = reactive<Record<string, boolean>>({});
+const remoteMoreMap = reactive<Record<string, boolean>>({});
+const remotePageMap: Record<string, number> = {};
+const remoteKeywordMap: Record<string, string> = {};
+const remoteRequestMap: Record<string, number> = {};
+let editRequest = 0;
 
 const dialog = reactive<DialogOption>({
   visible: false,
   title: ''
 });
 
-const queryParams = ref<Record<string, any>>(cloneValue(props.initialQuery));
+const queryParams = ref<Record<string, any>>(applyContext(cloneValue(props.initialQuery)));
 const form = ref<Record<string, any>>(cloneValue(props.initialForm));
 const rules = computed(() => props.rules || {});
 
@@ -323,6 +360,17 @@ function isRemoteField(field: FieldConfig): field is FieldConfig & { type: 'remo
 
 function getRemoteKey(scope: FieldScope, prop: string) {
   return `${scope}_${prop}`;
+}
+
+function invalidateRemoteOptions(scope: FieldScope) {
+  Object.keys(remoteRequestMap).filter((key) => key.startsWith(`${scope}_`)).forEach((key) => {
+    remoteRequestMap[key] += 1;
+    delete remoteOptionsMap[key];
+    delete remoteMoreMap[key];
+    delete remotePageMap[key];
+    delete remoteKeywordMap[key];
+    remoteLoadingMap[key] = false;
+  });
 }
 
 function getRemoteLoading(scope: FieldScope, prop: string) {
@@ -368,24 +416,33 @@ function resolveTagClass(options: OptionItem[] | undefined, value: any) {
   return options?.find((item) => String(item.value) === String(value))?.elTagClass || '';
 }
 
-async function loadRemoteOptions(field: FieldConfig, scope: FieldScope, keyword = '') {
+async function loadRemoteOptions(field: FieldConfig, scope: FieldScope, keyword = '', pageNum = 1) {
   if (!isRemoteField(field)) {
     return;
   }
   const key = getRemoteKey(scope, field.prop);
   const model = getFieldModel(scope);
   const currentValue = model[field.prop];
+  const requestId = (remoteRequestMap[key] || 0) + 1;
+  remoteRequestMap[key] = requestId;
+  remoteKeywordMap[key] = keyword;
   remoteLoadingMap[key] = true;
   try {
-    const options = await field.remoteMethod({ keyword, value: currentValue, model });
-    const currentOptions =
-      currentValue === undefined || currentValue === null || currentValue === ''
-        ? []
-        : (remoteOptionsMap[key] || []).filter((item) => item.value === currentValue);
+    const options = await field.remoteMethod({ keyword, pageNum, value: currentValue, model });
+    if (remoteRequestMap[key] !== requestId) return;
+    const selected = (Array.isArray(currentValue) ? currentValue : [currentValue]).map(String);
+    const currentOptions = pageNum > 1 ? remoteOptionsMap[key] : (remoteOptionsMap[key] || []).filter((item) => selected.includes(String(item.value)));
     remoteOptionsMap[key] = mergeOptions(currentOptions, options || []);
+    remoteMoreMap[key] = options.hasMore === true;
+    remotePageMap[key] = pageNum;
   } finally {
-    remoteLoadingMap[key] = false;
+    if (remoteRequestMap[key] === requestId) remoteLoadingMap[key] = false;
   }
+}
+
+function loadMore(field: FieldConfig, scope: FieldScope) {
+  const key = getRemoteKey(scope, field.prop);
+  if (!remoteLoadingMap[key]) loadRemoteOptions(field, scope, remoteKeywordMap[key], (remotePageMap[key] || 1) + 1);
 }
 
 async function ensureRemoteOption(field: FieldConfig, scope: FieldScope) {
@@ -398,9 +455,7 @@ async function ensureRemoteOption(field: FieldConfig, scope: FieldScope) {
   if (currentValue === undefined || currentValue === null || currentValue === '' || emptyArray) {
     return;
   }
-  const key = getRemoteKey(scope, field.prop);
-  const options = await field.remoteMethod({ value: currentValue, model });
-  remoteOptionsMap[key] = mergeOptions(remoteOptionsMap[key], options || []);
+  await loadRemoteOptions(field, scope);
 }
 
 function handleRemoteSearch(field: FieldConfig, scope: FieldScope, keyword: string) {
@@ -414,25 +469,35 @@ function handleRemoteVisibleChange(field: FieldConfig, scope: FieldScope, visibl
   loadRemoteOptions(field, scope);
 }
 
+let listRequest = 0;
 const getList = async () => {
+  const requestId = ++listRequest;
   loading.value = true;
   try {
     const res = await props.listFn(queryParams.value);
+    if (requestId !== listRequest) return;
     list.value = res.rows || [];
     total.value = res.total || 0;
   } finally {
-    loading.value = false;
+    if (requestId === listRequest) loading.value = false;
   }
 };
 
 const reset = () => {
-  form.value = cloneValue(props.initialForm);
+  editRequest += 1;
+  invalidateRemoteOptions('form');
+  dialog.visible = false;
   formRef.value?.resetFields();
+  form.value = applyContext(cloneValue(props.initialForm));
 };
 
 const cancel = () => {
-  dialog.visible = false;
   reset();
+};
+
+const closeDialog = (done: () => void) => {
+  cancel();
+  done();
 };
 
 const handleQuery = () => {
@@ -442,7 +507,7 @@ const handleQuery = () => {
 
 const resetQuery = () => {
   queryFormRef.value?.resetFields();
-  queryParams.value = cloneValue(props.initialQuery);
+  queryParams.value = applyContext(cloneValue(props.initialQuery));
   handleQuery();
 };
 
@@ -461,22 +526,28 @@ const handleAdd = async () => {
 
 const handleUpdate = async (row?: any) => {
   reset();
+  const requestId = editRequest;
   const id = row?.[props.idKey] ?? ids.value[0];
   const { data } = await props.getFn(id);
+  if (requestId !== editRequest) return;
   form.value = { ...form.value, ...data };
   await Promise.all(props.formFields.map((field) => ensureRemoteOption(field, 'form')));
+  if (requestId !== editRequest) return;
   dialog.visible = true;
   dialog.title = `修改${props.title}`;
 };
 
 const submitForm = () => {
+  const requestId = editRequest;
   formRef.value?.validate(async (valid: boolean) => {
-    if (!valid) {
+    if (!valid || requestId !== editRequest) {
       return;
     }
-    form.value[props.idKey] ? await props.updateFn(form.value) : await props.addFn(form.value);
+    const data = cloneValue(form.value);
+    data[props.idKey] ? await props.updateFn(data) : await props.addFn(data);
+    if (requestId !== editRequest) return;
     proxy?.$modal.msgSuccess('操作成功');
-    dialog.visible = false;
+    reset();
     await getList();
   });
 };
@@ -499,5 +570,21 @@ const handleExport = () => {
 
 onMounted(() => {
   getList();
+  props.queryFields.forEach((field) => ensureRemoteOption(field, 'query'));
+});
+
+watch(() => [route.path, route.query], () => {
+  reset();
+  invalidateRemoteOptions('query');
+  queryParams.value = applyContext(cloneValue(props.initialQuery));
+  getList();
+  props.queryFields.forEach((field) => ensureRemoteOption(field, 'query'));
+});
+
+onBeforeUnmount(() => {
+  editRequest += 1;
+  listRequest += 1;
+  invalidateRemoteOptions('form');
+  invalidateRemoteOptions('query');
 });
 </script>

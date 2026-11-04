@@ -1,4 +1,8 @@
 import request from '@/utils/request';
+
+export function finishSchedule(scheduleId: string | number) {
+  return request({ url: `/fitness/schedule/${scheduleId}/finish`, method: 'put' });
+}
 import { AxiosPromise } from 'axios';
 import { FitnessScheduleForm, FitnessScheduleQuery, FitnessScheduleVO } from './types';
 

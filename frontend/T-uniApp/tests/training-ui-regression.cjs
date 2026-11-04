@@ -131,7 +131,7 @@ test('actual blank weight is rejected but bodyweight zero is valid', () => {
 });
 test('saveLog submits only checked actual sets and preserves warmup/working plus kg/lb', async () => {
   const writes = [];
-  const { state, tickers } = setup(async (url, method, data, role) => { writes.push({ url, method, data, role }); return {}; });
+  const { state, tickers } = setup(async (url, method, data, role) => { if (method === 'PUT') writes.push({ url, method, data, role }); return { planId: 'offline-plan', status: 'active' }; });
   state.selected = { planId: 'offline-plan', startDate: '2026-10-01' };
   state.refreshPlan = async () => {};
   await state.openLog(workout);
@@ -239,6 +239,90 @@ test('full training template passes the uni-app mini-program compiler', () => {
     filename: sourcePath, mode: 'module', prefixIdentifiers: true, onError: error => errors.push(error)
   });
   assert.equal(errors.length, 0, errors.map(e => e.message).join('; '));
+});
+
+test('saved in-progress target positions restore remaining groups without counting them as actual', async () => {
+  const { state } = setup();
+  await state.openLog({ ...workout, status: 'in_progress', sets: [
+    { exerciseKey: 'bench', exerciseName: '卧推', targetSetIndex: 0, setType: 'warmup', reps: 12, weight: 22, unit: 'kg' },
+    { exerciseKey: 'bench', exerciseName: '卧推', targetSetIndex: null, setType: 'working', reps: 6, weight: 45, unit: 'lb' }
+  ] });
+  assert.equal(state.logSets.length, 4);
+  assert.equal(state.logSets[0].weight, 22); assert.equal(state.logSets[0].done, true);
+  assert.equal(state.logSets[1].weight, ''); assert.equal(state.logSets[1].done, false);
+  assert.equal(state.logSets[1].targetSetIndex, 1); assert.equal(state.logSets[2].targetSetIndex, 2);
+  assert.equal(state.logSets[3].weight, 45); assert.equal(state.logSets[3].targetSetIndex, null);
+});
+
+test('saving progress keeps the workout open, sends finish false, and does not claim final statistics', async () => {
+  const writes = [];
+  const { state } = setup(async (url, method, data) => {
+    if (method === 'PUT') { writes.push(data); return { sets: data.sets, status: 'in_progress' }; }
+    return { planId: 'offline-plan', status: 'active' };
+  });
+  state.selected = { planId: 'offline-plan', status: 'active', startDate: '2026-10-01' };
+  state.refreshPlan = async () => {};
+  await state.openLog(workout); state.logSets[0].weight = 20; state.completeSet(state.logSets[0]);
+  await state.saveLog(false);
+  assert.equal(writes[0].finish, false); assert.equal(writes[0].sets[0].targetSetIndex, 0);
+  assert.equal(state.logging.status, 'in_progress'); assert.equal(state.logSets.length, 3);
+  assert.equal(state.logSets[1].done, false);
+});
+
+test('shortening a cycle requires consent and restoration keeps edits to retained days', async () => {
+  const { state, ctx, events } = setup(); state.newPlan();
+  state.editor.days[6] = { dayNumber: 7, title: '已配置腿日', restDay: false, exercises: [copy(exercise)] };
+  state.editor.cycleDays = 6;
+  ctx.uni.showModal = options => { events.push(['modal', options.title]); options.success({ confirm: false }); };
+  await state.changeCycleDays(); assert.equal(state.editor.days.length, 7); assert.equal(state.editor.cycleDays, 7);
+  ctx.uni.showModal = options => options.success({ confirm: true });
+  state.editor.cycleDays = 6; await state.changeCycleDays();
+  assert.equal(state.editor.days.length, 6); assert.equal(state.cycleBackup[6].exercises.length, 1);
+  state.editor.days[0].title = '保留的新修改'; state.restoreCycleDays();
+  assert.equal(state.editor.cycleDays, 7); assert.equal(state.editor.days[6].title, '已配置腿日');
+  assert.equal(state.editor.days[0].title, '保留的新修改');
+});
+
+test('changing the shift date previews and submits chosen days with the preview version', async () => {
+  const calls = [];
+  const { state } = setup(async (url, method, data) => {
+    calls.push({ url, method, data });
+    if (url.endsWith('/preview')) return { fromDate: data.fromDate, days: data.days, version: 4, canApply: true, affectedCount: 1, changes: [] };
+    return [];
+  });
+  state.selected = { planId: 'offline-plan', status: 'active' }; state.refreshPlan = async () => {};
+  state.shifting = copy(workout); state.shiftDate = '2026-10-29';
+  await state.previewShift(); await state.applyShift();
+  const write = calls.find(call => call.method === 'POST');
+  assert.equal(write.data.days, 3); assert.equal(write.data.expectedVersion, 4);
+  assert.equal(state.shifting, null);
+});
+
+test('archived workouts are read-only and can never submit actual corrections', async () => {
+  const calls = []; const { state } = setup(async (...args) => calls.push(args));
+  state.selected = { status: 'archived' };
+  await state.openLog({ ...workout, status: 'completed', sets: [{ exerciseKey: 'bench', setType: 'working', weight: 50, reps: 8, unit: 'kg' }] });
+  state.completeSet(state.logSets[0]); await state.saveLog(true); state.addLogSet(exercise, 'working');
+  assert.equal(state.logSets[0].done, true); assert.equal(state.logSets.length, 1); assert.equal(calls.length, 0);
+});
+
+test('admin A/B member requests cannot display stale plans under the new owner', async () => {
+  const ts = require(path.join(repo, 'frontend/T-plus-ui/node_modules/typescript'));
+  const adminPath = path.join(repo, 'frontend/T-plus-ui/src/views/fitness/training/index.vue');
+  const admin = sfc.parse(fs.readFileSync(adminPath, 'utf8')).descriptor.scriptSetup.content;
+  const adminScript = ts.transpileModule(admin.replace(/^import.*;$/gm, '').replace('import.meta.env.VITE_MEMBER_APP_URL', 'undefined'), {
+    compilerOptions: { target: ts.ScriptTarget.ES2020, module: ts.ModuleKind.None }
+  }).outputText + '\nglobalThis.api={load,detail,memberId,plans,context,workouts,visible};';
+  const waiting = new Map();
+  const ctx = { ref: value => ({ value }), computed: getter => ({ get value(){ return getter(); } }), useRoute: () => ({query:{}}),
+    watch() {}, onBeforeUnmount() {}, loadMemberOptions: async () => [],
+    request: options => new Promise(resolve => waiting.set(options.url + ':' + options.params.memberId, resolve)) };
+  vm.createContext(ctx); vm.runInContext(adminScript, ctx);
+  ctx.api.memberId.value = 'A'; const first = ctx.api.load();
+  ctx.api.memberId.value = 'B'; const second = ctx.api.load();
+  waiting.get('/fitness/training/plans:B')({data:[{name:'B计划'}]}); waiting.get('/fitness/training/context:B')({data:{displayName:'B会员'}}); await second;
+  waiting.get('/fitness/training/plans:A')({data:[{name:'A计划'}]}); waiting.get('/fitness/training/context:A')({data:{displayName:'A会员'}}); await first;
+  assert.equal(ctx.api.memberId.value, 'B'); assert.equal(ctx.api.plans.value[0].name, 'B计划'); assert.equal(ctx.api.context.value.displayName, 'B会员');
 });
 
 (async () => {

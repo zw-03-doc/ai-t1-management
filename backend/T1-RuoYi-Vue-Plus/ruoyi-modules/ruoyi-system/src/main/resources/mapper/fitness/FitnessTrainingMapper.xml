@@ -11,6 +11,14 @@
         SELECT COUNT(*) FROM fit_member m WHERE m.tenant_id = #{tenantId} AND m.member_id = #{memberId}
         AND m.del_flag = '0' AND m.member_status = 'normal'
     </select>
+    <select id="selectMemberContext" resultType="org.dromara.fitness.domain.dto.FitnessTrainingModels$MemberContext">
+        SELECT member_id, COALESCE(NULLIF(real_name, ''), NULLIF(nickname, ''), CONCAT('会员 ', member_id)) AS display_name,
+            member_status FROM fit_member WHERE tenant_id = #{tenantId} AND member_id = #{memberId} AND del_flag = '0'
+    </select>
+    <select id="lockActiveMember" resultType="java.lang.Long">
+        SELECT member_id FROM fit_member WHERE tenant_id = #{tenantId} AND member_id = #{memberId}
+            AND del_flag = '0' AND member_status = 'normal' FOR UPDATE
+    </select>
     <select id="countCoachMember" resultType="int">
         SELECT COUNT(*) FROM fit_member_card mc
         JOIN fit_coach c ON c.coach_id = mc.bind_coach_id AND c.tenant_id = mc.tenant_id
@@ -29,7 +37,7 @@
         ORDER BY create_time DESC, plan_id DESC LIMIT 200
     </select>
     <select id="selectPublicPlans" resultType="org.dromara.fitness.domain.dto.FitnessTrainingModels$Plan">
-        SELECT <include refid="planColumns"/> FROM fit_training_plan WHERE tenant_id = #{tenantId} AND visibility = 'public'
+        SELECT <include refid="planColumns"/> FROM fit_training_plan WHERE tenant_id = #{tenantId} AND visibility = 'public' AND status != 'archived'
         ORDER BY create_time DESC, plan_id DESC LIMIT 100
     </select>
     <select id="selectPlan" resultType="org.dromara.fitness.domain.dto.FitnessTrainingModels$Plan">
@@ -51,6 +59,22 @@
     <update id="startPlan">
         UPDATE fit_training_plan SET status = 'active', start_date = #{startDate}, version = version + 1, update_time = NOW()
         WHERE tenant_id = #{tenantId} AND plan_id = #{planId} AND status = 'draft'
+    </update>
+    <update id="setPlanStatus">
+        UPDATE fit_training_plan SET status = #{status}, version = version + 1, update_time = NOW()
+        WHERE tenant_id = #{tenantId} AND plan_id = #{planId}
+    </update>
+    <update id="touchPlan">
+        UPDATE fit_training_plan SET version = version + 1, update_time = NOW()
+        WHERE tenant_id = #{tenantId} AND plan_id = #{planId}
+    </update>
+    <select id="countOpenWorkouts" resultType="int">
+        SELECT COUNT(*) FROM fit_training_workout WHERE tenant_id = #{tenantId} AND plan_id = #{planId}
+            AND status IN ('planned', 'in_progress')
+    </select>
+    <update id="cancelPendingWorkouts">
+        UPDATE fit_training_workout SET status = 'cancelled' WHERE tenant_id = #{tenantId} AND plan_id = #{planId}
+            AND status IN ('planned', 'rest')
     </update>
     <insert id="insertWorkout">
         INSERT INTO fit_training_workout
@@ -74,16 +98,20 @@
     </update>
     <update id="completeWorkout">
         UPDATE fit_training_workout SET performed_date = #{performedDate}, status = 'completed'
-        WHERE tenant_id = #{tenantId} AND workout_id = #{workoutId} AND status IN ('planned', 'completed')
+        WHERE tenant_id = #{tenantId} AND workout_id = #{workoutId} AND status IN ('planned', 'in_progress', 'completed')
+    </update>
+    <update id="saveWorkoutProgress">
+        UPDATE fit_training_workout SET performed_date = #{performedDate}, status = 'in_progress'
+        WHERE tenant_id = #{tenantId} AND workout_id = #{workoutId} AND status IN ('planned', 'in_progress')
     </update>
     <delete id="deleteSets">
         DELETE FROM fit_training_set WHERE tenant_id = #{tenantId} AND workout_id = #{workoutId}
     </delete>
     <insert id="insertSet">
         INSERT INTO fit_training_set
-        (set_id, tenant_id, workout_id, set_number, exercise_key, exercise_name, set_type, reps, weight, unit, weight_kg, rpe)
+        (set_id, tenant_id, workout_id, set_number, exercise_key, exercise_name, set_type, reps, weight, unit, weight_kg, rpe, target_set_index)
         VALUES (#{set.setId}, #{set.tenantId}, #{set.workoutId}, #{set.setNumber}, #{set.exerciseKey}, #{set.exerciseName},
-            #{set.setType}, #{set.reps}, #{set.weight}, #{set.unit}, #{set.weightKg}, #{set.rpe})
+            #{set.setType}, #{set.reps}, #{set.weight}, #{set.unit}, #{set.weightKg}, #{set.rpe}, #{set.targetSetIndex})
     </insert>
     <select id="selectPlanSets" resultType="org.dromara.fitness.domain.dto.FitnessTrainingModels$SetLog">
         SELECT s.* FROM fit_training_set s JOIN fit_training_workout w ON w.workout_id = s.workout_id AND w.tenant_id = s.tenant_id

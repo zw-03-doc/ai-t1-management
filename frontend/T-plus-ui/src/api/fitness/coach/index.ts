@@ -21,3 +21,7 @@ export function updateCoach(data: FitnessCoachForm) {
 export function delCoach(coachId: string | number | Array<string | number>) {
   return request({ url: '/fitness/coach/' + coachId, method: 'delete' });
 }
+
+export function changeCoachStatus(coachId: string | number, status: '0' | '1') {
+  return request({ url: `/fitness/coach/${coachId}/status`, method: 'put', data: { status } });
+}

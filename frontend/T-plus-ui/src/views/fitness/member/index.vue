@@ -33,6 +33,7 @@ const pageConfig = reactive({
   idKey: 'memberId',
   exportUrl: 'fitness/member/export',
   queryFields: [
+    { label: '归属门店', prop: 'homeStoreId', type: 'remoteSelect', remoteMethod: loadStoreOptions },
     { label: '会员编号', prop: 'memberNo' },
     { label: '姓名', prop: 'realName' },
     { label: '手机号', prop: 'mobile' },
@@ -61,6 +62,7 @@ const pageConfig = reactive({
     { label: '最近到店时间', prop: 'lastVisitTime', type: 'date' }
   ],
   initialQuery: {
+    homeStoreId: '',
     pageNum: 1,
     pageSize: 10,
     memberNo: '',

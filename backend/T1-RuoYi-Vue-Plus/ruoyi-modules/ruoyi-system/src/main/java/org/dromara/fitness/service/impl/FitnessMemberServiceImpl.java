@@ -16,6 +16,9 @@ import org.dromara.fitness.domain.vo.FitnessMemberVo;
 import org.dromara.fitness.mapper.FitnessMemberMapper;
 import org.dromara.fitness.service.IFitnessMemberService;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+import org.dromara.fitness.service.support.FitnessSessionRevoker;
+import java.util.Set;
 
 import java.util.Collection;
 import java.util.List;
@@ -60,24 +63,35 @@ public class FitnessMemberServiceImpl implements IFitnessMemberService {
     }
 
     @Override
+    @Transactional(rollbackFor = Exception.class)
     public Boolean updateByBo(FitnessMemberBo bo) {
+        FitMember existing = baseMapper.selectOne(new LambdaQueryWrapper<FitMember>().eq(FitMember::getMemberId, bo.getMemberId()).last("FOR UPDATE"));
+        if (existing == null) throw new ServiceException("会员不存在");
         FitMember update = MapstructUtils.convert(bo, FitMember.class);
         validEntityBeforeSave(update);
-        return baseMapper.updateById(update) > 0;
+        boolean changed = baseMapper.updateById(update) > 0;
+        if (changed && !"normal".equals(update.getMemberStatus())) FitnessSessionRevoker.member(update.getMemberId());
+        return changed;
     }
 
     @Override
+    @Transactional(rollbackFor = Exception.class)
     public Boolean deleteWithValidByIds(Collection<Long> ids, Boolean isValid) {
+        baseMapper.selectList(new LambdaQueryWrapper<FitMember>().in(FitMember::getMemberId, ids).orderByAsc(FitMember::getMemberId).last("FOR UPDATE"));
         if (isValid) {
             long count = baseMapper.selectCount(new LambdaQueryWrapper<FitMember>().in(FitMember::getMemberId, ids));
             if (count != ids.size()) {
                 throw new ServiceException("部分数据不存在或已被删除");
             }
         }
-        return baseMapper.deleteByIds(ids) > 0;
+        boolean deleted = baseMapper.deleteByIds(ids) > 0;
+        if (deleted) ids.forEach(FitnessSessionRevoker::member);
+        return deleted;
     }
 
     private void validEntityBeforeSave(FitMember entity) {
+        if (entity.getMemberStatus() == null || !Set.of("normal", "frozen", "lost").contains(entity.getMemberStatus()))
+            throw new ServiceException("请选择有效会员状态");
         if (baseMapper.exists(new LambdaQueryWrapper<FitMember>().eq(FitMember::getMemberNo, entity.getMemberNo()).ne(entity.getMemberId() != null, FitMember::getMemberId, entity.getMemberId()))) {
             throw new ServiceException("会员编号已存在");
         }

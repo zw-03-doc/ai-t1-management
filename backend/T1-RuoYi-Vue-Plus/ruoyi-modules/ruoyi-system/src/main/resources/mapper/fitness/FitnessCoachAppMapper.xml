@@ -208,7 +208,7 @@
                mc.card_name AS cardName,
                mc.plan_type AS planType,
                mc.remain_times AS remainTimes,
-
+               mc.balance_amount AS balanceAmount,
                cr.checkin_time AS checkinTime,
                cr.consume_times AS consumeTimes,
                cr.consume_amount AS consumeAmount,

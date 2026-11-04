@@ -33,6 +33,7 @@
     </sql>
 
     <sql id="baseQueryWhere">
+        <if test="bo != null and bo.keyword != null and bo.keyword != ''">AND (t.member_no LIKE CONCAT('%', #{bo.keyword}, '%') OR t.real_name LIKE CONCAT('%', #{bo.keyword}, '%') OR t.nickname LIKE CONCAT('%', #{bo.keyword}, '%') OR t.mobile LIKE CONCAT('%', #{bo.keyword}, '%'))</if>
         <if test="bo != null and bo.memberNo != null and bo.memberNo != ''">AND t.member_no LIKE CONCAT('%', #{bo.memberNo}, '%')</if>
         <if test="bo != null and bo.realName != null and bo.realName != ''">AND t.real_name LIKE CONCAT('%', #{bo.realName}, '%')</if>
         <if test="bo != null and bo.mobile != null and bo.mobile != ''">AND t.mobile LIKE CONCAT('%', #{bo.mobile}, '%')</if>

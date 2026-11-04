@@ -27,6 +27,9 @@ import org.dromara.fitness.mapper.FitnessMemberCardMapper;
 import org.dromara.fitness.mapper.FitnessMemberMapper;
 import org.dromara.fitness.mapper.FitnessOrderItemMapper;
 import org.dromara.fitness.mapper.FitnessOrderMapper;
+import org.dromara.fitness.mapper.FitnessCoachMapper;
+import org.dromara.fitness.mapper.FitnessStoreMapper;
+import org.dromara.fitness.domain.FitCoach;
 import org.dromara.fitness.service.IFitnessOrderService;
 import org.dromara.fitness.utils.FitnessBizCodeUtils;
 
@@ -57,6 +60,8 @@ public class FitnessOrderServiceImpl implements IFitnessOrderService {
     private final FitnessCardPlanMapper cardPlanMapper;
     private final FitnessMemberMapper memberMapper;
     private final FitnessCheckinMapper checkinMapper;
+    private final FitnessCoachMapper coachMapper;
+    private final FitnessStoreMapper storeMapper;
 
     @Override
     public FitnessOrderVo queryById(Long orderId) {
@@ -85,20 +90,27 @@ public class FitnessOrderServiceImpl implements IFitnessOrderService {
         FitCardPlan plan = requirePlan(bo.getPlanId());
         BigDecimal totalAmount = nullSafe(plan.getSalePrice());
         BigDecimal discountAmount = nullSafe(bo.getDiscountAmount());
+        if (discountAmount.signum() < 0) throw new ServiceException("优惠金额不能为负数");
         if (discountAmount.compareTo(totalAmount) > 0) {
             throw new ServiceException("优惠金额不能大于订单总额");
         }
         BigDecimal payableAmount = totalAmount.subtract(discountAmount);
         boolean payNow = Boolean.TRUE.equals(bo.getPayNow());
+        if (StringUtils.isNotBlank(bo.getOrderStatus()) && !"pending".equals(bo.getOrderStatus()))
+            throw new ServiceException("新订单只能待收款；请使用确认线下收款完成发卡");
+        requirePayMethod(bo.getPayMethod());
+        Long storeId = bo.getStoreId() == null ? plan.getStoreId() : bo.getStoreId();
+        requireStoreAndCoach(storeId, bo.getBindCoachId(), plan);
 
         FitOrder order = MapstructUtils.convert(bo, FitOrder.class);
         order.setOrderId(IdGeneratorUtil.nextLongId());
         order.setTenantId(currentTenantId());
-        order.setStoreId(bo.getStoreId() == null ? plan.getStoreId() : bo.getStoreId());
+        order.setStoreId(storeId);
+        order.setBindCoachId(bo.getBindCoachId());
         order.setOrderNo(StringUtils.defaultIfBlank(bo.getOrderNo(), "ORD" + IdGeneratorUtil.nextId()));
         order.setOrderType(StringUtils.defaultIfBlank(bo.getOrderType(), "buy_card"));
         order.setOrderSource(StringUtils.defaultIfBlank(bo.getOrderSource(), "admin"));
-        order.setOrderStatus(payNow ? "paid" : StringUtils.defaultIfBlank(bo.getOrderStatus(), "pending"));
+        order.setOrderStatus(payNow ? "paid" : "pending");
         order.setPayMethod(payNow ? StringUtils.defaultIfBlank(bo.getPayMethod(), "cash") : bo.getPayMethod());
         order.setTotalAmount(totalAmount);
         order.setDiscountAmount(discountAmount);
@@ -116,7 +128,7 @@ public class FitnessOrderServiceImpl implements IFitnessOrderService {
         }
 
         if (payNow) {
-            issueCardsIfNecessary(order, bo);
+            issueCardsIfNecessary(order);
         }
         bo.setOrderId(order.getOrderId());
         return true;
@@ -125,22 +137,35 @@ public class FitnessOrderServiceImpl implements IFitnessOrderService {
     @Override
     @Transactional(rollbackFor = Exception.class)
     public Boolean updateByBo(FitnessOrderBo bo) {
-        FitOrder db = baseMapper.selectById(bo.getOrderId());
+        // Match payment's lock order: order first, then any referenced coach.
+        // A delayed editor must observe a completed payment before changing its card binding or amount.
+        FitOrder db = baseMapper.selectOne(new LambdaQueryWrapper<FitOrder>()
+            .eq(FitOrder::getOrderId, bo.getOrderId()).last("FOR UPDATE"));
         if (db == null) {
             throw new ServiceException("订单不存在");
         }
         if (!Objects.equals("pending", db.getOrderStatus())) {
             throw new ServiceException("仅待支付订单支持编辑");
         }
+        if (bo.getMemberId() != null && !Objects.equals(bo.getMemberId(), db.getMemberId()))
+            throw new ServiceException("订单会员不能修改，请取消后重新录单");
+        var items = orderItemMapper.selectList(new LambdaQueryWrapper<FitOrderItem>().eq(FitOrderItem::getOrderId, db.getOrderId()));
+        Long planId = items.stream().filter(i -> "card_plan".equals(i.getItemType())).map(FitOrderItem::getItemRefId).findFirst()
+            .orElseThrow(() -> new ServiceException("订单缺少卡项明细，请联系管理员"));
+        if (bo.getPlanId() != null && !Objects.equals(bo.getPlanId(), planId)) throw new ServiceException("卡项方案不能修改，请取消后重新录单");
+        Long storeId = bo.getStoreId() == null ? db.getStoreId() : bo.getStoreId();
+        requireStoreAndCoach(storeId, bo.getBindCoachId(), requirePlan(planId));
+        requirePayMethod(bo.getPayMethod());
         FitOrder update = new FitOrder();
         update.setOrderId(db.getOrderId());
-        update.setStoreId(bo.getStoreId());
+        update.setStoreId(storeId);
         update.setPayMethod(bo.getPayMethod());
         update.setTradeNo(bo.getTradeNo());
         update.setCashierUserId(bo.getCashierUserId());
         update.setRemark(bo.getRemark());
 
         if (bo.getDiscountAmount() != null) {
+            if (bo.getDiscountAmount().signum() < 0) throw new ServiceException("优惠金额不能为负数");
             BigDecimal totalAmount = nullSafe(db.getTotalAmount());
             if (bo.getDiscountAmount().compareTo(totalAmount) > 0) {
                 throw new ServiceException("优惠金额不能大于订单总额");
@@ -148,7 +173,8 @@ public class FitnessOrderServiceImpl implements IFitnessOrderService {
             update.setDiscountAmount(bo.getDiscountAmount());
             update.setPayableAmount(totalAmount.subtract(bo.getDiscountAmount()));
         }
-        boolean updated = baseMapper.updateById(update) > 0;
+        boolean updated = baseMapper.update(update, new LambdaUpdateWrapper<FitOrder>().eq(FitOrder::getOrderId, db.getOrderId())
+            .set(FitOrder::getBindCoachId, bo.getBindCoachId())) > 0;
         if (updated && bo.getDiscountAmount() != null) {
             List<FitOrderItem> itemList = orderItemMapper.selectList(new LambdaQueryWrapper<FitOrderItem>()
                 .eq(FitOrderItem::getOrderId, bo.getOrderId())
@@ -169,7 +195,7 @@ public class FitnessOrderServiceImpl implements IFitnessOrderService {
     @Lock4j(keys = {"'order:pay:' + #orderId"}, acquireTimeout = 3000)
     @Transactional(rollbackFor = Exception.class)
     public Boolean payOrder(Long orderId, FitnessOrderBo bo) {
-        FitOrder db = baseMapper.selectById(orderId);
+        FitOrder db = baseMapper.selectOne(new LambdaQueryWrapper<FitOrder>().eq(FitOrder::getOrderId, orderId).last("FOR UPDATE"));
         if (db == null) {
             throw new ServiceException("订单不存在");
         }
@@ -179,8 +205,14 @@ public class FitnessOrderServiceImpl implements IFitnessOrderService {
         if (!Objects.equals("pending", db.getOrderStatus())) {
             throw new ServiceException("当前订单状态不支持支付");
         }
+        requireActiveMember(db.getMemberId());
+        if (bo.getPayableAmount() != null && bo.getPayableAmount().compareTo(nullSafe(db.getPayableAmount())) != 0)
+            throw new ServiceException("应收金额已变化，请重新打开订单核对后确认");
+        requirePayMethod(bo.getPayMethod());
+        Long bindCoachId = bo.getBindCoachId() == null ? db.getBindCoachId() : bo.getBindCoachId();
         FitOrder update = new FitOrder();
         update.setOrderId(orderId);
+        update.setBindCoachId(bindCoachId);
         update.setOrderStatus("paid");
         update.setPayMethod(StringUtils.defaultIfBlank(bo.getPayMethod(), StringUtils.defaultIfBlank(db.getPayMethod(), "cash")));
         update.setPaidAmount(nullSafe(db.getPayableAmount()));
@@ -190,14 +222,17 @@ public class FitnessOrderServiceImpl implements IFitnessOrderService {
         boolean flag = baseMapper.updateById(update) > 0;
         if (flag) {
             FitOrder latest = baseMapper.selectById(orderId);
-            issueCardsIfNecessary(latest, bo);
+            latest.setBindCoachId(bindCoachId);
+            issueCardsIfNecessary(latest);
         }
         return flag;
     }
 
     @Override
+    @Transactional(rollbackFor = Exception.class)
     public Boolean cancelOrder(Long orderId, String cancelReason) {
-        FitOrder db = baseMapper.selectById(orderId);
+        FitOrder db = baseMapper.selectOne(new LambdaQueryWrapper<FitOrder>()
+            .eq(FitOrder::getOrderId, orderId).last("FOR UPDATE"));
         if (db == null) {
             throw new ServiceException("订单不存在");
         }
@@ -221,7 +256,8 @@ public class FitnessOrderServiceImpl implements IFitnessOrderService {
     @Transactional(rollbackFor = Exception.class)
     public Boolean refundOrder(Long orderId, FitnessOrderBo bo) {
         FitnessOrderBo refundBo = bo == null ? new FitnessOrderBo() : bo;
-        FitOrder db = baseMapper.selectById(orderId);
+        FitOrder db = baseMapper.selectOne(new LambdaQueryWrapper<FitOrder>()
+            .eq(FitOrder::getOrderId, orderId).last("FOR UPDATE"));
         if (db == null) {
             throw new ServiceException("订单不存在");
         }
@@ -271,11 +307,32 @@ public class FitnessOrderServiceImpl implements IFitnessOrderService {
     }
 
     private void validBeforeCreate(FitnessOrderBo bo) {
-        long memberCount = memberMapper.selectCount(new LambdaQueryWrapper<FitMember>().eq(FitMember::getMemberId, bo.getMemberId()));
-        if (memberCount <= 0) {
-            throw new ServiceException("会员不存在");
-        }
+        requireActiveMember(bo.getMemberId());
         requirePlan(bo.getPlanId());
+    }
+
+    private void requireActiveMember(Long memberId) {
+        FitMember member = memberMapper.selectOne(new LambdaQueryWrapper<FitMember>().eq(FitMember::getMemberId, memberId).last("FOR UPDATE"));
+        if (member == null || !Objects.equals(member.getTenantId(), currentTenantId()) || !"normal".equals(member.getMemberStatus()))
+            throw new ServiceException("会员不存在或已停用");
+    }
+
+    private void requirePayMethod(String method) {
+        if (StringUtils.isNotBlank(method) && !Set.of("cash", "wechat", "transfer", "card", "mix").contains(method))
+            throw new ServiceException("请选择有效的线下收款方式");
+    }
+
+    private void requireStoreAndCoach(Long storeId, Long coachId, FitCardPlan plan) {
+        var store = storeId == null ? null : storeMapper.selectById(storeId);
+        if (store == null || !Objects.equals(store.getTenantId(), currentTenantId()) || !"0".equals(store.getStatus()))
+            throw new ServiceException("门店不存在或已停用");
+        if (plan.getStoreId() != null && !Objects.equals(plan.getStoreId(), storeId)) throw new ServiceException("卡项方案与订单门店不一致");
+        if ("1".equals(plan.getIsPrivateBindCoach()) && coachId == null) throw new ServiceException("该卡项要求绑定教练，请选择教练后再确认");
+        if (coachId != null) {
+            FitCoach coach = coachMapper.selectOne(new LambdaQueryWrapper<FitCoach>().eq(FitCoach::getCoachId, coachId).last("FOR UPDATE"));
+            if (coach == null || !Objects.equals(coach.getTenantId(), currentTenantId()) || !"0".equals(coach.getHireStatus()) || !Objects.equals(coach.getStoreId(), storeId))
+                throw new ServiceException("绑定教练必须在职且属于订单门店");
+        }
     }
 
     private FitCardPlan requirePlan(Long planId) {
@@ -307,7 +364,7 @@ public class FitnessOrderServiceImpl implements IFitnessOrderService {
         return item;
     }
 
-    private void issueCardsIfNecessary(FitOrder order, FitnessOrderBo bo) {
+    private void issueCardsIfNecessary(FitOrder order) {
         List<FitOrderItem> itemList = orderItemMapper.selectList(new LambdaQueryWrapper<FitOrderItem>()
             .eq(FitOrderItem::getOrderId, order.getOrderId())
             .orderByAsc(FitOrderItem::getItemId));
@@ -316,10 +373,8 @@ public class FitnessOrderServiceImpl implements IFitnessOrderService {
                 continue;
             }
             FitCardPlan plan = requirePlan(item.getItemRefId());
-            if (Objects.equals("1", plan.getIsPrivateBindCoach()) && bo.getBindCoachId() == null) {
-                throw new ServiceException("该卡项要求绑定教练");
-            }
-            Long cardId = issueMemberCard(order, item, plan, bo.getBindCoachId());
+            requireStoreAndCoach(order.getStoreId(), order.getBindCoachId(), plan);
+            Long cardId = issueMemberCard(order, item, plan, order.getBindCoachId());
             FitOrderItem updateItem = new FitOrderItem();
             updateItem.setItemId(item.getItemId());
             updateItem.setGrantCardId(cardId);
@@ -373,8 +428,11 @@ public class FitnessOrderServiceImpl implements IFitnessOrderService {
             return;
         }
 
-        for (Long cardId : grantCardIds) {
-            FitMemberCard card = memberCardMapper.selectById(cardId);
+        // Redemption locks reservation -> card -> checkin, never order. Keep the
+        // same card -> checkin order here, with stable card ordering for batches.
+        for (Long cardId : grantCardIds.stream().sorted().toList()) {
+            FitMemberCard card = memberCardMapper.selectOne(new LambdaQueryWrapper<FitMemberCard>()
+                .eq(FitMemberCard::getCardId, cardId).last("FOR UPDATE"));
             if (card == null) {
                 continue;
             }
@@ -384,10 +442,13 @@ public class FitnessOrderServiceImpl implements IFitnessOrderService {
             if (nullSafe(card.getUsedTimes()) > 0) {
                 throw new ServiceException("会员卡已产生扣次记录，请先完成核销撤销后再退款");
             }
-            long successCheckinCount = checkinMapper.selectCount(new LambdaQueryWrapper<FitCheckinRecord>()
+            // A locking read sees usage committed while we waited for the card,
+            // including stored/time cards whose usedTimes remains zero.
+            List<FitCheckinRecord> successfulCheckins = checkinMapper.selectList(new LambdaQueryWrapper<FitCheckinRecord>()
                 .eq(FitCheckinRecord::getCardId, cardId)
-                .eq(FitCheckinRecord::getCheckinStatus, "success"));
-            if (successCheckinCount > 0) {
+                .eq(FitCheckinRecord::getCheckinStatus, "success")
+                .last("LIMIT 1 FOR UPDATE"));
+            if (!successfulCheckins.isEmpty()) {
                 throw new ServiceException("会员卡已产生核销记录，请先完成核销撤销后再退款");
             }
             memberCardMapper.deleteById(cardId);

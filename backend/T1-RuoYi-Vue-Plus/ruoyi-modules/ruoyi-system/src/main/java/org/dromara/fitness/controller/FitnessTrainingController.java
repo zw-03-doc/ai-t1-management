@@ -26,6 +26,9 @@ public class FitnessTrainingController {
     @GetMapping("/templates")
     public R<List<Plan>> templates() { return R.ok(service.templates()); }
 
+    @GetMapping("/context")
+    public R<MemberContext> context(@RequestParam(required = false) Long memberId) { return R.ok(service.context(memberId)); }
+
     @GetMapping("/plans")
     public R<List<Plan>> plans(@RequestParam(required = false) Long memberId) { return R.ok(service.plans(memberId)); }
 
@@ -43,6 +46,25 @@ public class FitnessTrainingController {
     @RepeatSubmit
     @PostMapping("/plans/{planId}/start")
     public R<List<Workout>> start(@PathVariable Long planId, @RequestBody StartInput input) { return R.ok(service.start(planId, input)); }
+
+    @RepeatSubmit
+    @PostMapping("/plans/{planId}/copy")
+    public R<Plan> copy(@PathVariable Long planId, @RequestBody(required = false) CopyInput input) { return R.ok(service.copy(planId, input)); }
+
+    @RepeatSubmit
+    @PostMapping("/plans/{planId}/extend")
+    public R<List<Workout>> extend(@PathVariable Long planId, @RequestBody StartInput input) { return R.ok(service.extend(planId, input)); }
+
+    @RepeatSubmit
+    @PostMapping("/plans/{planId}/complete")
+    public R<Plan> complete(@PathVariable Long planId) { return R.ok(service.complete(planId)); }
+
+    @RepeatSubmit
+    @PostMapping("/plans/{planId}/archive")
+    public R<Plan> archive(@PathVariable Long planId) { return R.ok(service.archive(planId)); }
+
+    @GetMapping("/plans/{planId}/shift/preview")
+    public R<ShiftPreview> previewShift(@PathVariable Long planId, ShiftInput input) { return R.ok(service.previewShift(planId, input)); }
 
     @RepeatSubmit
     @PostMapping("/plans/{planId}/shift")

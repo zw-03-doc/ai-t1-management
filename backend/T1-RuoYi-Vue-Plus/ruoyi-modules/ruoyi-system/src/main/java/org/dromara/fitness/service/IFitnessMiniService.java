@@ -16,7 +16,7 @@ public interface IFitnessMiniService {
 
     FitnessMiniVo.LoginVo wechatLogin(FitnessMiniBo.WechatLoginBo bo);
 
-    void bindPhone(FitnessMiniBo.BindPhoneBo bo);
+    FitnessMiniVo.LoginVo bindPhone(FitnessMiniBo.BindPhoneBo bo);
 
     FitnessMiniVo.HomeIndexVo queryHomeIndex();
 

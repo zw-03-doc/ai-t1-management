@@ -14,13 +14,15 @@ export interface RemoteSelectOption {
 
 export interface RemoteSelectParams {
   keyword?: string;
+  pageNum?: number;
   value?: string | number | boolean | Array<string | number | boolean> | null | undefined;
   model?: Record<string, any>;
 }
 
 
-const DEFAULT_PAGE_NUM = 1;
 const DEFAULT_PAGE_SIZE = 20;
+const courseTypeNames: Record<string, string> = { private: '私教课', small_group: '小班课', group: '团课' };
+const planTypeNames: Record<string, string> = { private_card: '私教课包', group_card: '团课课包', times_card: '次卡', time_card: '期限卡', stored_card: '储值卡' };
 
 const hasValue = (value: unknown) => value !== undefined && value !== null && value !== '';
 
@@ -48,16 +50,9 @@ const uniqueOptions = (items: RemoteSelectOption[]) => {
   return Array.from(map.values());
 };
 
-const filterOptions = (items: RemoteSelectOption[], keyword?: string) => {
-  const text = keyword?.trim().toLowerCase();
-  if (!text) {
-    return items;
-  }
-  return items.filter((item) => item.label.toLowerCase().includes(text) || String(item.value).toLowerCase().includes(text));
-};
-
 async function buildOptions<T = any>(params: {
   keyword?: string;
+  pageNum?: number;
   value?: string | number | boolean | Array<string | number | boolean> | null | undefined;
   listRequest: () => Promise<any>;
   getRequest?: (value: string | number | boolean) => Promise<any>;
@@ -65,11 +60,16 @@ async function buildOptions<T = any>(params: {
   toOption: (item: T) => RemoteSelectOption;
 }) {
 
-  const { keyword, value, listRequest, getRequest, getData, toOption } = params;
+  const { value, pageNum = 1, listRequest, getRequest, getData, toOption } = params;
+  let hasMore = false;
   const tasks: Promise<RemoteSelectOption[]>[] = [
     listRequest()
-      .then((res) => normalizeRows<T>(res).map((item) => toOption(item)))
-      .catch(() => [])
+      .then((res) => {
+        const rows = normalizeRows<T>(res);
+        const total = res?.total ?? res?.data?.total;
+        hasMore = total != null ? pageNum * DEFAULT_PAGE_SIZE < Number(total) : rows.length === DEFAULT_PAGE_SIZE;
+        return rows.map((item) => toOption(item));
+      })
   ];
 
   if (hasValue(value) && getRequest) {
@@ -91,14 +91,15 @@ async function buildOptions<T = any>(params: {
 
 
   const result = (await Promise.all(tasks)).flat();
-  return filterOptions(uniqueOptions(result), keyword);
+  return Object.assign(uniqueOptions(result), { hasMore });
 }
 
-export async function loadStoreOptions({ keyword, value }: RemoteSelectParams) {
+export async function loadStoreOptions({ keyword, value, pageNum = 1 }: RemoteSelectParams) {
   return buildOptions({
     keyword,
+    pageNum,
     value,
-    listRequest: () => listStore({ pageNum: DEFAULT_PAGE_NUM, pageSize: DEFAULT_PAGE_SIZE, storeName: keyword || undefined }),
+    listRequest: () => listStore({ pageNum, pageSize: DEFAULT_PAGE_SIZE, storeName: keyword || undefined }),
     getRequest: (target) => getStore(target as string | number),
     toOption: (item: any) => ({
       value: item.storeId,
@@ -107,17 +108,18 @@ export async function loadStoreOptions({ keyword, value }: RemoteSelectParams) {
   });
 }
 
-export async function loadCoachOptions({ keyword, value }: RemoteSelectParams) {
+export async function loadCoachOptions({ keyword, value, model, pageNum = 1 }: RemoteSelectParams) {
   return buildOptions({
     keyword,
+    pageNum,
     value,
     listRequest: () =>
       listCoach({
-        pageNum: DEFAULT_PAGE_NUM,
+        pageNum,
         pageSize: DEFAULT_PAGE_SIZE,
-        coachNo: keyword || undefined,
-        coachName: keyword || undefined,
-        mobile: keyword || undefined
+        storeId: model?.storeId || undefined,
+        hireStatus: model?.hireStatus || undefined,
+        keyword: keyword?.trim() || undefined
       }),
     getRequest: (target) => getCoach(target as string | number),
     toOption: (item: any) => ({
@@ -128,17 +130,16 @@ export async function loadCoachOptions({ keyword, value }: RemoteSelectParams) {
 }
 
 
-export async function loadMemberOptions({ keyword, value }: RemoteSelectParams) {
+export async function loadMemberOptions({ keyword, value, pageNum = 1 }: RemoteSelectParams) {
   return buildOptions({
     keyword,
+    pageNum,
     value,
     listRequest: () =>
       listMember({
-        pageNum: DEFAULT_PAGE_NUM,
+        pageNum,
         pageSize: DEFAULT_PAGE_SIZE,
-        realName: keyword || undefined,
-        mobile: keyword || undefined,
-        memberNo: keyword || undefined
+        keyword: keyword?.trim() || undefined
       }),
     getRequest: (target) => getMember(target as string | number),
     toOption: (item: any) => ({
@@ -148,53 +149,56 @@ export async function loadMemberOptions({ keyword, value }: RemoteSelectParams) 
   });
 }
 
-export async function loadCourseOptions({ keyword, value }: RemoteSelectParams) {
+export async function loadCourseOptions({ keyword, value, model, pageNum = 1 }: RemoteSelectParams) {
   return buildOptions({
     keyword,
+    pageNum,
     value,
     listRequest: () =>
       listCourse({
-        pageNum: DEFAULT_PAGE_NUM,
+        pageNum,
         pageSize: DEFAULT_PAGE_SIZE,
-        courseNo: keyword || undefined,
+        storeId: model?.storeId || undefined,
         courseName: keyword || undefined
       }),
     getRequest: (target) => getCourse(target as string | number),
     toOption: (item: any) => ({
       value: item.courseId,
-      label: `${item.courseName || '未命名课程'}${item.courseNo ? `｜${item.courseNo}` : ''}${item.courseType ? `（${item.courseType}）` : ''}`
+      label: `${item.courseName || '未命名课程'}${item.courseNo ? `｜${item.courseNo}` : ''}${item.courseType ? `（${courseTypeNames[item.courseType] || '课程'}）` : ''}`
     })
   });
 }
 
 
-export async function loadCardPlanOptions({ keyword, value }: RemoteSelectParams) {
+export async function loadCardPlanOptions({ keyword, value, model, pageNum = 1 }: RemoteSelectParams) {
   return buildOptions({
     keyword,
+    pageNum,
     value,
     listRequest: () =>
       listCardPlan({
-        pageNum: DEFAULT_PAGE_NUM,
+        pageNum,
         pageSize: DEFAULT_PAGE_SIZE,
-        planNo: keyword || undefined,
+        storeId: model?.storeId || undefined,
         planName: keyword || undefined
       }),
     getRequest: (target) => getCardPlan(target as string | number),
     toOption: (item: any) => ({
       value: item.planId,
-      label: `${item.planName || '未命名方案'}${item.planNo ? `｜${item.planNo}` : ''}${item.planType ? `（${item.planType}）` : ''}`
+      label: `${item.planName || '未命名方案'}${item.planNo ? `｜${item.planNo}` : ''}${item.planType ? `（${planTypeNames[item.planType] || '课包'}）` : ''}`
     })
   });
 }
 
 
-export async function loadScheduleOptions({ keyword, value, model }: RemoteSelectParams) {
+export async function loadScheduleOptions({ keyword, value, model, pageNum = 1 }: RemoteSelectParams) {
   return buildOptions({
     keyword,
+    pageNum,
     value,
     listRequest: () =>
       listSchedule({
-        pageNum: DEFAULT_PAGE_NUM,
+        pageNum,
         pageSize: DEFAULT_PAGE_SIZE,
         scheduleNo: keyword || undefined,
         storeId: model?.storeId || undefined,
@@ -210,11 +214,12 @@ export async function loadScheduleOptions({ keyword, value, model }: RemoteSelec
 }
 
 
-export async function loadMemberCardOptions({ keyword, value }: RemoteSelectParams) {
+export async function loadMemberCardOptions({ keyword, value, model, pageNum = 1 }: RemoteSelectParams) {
   return buildOptions({
     keyword,
+    pageNum,
     value,
-    listRequest: () => listMemberCard({ pageNum: DEFAULT_PAGE_NUM, pageSize: DEFAULT_PAGE_SIZE, keyword: keyword || undefined }),
+    listRequest: () => listMemberCard({ pageNum, pageSize: DEFAULT_PAGE_SIZE, keyword: keyword || undefined, memberId: model?.memberId || undefined, storeId: model?.storeId || undefined }),
     getRequest: (target) => getMemberCard(target as string | number),
     toOption: (item: any) => ({
       value: item.cardId,
@@ -223,17 +228,16 @@ export async function loadMemberCardOptions({ keyword, value }: RemoteSelectPara
   });
 }
 
-export async function loadSystemUserOptions({ keyword, value }: RemoteSelectParams) {
+export async function loadSystemUserOptions({ keyword, value, pageNum = 1 }: RemoteSelectParams) {
   return buildOptions({
     keyword,
+    pageNum,
     value,
     listRequest: () =>
       listUser({
-        pageNum: DEFAULT_PAGE_NUM,
+        pageNum,
         pageSize: DEFAULT_PAGE_SIZE,
         userName: keyword || undefined,
-        nickName: keyword || undefined,
-        phonenumber: keyword || undefined
       }),
     getRequest: (target) => getUser(target as string | number),
     getData: (res) => res?.data?.user,

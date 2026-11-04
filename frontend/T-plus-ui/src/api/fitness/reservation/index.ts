@@ -1,4 +1,8 @@
 import request from '@/utils/request';
+
+export function resolveReservation(reservationId: string | number, reservationStatus: string, remark: string) {
+  return request({ url: `/fitness/reservation/${reservationId}/resolve`, method: 'put', data: { reservationStatus, remark } });
+}
 import { AxiosPromise } from 'axios';
 import { FitnessReservationForm, FitnessReservationQuery, FitnessReservationVO } from './types';
 

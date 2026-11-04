@@ -27,6 +27,8 @@ public class FitnessMemberBo extends BaseEntity {
     @NotNull(message = "会员ID不能为空", groups = { EditGroup.class })
     private Long memberId;
 
+    private String keyword;
+
     /**
      * 会员编号
      */
