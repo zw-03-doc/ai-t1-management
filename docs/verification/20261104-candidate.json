@@ -1,0 +1,116 @@
+{
+  "passed": true,
+  "jarSha256": "80772c8e594a52a1cce742ee44ee359cd8b3097e6851067a876020e6c17adf21",
+  "adminIndexSha256": "891d4b7e3844a95be794190fd603f8a9e0f56b1b1e15a3c6749daffd211fcb7d",
+  "h5IndexSha256": "9ff884874c5caf1ed5932a9527a9d873a8697ba8d0aac0d6aa2beb43145f4a8a",
+  "migrationSha256": {
+    "V1.3.0__identity_and_orders.sql": "2479fa6b37bfd8c00a00dfd4c3f680ff944eda3baa67adf82f20cd384d61d81e",
+    "V1.3.1__booking_flow.sql": "8e9c4add7a5b3b45366735014c1beb94b0aaeb6b197f9a28c5f24460bceadc68",
+    "V1.3.2__training_lifecycle.sql": "39d89d59aafec7e2eb9b795a36c13060216b7726087c79e59fc756e65e23e4af"
+  },
+  "backendTests": 89,
+  "frontendBehaviorTests": 45,
+  "actualHttpChecks": 32,
+  "businessChecks": [
+    "门店、教练与真实微信会员建档及教练正常登录",
+    "会员和教练单一关键词搜索可找到目标",
+    "延后线下收款保留教练并发卡，四种权益可建立",
+    "定向名单必填，名单外会员预约被拒；公开场次明确创建",
+    "会员团课选group权益、自主签到、管理员正确核销",
+    "会员团课选stored权益、自主签到、管理员正确核销",
+    "会员团课选time权益、自主签到、管理员正确核销",
+    "储值卡拒绝空金额，异常恢复保留原签到并正确扣款",
+    "只有本场教练能代签到，其他教练被拒",
+    "绑定教练可定制训练；其他教练和管理员越权写入被拒",
+    "训练暂存仍为进行中，目标组和未完成组保留",
+    "完成训练自动完成计划，热身与正式组统计和lb换算正确",
+    "训练计划可续排与私人复制，归档保留已完成数据",
+    "改期预览显示冲突，选择其他日期成功且历史日期不变",
+    "管理员可查看训练逐组数据与完整行为审计",
+    "已核销场次正常结束，预约与签到历史人数保留",
+    "教练并发重复核销只成功一次，原记录与计数不重复",
+    "管理员能查看会员自签、异常恢复、核销行为记录",
+    "教练停用使既有会话立即失效，恢复后可重新登录",
+    "会员冻结使既有会话和未消费网页登录码立即失效",
+    "无业务教练删除后可用原手机号重新建档",
+    "课前请假仅释放一次名额，满额场次释放后其他会员可预约"
+  ],
+  "finalArtifactOrderRaces": [
+    {
+      "case": "pay-first",
+      "passed": true,
+      "issuedCardCount": 1,
+      "bindingConsistent": true,
+      "twoConcurrentSqlWaitersObserved": true
+    },
+    {
+      "case": "edit-first",
+      "passed": true,
+      "issuedCardCount": 1,
+      "bindingConsistent": true,
+      "twoConcurrentSqlWaitersObserved": true
+    },
+    {
+      "case": "payment-cancellation-pay-first",
+      "passed": true,
+      "finalStatus": "paid",
+      "issuedCardCount": 1,
+      "twoConcurrentSqlWaitersObserved": true
+    },
+    {
+      "case": "payment-cancellation-cancel-first",
+      "passed": true,
+      "finalStatus": "cancelled",
+      "issuedCardCount": 0,
+      "twoConcurrentSqlWaitersObserved": true
+    }
+  ],
+  "finalArtifactRefundChecks": [
+    {
+      "kind": "count",
+      "consumed": false,
+      "passed": true,
+      "expected": "refund_revoke_card"
+    },
+    {
+      "kind": "count",
+      "consumed": true,
+      "passed": true,
+      "expected": "reject_refund_keep_usage"
+    },
+    {
+      "kind": "stored",
+      "consumed": false,
+      "passed": true,
+      "expected": "refund_revoke_card"
+    },
+    {
+      "kind": "stored",
+      "consumed": true,
+      "passed": true,
+      "expected": "reject_refund_keep_usage"
+    },
+    {
+      "kind": "time",
+      "consumed": false,
+      "passed": true,
+      "expected": "refund_revoke_card"
+    },
+    {
+      "kind": "time",
+      "consumed": true,
+      "passed": true,
+      "expected": "reject_refund_keep_usage"
+    }
+  ],
+  "migrationRuns": 6,
+  "migrationTableCount": 82,
+  "realWechatLogin": true,
+  "wechatAppid": "wx556bef49cde7a986",
+  "testScope": "22 business checks during candidate iteration; final artifact additionally verified with 4 deterministic order races and 6 refund cases. Final 89 backend tests and 45 frontend behavioral tests passed.",
+  "limitations": [
+    "Browser click acceptance stopped by automatic URL verification rejection on Windows.",
+    "No full physical-device/phone-claim/media-playback acceptance or official mini-program publication.",
+    "Full admin typecheck has existing framework/workflow errors; no fitness/dashboard errors reported."
+  ]
+}

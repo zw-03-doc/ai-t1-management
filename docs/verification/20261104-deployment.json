@@ -1,0 +1,25 @@
+{
+  "release": "20261104-flow-r2",
+  "source_revision": "7d8db865fa13871134c33bbf967582f3cf0e3216",
+  "previous": "/opt/t1-management/releases/20261026-fitness-r4-final2",
+  "backup": "/opt/t1-management/backups/20261104-flow-r2",
+  "jarSha256": "80772c8e594a52a1cce742ee44ee359cd8b3097e6851067a876020e6c17adf21",
+  "protectedContainersUnchanged": true,
+  "wechatAppid": "wx556bef49cde7a986",
+  "wechatConfigured": true,
+  "completedAt": "2026-11-04T19:25:08+0800",
+  "migrations": [
+    {
+      "file": "017.sql",
+      "source": "backend/T1-RuoYi-Vue-Plus/script/sql/03-业务版本升级/V1.3.0__identity_and_orders.sql"
+    },
+    {
+      "file": "018.sql",
+      "source": "backend/T1-RuoYi-Vue-Plus/script/sql/03-业务版本升级/V1.3.1__booking_flow.sql"
+    },
+    {
+      "file": "019.sql",
+      "source": "backend/T1-RuoYi-Vue-Plus/script/sql/03-业务版本升级/V1.3.2__training_lifecycle.sql"
+    }
+  ]
+}

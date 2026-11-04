@@ -1,0 +1,11 @@
+{
+  "passed": true,
+  "release": "20261104-flow-r2",
+  "runningArtifactsMatch": true,
+  "wechatConfigured": true,
+  "authEndpointHealthy": true,
+  "anonymousMemberAccessDenied": true,
+  "incrementalColumnsPresent": true,
+  "candidateStoreFixturesAbsent": true,
+  "scope": "Read-only production smoke; authenticated member/coach/admin business flows were tested in the isolated candidate."
+}
