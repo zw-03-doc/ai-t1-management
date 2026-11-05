@@ -7,7 +7,8 @@ public interface FitnessIdentityMapper {
     List<FitMember> lockPhoneOwners(@Param("tenant") String tenant, @Param("mobile") String mobile);
     long countMemberBusiness(@Param("tenant") String tenant, @Param("memberId") Long memberId);
     int retireBlankIdentity(@Param("tenant") String tenant, @Param("memberId") Long memberId);
-    int claimIdentity(@Param("tenant") String tenant, @Param("memberId") Long memberId, @Param("openid") String openid, @Param("unionid") String unionid);
+    int claimIdentity(@Param("tenant") String tenant, @Param("memberId") Long memberId,
+                      @Param("source") FitMember source, @Param("avatar") String avatar);
     long countPrivilegedCoachAccount(@Param("userId") Long userId);
     long countCoachReferences(@Param("tenant") String tenant, @Param("coachId") Long coachId);
 }

@@ -30,6 +30,8 @@ import static org.dromara.fitness.service.support.FitnessTrainingRules.require;
 @Service
 @RequiredArgsConstructor
 public class FitnessTrainingMediaService {
+    private static final long MAX_IMAGE_BYTES = 10L * 1024 * 1024;
+    private static final long MAX_VIDEO_BYTES = 50L * 1024 * 1024;
     private final FitnessTrainingService trainingService;
     private final FitnessTrainingMapper mapper;
 
@@ -39,12 +41,16 @@ public class FitnessTrainingMediaService {
     @Transactional(rollbackFor = Exception.class)
     public Media upload(Long planId, MultipartFile file) {
         Plan plan = trainingService.mediaWriteAccess(planId);
-        require(file != null && !file.isEmpty() && file.getSize() <= 30L * 1024 * 1024, "附件不能为空且不得超过 30MB");
+        require(file != null && !file.isEmpty(), "请选择要上传的文件");
         Path target = null;
         try (InputStream stream = file.getInputStream()) {
             String type = detectType(stream.readNBytes(16));
             require(type != null, "仅支持 JPEG、PNG、WebP 图片和 MP4 视频");
-            require(type.equals("video/mp4") || file.getSize() <= 10L * 1024 * 1024, "图片不得超过 10MB");
+            if ("video/mp4".equals(type)) {
+                require(file.getSize() <= MAX_VIDEO_BYTES, "视频不得超过 50 MB");
+            } else {
+                require(file.getSize() <= MAX_IMAGE_BYTES, "图片不得超过 10 MB");
+            }
             String suffix = switch (type) {
                 case "image/jpeg" -> ".jpg";
                 case "image/png" -> ".png";
@@ -66,7 +72,7 @@ public class FitnessTrainingMediaService {
             try (InputStream content = file.getInputStream()) {
                 Files.copy(content, target, StandardCopyOption.REPLACE_EXISTING);
             }
-            if (type.equals("video/mp4")) FitnessTrainingVideoRules.validateShortMp4(target);
+            if (type.equals("video/mp4")) FitnessTrainingVideoRules.validateMp4(target);
             mapper.insertMedia(media);
             trainingService.recordMediaUpload(plan, media);
             return media;

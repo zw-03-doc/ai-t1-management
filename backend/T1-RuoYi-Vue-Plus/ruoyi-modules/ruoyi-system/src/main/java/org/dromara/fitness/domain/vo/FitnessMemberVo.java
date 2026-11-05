@@ -52,6 +52,8 @@ public class FitnessMemberVo implements Serializable {
     @ExcelProperty(value = "手机号")
     private String mobile;
 
+    private String contactMobile;
+
     /**
      * 性别（0未知 1男 2女）
      */

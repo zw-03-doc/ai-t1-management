@@ -10,13 +10,17 @@
                member_no AS memberNo,
                home_store_id AS homeStoreId,
                mobile,
+               contact_mobile AS contactMobile,
+               profile_setup_status AS profileSetupStatus,
                real_name AS realName,
                nickname,
                avatar_url AS avatarUrl,
                member_status AS memberStatus
         FROM fit_member
         WHERE del_flag = '0'
+          AND tenant_id = #{tenantId}
           AND wx_openid = #{openid}
+          AND CAST(wx_openid AS BINARY) = CAST(#{openid} AS BINARY)
         LIMIT 1
     </select>
 
@@ -26,6 +30,8 @@
                member_no AS memberNo,
                home_store_id AS homeStoreId,
                mobile,
+               contact_mobile AS contactMobile,
+               profile_setup_status AS profileSetupStatus,
                real_name AS realName,
                nickname,
                avatar_url AS avatarUrl,
@@ -42,6 +48,8 @@
                member_no AS memberNo,
                home_store_id AS homeStoreId,
                mobile,
+               contact_mobile AS contactMobile,
+               profile_setup_status AS profileSetupStatus,
                real_name AS realName,
                nickname,
                avatar_url AS avatarUrl,
@@ -57,6 +65,8 @@
                member_no AS memberNo,
                home_store_id AS homeStoreId,
                mobile,
+               contact_mobile AS contactMobile,
+               profile_setup_status AS profileSetupStatus,
                real_name AS realName,
                nickname,
                gender,
@@ -81,30 +91,25 @@
         </if>
     </select>
 
-    <insert id="insertMember">
+    <!-- The unique (wx_openid, del_flag) index serializes concurrent first logins.
+         Only the server-verified identity participates in this write. -->
+    <insert id="upsertWechatIdentity">
         INSERT INTO fit_member(
-            member_id, tenant_id, member_no, home_store_id, mobile, real_name, nickname,
-            avatar_url, wx_openid, wx_unionid, register_source, member_status, remark,
+            member_id, tenant_id, member_no, wx_openid, wx_unionid, register_source, member_status, profile_setup_status,
             create_time, update_time, del_flag, version
         ) VALUES (
-            #{memberId}, #{tenantId}, #{memberNo}, #{bo.homeStoreId}, #{bo.mobile}, #{bo.realName}, #{bo.nickname},
-            #{bo.avatarUrl}, #{bo.openid}, #{bo.unionId}, 'mini', 'normal', #{bo.remark},
+            #{memberId}, #{tenantId}, #{memberNo}, #{openid}, #{unionId}, 'mini', 'normal', 'pending',
             NOW(), NOW(), '0', 0
         )
+        ON DUPLICATE KEY UPDATE wx_unionid =
+            CASE WHEN tenant_id = #{tenantId} AND CAST(wx_openid AS BINARY) = CAST(#{openid} AS BINARY)
+                 THEN COALESCE(NULLIF(#{unionId}, ''), wx_unionid) ELSE wx_unionid END
     </insert>
 
-    <update id="updateMemberLoginProfile">
+    <update id="skipPendingProfileSetup">
         UPDATE fit_member
-        SET wx_openid = #{bo.openid},
-            wx_unionid = #{bo.unionId},
-            nickname = CASE WHEN #{bo.nickname} IS NOT NULL AND #{bo.nickname} != '' THEN #{bo.nickname} ELSE nickname END,
-            avatar_url = CASE WHEN #{bo.avatarUrl} IS NOT NULL AND #{bo.avatarUrl} != '' THEN #{bo.avatarUrl} ELSE avatar_url END,
-            real_name = CASE WHEN #{bo.realName} IS NOT NULL AND #{bo.realName} != '' THEN #{bo.realName} ELSE real_name END,
-            mobile = CASE WHEN #{bo.mobile} IS NOT NULL AND #{bo.mobile} != '' THEN #{bo.mobile} ELSE mobile END,
-            home_store_id = CASE WHEN #{bo.homeStoreId} IS NOT NULL THEN #{bo.homeStoreId} ELSE home_store_id END,
-            update_time = NOW()
-        WHERE member_id = #{memberId}
-          AND del_flag = '0'
+        SET profile_setup_status = 'skipped', update_time = NOW()
+        WHERE member_id = #{memberId} AND del_flag = '0' AND profile_setup_status = 'pending'
     </update>
 
     <update id="updateMemberPhone">
@@ -118,13 +123,20 @@
 
     <update id="updateMemberProfile">
         UPDATE fit_member
-        SET real_name = CASE WHEN #{bo.realName} IS NOT NULL AND #{bo.realName} != '' THEN #{bo.realName} ELSE real_name END,
-            nickname = CASE WHEN #{bo.nickname} IS NOT NULL AND #{bo.nickname} != '' THEN #{bo.nickname} ELSE nickname END,
-            gender = CASE WHEN #{bo.gender} IS NOT NULL AND #{bo.gender} != '' THEN #{bo.gender} ELSE gender END,
-            birthday = CASE WHEN #{bo.birthday} IS NOT NULL THEN #{bo.birthday} ELSE birthday END,
-            avatar_url = CASE WHEN #{bo.avatarUrl} IS NOT NULL AND #{bo.avatarUrl} != '' THEN #{bo.avatarUrl} ELSE avatar_url END,
-            remark = CASE WHEN #{bo.remark} IS NOT NULL THEN #{bo.remark} ELSE remark END,
+        <set>
+            <if test="bo.realName != null">real_name = NULLIF(TRIM(#{bo.realName}), ''),</if>
+            <if test="bo.nickname != null">nickname = NULLIF(TRIM(#{bo.nickname}), ''),</if>
+            <if test="bo.contactMobile != null">contact_mobile = NULLIF(#{bo.contactMobile}, ''),</if>
+            <if test="bo.gender != null">gender = #{bo.gender},</if>
+            <choose>
+                <when test="bo.clearBirthday == true">birthday = NULL,</when>
+                <when test="bo.birthday != null">birthday = #{bo.birthday},</when>
+            </choose>
+            <if test="bo.avatarUrl != null">avatar_url = NULLIF(#{bo.avatarUrl}, ''),</if>
+            <if test="bo.remark != null">remark = NULLIF(TRIM(#{bo.remark}), ''),</if>
+            <if test="bo.profileSetupAction == 'complete'">profile_setup_status = 'completed',</if>
             update_time = NOW()
+        </set>
         WHERE member_id = #{memberId}
           AND del_flag = '0'
     </update>

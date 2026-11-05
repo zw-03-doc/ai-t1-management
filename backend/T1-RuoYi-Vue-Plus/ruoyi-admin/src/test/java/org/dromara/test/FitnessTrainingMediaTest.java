@@ -18,7 +18,9 @@ import org.springframework.core.io.FileSystemResource;
 import org.springframework.http.ResponseEntity;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import org.springframework.web.multipart.MultipartFile;
 
+import java.io.RandomAccessFile;
 import java.nio.ByteBuffer;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -91,19 +93,15 @@ class FitnessTrainingMediaTest {
     }
 
     @Test
-    void mp4DurationRejectsLongOrMalformedMovies() throws Exception {
-        Path shortMovie = Files.write(directory.resolve("short.mp4"), movie(60));
-        assertDoesNotThrow(() -> FitnessTrainingVideoRules.validateShortMp4(shortMovie));
-        Path longMovie = Files.write(directory.resolve("long.mp4"), movie(61));
-        assertThrows(ServiceException.class, () -> FitnessTrainingVideoRules.validateShortMp4(longMovie));
+    void acceptsUnknownDurationButRejectsMalformedContainers() throws Exception {
+        Path fragmented = Files.write(directory.resolve("fragmented.mp4"), movie(0));
+        assertDoesNotThrow(() -> FitnessTrainingVideoRules.validateMp4(fragmented));
         Path invalid = Files.write(directory.resolve("invalid.mp4"), new byte[]{0, 0, 0, 1, 'm', 'o', 'o', 'v'});
-        assertThrows(ServiceException.class, () -> FitnessTrainingVideoRules.validateShortMp4(invalid));
-        Path noDuration = Files.write(directory.resolve("empty.mp4"), movie(0));
-        assertThrows(ServiceException.class, () -> FitnessTrainingVideoRules.validateShortMp4(noDuration));
+        assertThrows(ServiceException.class, () -> FitnessTrainingVideoRules.validateMp4(invalid));
     }
 
     @Test
-    void oversizedDurationRollsBackFileBeforeMetadataWrite() throws Exception {
+    void allowsLongVideoAtExactlyFiftyMiBAndRejectsFilesOneByteAboveTheirOwnLimit() throws Exception {
         FitnessTrainingService training = mock(FitnessTrainingService.class);
         FitnessTrainingMapper mapper = mock(FitnessTrainingMapper.class);
         FitnessTrainingMediaService service = new FitnessTrainingMediaService(training, mapper);
@@ -112,11 +110,30 @@ class FitnessTrainingMediaTest {
         plan.setPlanId(1L);
         plan.setTenantId("tenant-a");
         when(training.mediaWriteAccess(1L)).thenReturn(plan);
-        MockMultipartFile video = new MockMultipartFile("file", "clip.mp4", "video/mp4", movie(61));
+        long fiftyMiB = 50L * 1024 * 1024;
+        Path source = directory.resolve("long.mp4");
+        try (var file = new RandomAccessFile(source.toFile(), "rw")) {
+            file.write(movie(3600));
+            file.writeInt((int) (fiftyMiB - file.length()));
+            file.writeBytes("mdat");
+            file.setLength(fiftyMiB);
+        }
+        var video = mock(MultipartFile.class);
+        when(video.getInputStream()).thenAnswer(invocation -> Files.newInputStream(source));
+        when(video.getSize()).thenReturn(fiftyMiB);
+        Media saved = service.upload(1L, video);
+        assertEquals(fiftyMiB, saved.getSize());
+        assertEquals(fiftyMiB, Files.size(directory.resolve(saved.getFileName())));
+        verify(mapper).insertMedia(saved);
+        verify(training).recordMediaUpload(plan, saved);
+        when(video.getSize()).thenReturn(fiftyMiB + 1);
         assertThrows(ServiceException.class, () -> service.upload(1L, video));
-        verify(mapper, never()).insertMedia(any());
-        verify(training, never()).recordMediaUpload(any(), any());
-        try (var files = Files.list(directory)) { assertEquals(0, files.count()); }
+        var image = spy(new MockMultipartFile("file", "picture.png", "image/png",
+            new byte[]{(byte) 137, 80, 78, 71, 13, 10, 26, 10}));
+        doReturn(10L * 1024 * 1024 + 1).when(image).getSize();
+        assertThrows(ServiceException.class, () -> service.upload(1L, image));
+        verifyNoMoreInteractions(mapper);
+        verify(training, times(1)).recordMediaUpload(any(), any());
     }
 
     private byte[] movie(int seconds) {

@@ -15,7 +15,7 @@ import java.util.List;
  */
 public interface FitnessMiniMapper {
 
-    FitnessMiniVo.MemberInfoVo selectMemberByOpenid(@Param("openid") String openid);
+    FitnessMiniVo.MemberInfoVo selectMemberByOpenid(@Param("tenantId") String tenantId, @Param("openid") String openid);
 
     FitnessMiniVo.MemberInfoVo selectMemberByMobile(@Param("mobile") String mobile);
 
@@ -25,13 +25,11 @@ public interface FitnessMiniMapper {
                              @Param("mobile") String mobile,
                              @Param("excludeMemberId") Long excludeMemberId);
 
-    int insertMember(@Param("memberId") Long memberId,
-                     @Param("memberNo") String memberNo,
-                     @Param("tenantId") String tenantId,
-                     @Param("bo") FitnessMiniBo.WechatLoginBo bo);
+    int upsertWechatIdentity(@Param("memberId") Long memberId, @Param("memberNo") String memberNo,
+                             @Param("tenantId") String tenantId, @Param("openid") String openid,
+                             @Param("unionId") String unionId);
 
-    int updateMemberLoginProfile(@Param("memberId") Long memberId,
-                                 @Param("bo") FitnessMiniBo.WechatLoginBo bo);
+    int skipPendingProfileSetup(@Param("memberId") Long memberId);
 
     int updateMemberPhone(@Param("memberId") Long memberId,
                           @Param("bo") FitnessMiniBo.BindPhoneBo bo);

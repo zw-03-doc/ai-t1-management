@@ -25,19 +25,19 @@
         >
       </view>
       <view class="hero-copy" :style="{ paddingTop: navBottom + 68 + 'px' }">
-        <view class="hero-eyebrow"
-          ><view class="orange-line" />YOUR NEXT REP</view
-        >
-        <view class="hero-title"
-          ><view>为下一次<text class="accent">进步</text></view
-          ><view>而练。</view></view
-        >
-        <view class="hero-desc">约一节好课，认真完成每一组。</view>
+        <view class="hero-eyebrow">
+          <view class="orange-line" /><text class="eyebrow-text">{{ slogans.eyebrow }}</text>
+        </view>
+        <view class="hero-title">
+          <view>{{ slogans.titleLead }}<text v-if="slogans.titleAccent" class="accent">{{ slogans.titleAccent }}</text></view>
+          <view>{{ slogans.titleSecondLine }}</view>
+        </view>
+        <view class="hero-desc">{{ slogans.subtitle }}</view>
       </view>
     </view>
     <view class="portal-body">
       <view class="space-head"
-        ><text class="section-kicker">在 T1，找到你的训练节奏</text
+        ><text class="section-kicker">{{ slogans.galleryCaption }}</text
         ><text class="space-link" @tap="previewSpace">看看空间 ↗</text></view
       >
       <view class="space-photos" @tap="previewSpace">
@@ -66,7 +66,7 @@
         先看看训练计划 <text>↗</text>
       </button>
       <view class="portal-footer"
-        ><text>T1 · 每一组，都算数</text
+        ><text class="footer-caption">{{ slogans.footerCaption }}</text
         ><button
           v-if="targetRole !== 'coach'"
           class="coach-entry"
@@ -186,6 +186,7 @@
 </template>
 
 <script>
+import { readPortalSlogans, fetchPortalSlogans, cachePortalSlogans } from "../../api/portal-slogans";
 import {
   coachWechatActivate,
   coachWechatLogin,
@@ -194,6 +195,7 @@ import {
   memberWebLogin,
 } from "../../api/auth";
 import {
+  getMemberSession,
   hasCoachSession,
   hasMemberSession,
   resolveTargetUrl,
@@ -212,6 +214,8 @@ function createActivationForm() {
 export default {
   data() {
     return {
+      slogans: readPortalSlogans(),
+      sloganRevision: 0,
       statusBarHeight: 24,
       navBottom: 74,
       loginBusy: false,
@@ -244,8 +248,27 @@ export default {
   },
   onShow() {
     this.refreshLoginState();
+    this.refreshSlogans();
+  },
+  onHide() {
+    this.sloganRevision++;
+  },
+  onUnload() {
+    this.sloganRevision++;
   },
   methods: {
+    async refreshSlogans() {
+      const revision = ++this.sloganRevision;
+      try {
+        const published = await fetchPortalSlogans();
+        if (published && revision === this.sloganRevision) {
+          this.slogans = published;
+          cachePortalSlogans(published);
+        }
+      } catch {
+        // Keep the last usable copy if the platform rejects this request.
+      }
+    },
     openGuide() {
       uni.navigateTo({ url: "/pages/guide/index" });
     },
@@ -345,9 +368,13 @@ export default {
       return resolveTargetUrl(role);
     },
     navigateAfterLogin(role) {
-      uni.reLaunch({
-        url: this.resolveRoute(role),
-      });
+      const target = this.resolveRoute(role);
+      const needsProfile = role === "member" &&
+        getMemberSession().memberInfo?.profileSetupStatus === "pending";
+      const url = needsProfile
+        ? `/pages/mine/profile?onboarding=1&target=${encodeURIComponent(target)}`
+        : target;
+      uni.reLaunch({ url });
     },
     wxLogin() {
       return new Promise((resolve, reject) => {
@@ -355,19 +382,6 @@ export default {
           provider: "weixin",
           success: resolve,
           fail: reject,
-        });
-      });
-    },
-    getUserProfileSafe() {
-      return new Promise((resolve) => {
-        if (typeof uni.getUserProfile !== "function") {
-          resolve({});
-          return;
-        }
-        uni.getUserProfile({
-          desc: "用于完善会员头像与昵称展示",
-          success: (res) => resolve(res.userInfo || {}),
-          fail: () => resolve({}),
         });
       });
     },
@@ -391,12 +405,7 @@ export default {
       try {
         uni.showLoading({ title: "登录中..." });
         const loginRes = await this.wxLogin();
-        const userInfo = await this.getUserProfileSafe();
-        const result = await memberWechatLogin({
-          code: loginRes.code,
-          nickname: userInfo.nickName,
-          avatarUrl: userInfo.avatarUrl,
-        });
+        const result = await memberWechatLogin({ code: loginRes.code });
         saveMemberSession(result);
         this.refreshLoginState();
         uni.showToast({ title: "会员登录成功", icon: "success" });
@@ -508,7 +517,7 @@ export default {
   color: #f6f4ef;
 }
 .portal-hero {
-  flex: 1;
+  flex: 1 0 auto;
   position: relative;
   min-height: 790rpx;
   overflow: hidden;
@@ -563,7 +572,7 @@ export default {
 }
 .hero-copy {
   position: relative;
-  padding: 0 40rpx 40rpx;
+  padding: 0 40rpx 128rpx;
 }
 .hero-eyebrow {
   display: flex;
@@ -576,6 +585,7 @@ export default {
   margin-bottom: 24rpx;
 }
 .orange-line {
+  flex-shrink: 0;
   height: 3rpx;
   width: 36rpx;
   background: #ff7a35;
@@ -585,6 +595,15 @@ export default {
   font-weight: 800;
   letter-spacing: -3rpx;
   line-height: 1.2;
+}
+.hero-title,
+.hero-desc,
+.eyebrow-text,
+.section-kicker,
+.footer-caption {
+  min-width: 0;
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 .accent {
   color: #ff7a35;
@@ -612,6 +631,7 @@ export default {
   color: #bbbeb5;
 }
 .space-link {
+  flex-shrink: 0;
   font-size: 22rpx;
   color: #e1e2db;
   padding: 12rpx 0;
@@ -664,10 +684,12 @@ export default {
   display: flex;
   align-items: center;
   justify-content: space-between;
+  gap: 12rpx;
   font-size: 20rpx;
   color: #7d8177;
 }
 .coach-entry {
+  flex-shrink: 0;
   padding: 14rpx 0 14rpx 20rpx;
   margin: 0;
   background: transparent;
@@ -753,6 +775,7 @@ export default {
   }
   .hero-copy {
     padding-top: 250px !important;
+    padding-bottom: 168px;
   }
   .hero-title {
     font-size: 72px;

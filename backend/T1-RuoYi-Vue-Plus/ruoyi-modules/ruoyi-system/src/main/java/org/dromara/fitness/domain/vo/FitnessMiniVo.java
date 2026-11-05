@@ -51,6 +51,10 @@ public final class FitnessMiniVo {
 
         private String mobile;
 
+        private String contactMobile;
+
+        private String profileSetupStatus;
+
         private String realName;
 
         private String nickname;
@@ -66,7 +70,7 @@ public final class FitnessMiniVo {
             if (nickname != null && !nickname.isBlank()) {
                 return nickname;
             }
-            return "会员" + memberId;
+            return "会员";
         }
     }
 
@@ -593,6 +597,10 @@ public final class FitnessMiniVo {
         private Long homeStoreId;
 
         private String mobile;
+
+        private String contactMobile;
+
+        private String profileSetupStatus;
 
         private String realName;
 

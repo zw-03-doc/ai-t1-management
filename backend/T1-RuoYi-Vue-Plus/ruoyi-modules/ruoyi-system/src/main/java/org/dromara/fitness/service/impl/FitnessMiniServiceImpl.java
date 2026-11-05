@@ -22,6 +22,7 @@ import org.springframework.stereotype.Service;
 import org.dromara.fitness.service.support.FitnessOperationsService;
 import org.dromara.fitness.service.support.FitnessIdentityService;
 import org.dromara.fitness.service.support.FitnessEntitlementService;
+import org.dromara.fitness.service.support.FitnessMemberAvatarService;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
@@ -29,8 +30,6 @@ import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
 import java.util.Objects;
-import java.util.Set;
-import java.util.concurrent.ThreadLocalRandom;
 import java.util.stream.Collectors;
 
 /**
@@ -42,54 +41,34 @@ import java.util.stream.Collectors;
 @Service
 public class FitnessMiniServiceImpl implements IFitnessMiniService {
 
-    private static final List<String> DEFAULT_MEMBER_NICKNAMES = List.of(
-        "好事花生", "平安喜乐", "万事顺意", "前程似锦", "吉星高照", "福运连连",
-        "顺风顺水", "喜乐长安", "所愿成真", "春和景明", "自在欢喜", "心想事成"
-    );
-    private static final Set<String> BAD_LUCKY_SUFFIXES = Set.of("4444", "4848", "7414", "1474", "8147", "4242");
-
     private final FitnessOperationsService operations;
     private final FitnessIdentityService identities;
     private final FitnessEntitlementService entitlements;
     private final FitnessMiniMapper baseMapper;
     private final FitnessWechatMiniAuthService wechatMiniAuthService;
+    private final FitnessMemberAvatarService memberAvatars;
 
     @Override
     @Transactional(rollbackFor = Exception.class)
     public FitnessMiniVo.LoginVo wechatLogin(FitnessMiniBo.WechatLoginBo bo) {
         if (StringUtils.isBlank(bo.getCode())) throw new ServiceException("请通过微信登录凭证登录");
         FitnessWechatMiniDto.SessionInfo sessionInfo = wechatMiniAuthService.code2Session(bo.getCode());
-        bo.setOpenid(sessionInfo.getOpenid());
-        bo.setUnionId(sessionInfo.getUnionId());
-        bo.setMobile(null); // Only bindPhone may set a verified mobile number.
-        if (StringUtils.isBlank(bo.getOpenid())) throw new ServiceException("微信登录未返回有效身份");
-        FitnessMiniVo.MemberInfoVo memberInfoVo = baseMapper.selectMemberByOpenid(bo.getOpenid());
-        if (memberInfoVo == null) {
-            if (StringUtils.isBlank(bo.getNickname())) {
-                bo.setNickname(buildDefaultNickname());
-            }
-            Long memberId = IdGeneratorUtil.nextLongId();
-            String memberNo = "MEM" + IdGeneratorUtil.nextId();
-            String tenantId = TenantConstants.DEFAULT_TENANT_ID;
-            baseMapper.insertMember(memberId, memberNo, tenantId, bo);
-            memberInfoVo = baseMapper.selectMemberById(memberId);
-        } else {
-            if (StringUtils.isBlank(bo.getNickname()) && shouldRefreshDefaultNickname(memberInfoVo.getNickname())) {
-                bo.setNickname(buildDefaultNickname());
-            }
-            baseMapper.updateMemberLoginProfile(memberInfoVo.getMemberId(), bo);
-            memberInfoVo = baseMapper.selectMemberById(memberInfoVo.getMemberId());
-        }
+        String openid = sessionInfo.getOpenid();
+        if (StringUtils.isBlank(openid)) throw new ServiceException("微信登录未返回有效身份");
+        String tenant = TenantConstants.DEFAULT_TENANT_ID;
+        baseMapper.upsertWechatIdentity(IdGeneratorUtil.nextLongId(), "MEM" + IdGeneratorUtil.nextId(),
+            tenant, openid, sessionInfo.getUnionId());
+        FitnessMiniVo.MemberInfoVo memberInfoVo = baseMapper.selectMemberByOpenid(tenant, openid);
         if (memberInfoVo == null) {
             throw new ServiceException("会员登录失败，请稍后重试");
         }
         if (!"normal".equals(memberInfoVo.getMemberStatus())) throw new ServiceException("会员已停用，请联系门店");
-        FitnessSecurityUtils.loginMember(memberInfoVo, bo.getOpenid());
+        FitnessSecurityUtils.loginMember(memberInfoVo, openid);
         FitnessMiniVo.LoginVo loginVo = new FitnessMiniVo.LoginVo();
         loginVo.setAccessToken(StpUtil.getTokenValue());
         loginVo.setExpireIn(StpUtil.getTokenTimeout());
         loginVo.setClientId(FitnessMobileConstants.MINI_CLIENT_ID);
-        loginVo.setOpenid(bo.getOpenid());
+        loginVo.setOpenid(openid);
         loginVo.setMemberInfo(memberInfoVo);
         return loginVo;
     }
@@ -480,7 +459,16 @@ public class FitnessMiniServiceImpl implements IFitnessMiniService {
     @Override
     @Transactional(rollbackFor = Exception.class)
     public void updateProfile(FitnessMiniBo.ProfileUpdateBo bo) {
-        if (baseMapper.updateMemberProfile(FitnessSecurityUtils.getCurrentMemberId(), bo) <= 0) {
+        Long memberId = FitnessSecurityUtils.getCurrentMemberId();
+        if ("skip".equals(bo.getProfileSetupAction())) {
+            baseMapper.skipPendingProfileSetup(memberId);
+            return;
+        }
+        if (bo.getAvatarUrl() != null) {
+            var current = requireMember(memberId);
+            memberAvatars.validateSelection(memberId, current.getAvatarUrl(), bo.getAvatarUrl());
+        }
+        if (baseMapper.updateMemberProfile(memberId, bo) <= 0) {
             throw new ServiceException("更新个人资料失败");
         }
     }
@@ -608,33 +596,6 @@ public class FitnessMiniServiceImpl implements IFitnessMiniService {
 
     private Long defaultLong(Long value) {
         return value == null ? 0L : value;
-    }
-
-    private String buildDefaultNickname() {
-        return "T1#" + buildLuckySuffix();
-    }
-
-    private boolean shouldRefreshDefaultNickname(String nickname) {
-        return StringUtils.isBlank(nickname) || nickname.startsWith("微信用户");
-    }
-
-
-    private String buildLuckySuffix() {
-        for (int i = 0; i < 64; i++) {
-            String suffix = String.format("%04d", ThreadLocalRandom.current().nextInt(10000));
-            if (isGoodLuckySuffix(suffix)) {
-                return suffix;
-            }
-        }
-        return "6666";
-    }
-
-    private boolean isGoodLuckySuffix(String suffix) {
-        if (BAD_LUCKY_SUFFIXES.contains(suffix)) {
-            return false;
-        }
-        long badFourCount = suffix.chars().filter(ch -> ch == '4').count();
-        return badFourCount < 3;
     }
 
     private BigDecimal nullSafe(BigDecimal value) {

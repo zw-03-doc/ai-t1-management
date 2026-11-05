@@ -16,6 +16,7 @@ import java.util.Objects;
 public class FitnessIdentityService {
     private final FitnessIdentityMapper identities;
     private final FitnessMiniMapper mini;
+    private final FitnessMemberAvatarService avatars;
 
     /** The phone is verified by WeChat on the server before entering this transaction. No business records are merged. */
     @Transactional(rollbackFor = Exception.class)
@@ -37,8 +38,12 @@ public class FitnessIdentityService {
         if (!"mini".equals(source.getRegisterSource()) || StringUtils.isNotBlank(source.getMobile())
             || identities.countMemberBusiness(tenant, memberId) != 0)
             throw new ServiceException("当前微信会员已有业务记录，不能自动合并，请联系门店核对两份档案");
+        String avatar = null;
+        if (StringUtils.isBlank(target.getAvatarUrl()) && StringUtils.isNotBlank(source.getAvatarUrl())) {
+            avatar = avatars.copyForClaim(memberId, source.getAvatarUrl(), target.getMemberId());
+        }
         if (identities.retireBlankIdentity(tenant, memberId) != 1
-            || identities.claimIdentity(tenant, target.getMemberId(), source.getWxOpenid(), source.getWxUnionid()) != 1)
+            || identities.claimIdentity(tenant, target.getMemberId(), source, avatar) != 1)
             throw new ServiceException("会员认领状态已变化，请刷新重试");
         FitnessSessionRevoker.member(memberId);
         return target.getMemberId();

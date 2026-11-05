@@ -24,6 +24,8 @@
 
 媒体挂载至 API `/app/media`，由 `fitness.media.path` 指定。媒体通过应用鉴权接口读取；不要把整个媒体目录交给 Nginx 公开列目录。
 
+训练动作的 MP4 视频每个最多 50 MiB，不限制时长；图片每张最多 10 MiB。上传请求包含表单边界，所以 T1 的两层 Nginx 和应用表单请求上限均为 55 MiB。已接入共享入口的服务器，从新发布目录运行 `python3 update_upload_gateway.py --limit-mib 55` 即可校验并平滑更新 T1 的入口；该脚本也支持用 `--limit-mib 35` 回退旧值。单独更新应用容器不会改变共享入口。
+
 ## 共用入口的持久配置
 
 现有 OPS Web 容器占用80/443，并把 `/etc/wedo-studio/nginx.conf` 挂载为 `/etc/nginx/templates/studio.conf.template`。TLS目录 `/etc/sunmoonlake-ops/tls` 已只读挂载在 `/etc/nginx/tls`。

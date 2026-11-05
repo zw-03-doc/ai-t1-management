@@ -18,11 +18,22 @@ def main():
     mounts={x['Destination']:x['Source'] for x in api['Mounts']}
     assert Path(mounts['/app/app.jar'])==current/'app.jar'
     assert hashlib.sha256((current/'app.jar').read_bytes()).hexdigest()==manifest['sha256']['app.jar']
+    # Check the mounted production profile and both loaded T1 proxy configurations.
+    for container, config, lines in [
+        ('t1-management-api-1','/app/config/application-production.yml',('max-file-size: 50MB','max-request-size: 55MB')),
+        ('t1-management-web-1','/etc/nginx/conf.d/default.conf',('client_max_body_size 55m;',)),
+        ('sunmoonlake-ops-web-1','/etc/nginx/tls/t1/gateway.conf',('client_max_body_size 55m;',)),
+    ]:
+        live=subprocess.check_output(['docker','exec',container,'cat',config]).decode()
+        assert all(line in {s.strip() for s in live.splitlines()} for line in lines), 'Upload limit not applied'
     env=dict(item.split('=',1) for item in api['Config']['Env'] if '=' in item)
     assert env.get('WECHAT_MINI_APPID')=='wx556bef49cde7a986'
     assert env.get('WECHAT_MINI_SECRET')==Path('/etc/t1-management/secrets/wechat_mini_secret').read_text().strip()
     with urllib.request.urlopen('https://t1.wedodiary.top/prod-api/auth/code',timeout=30) as response:
         assert response.status==200 and json.load(response)['code']==200
+    with urllib.request.urlopen('https://t1.wedodiary.top/prod-api/fitness/mini/portal/slogans',timeout=30) as response:
+        slogans=json.load(response)
+        assert slogans.get('code')==200 and set(slogans['data'])=={'eyebrow','titleLead','titleAccent','titleSecondLine','subtitle','galleryCaption','footerCaption'}
     request=urllib.request.Request('https://t1.wedodiary.top/prod-api/fitness/member/list',headers={'clientid':'e5cd7e4891bf95d1d19206ce24a7b32e'})
     try:
         response=urllib.request.urlopen(request,timeout=30)
@@ -34,15 +45,21 @@ def main():
         assert status in (200,401,403) and body.get('code') in (401,403)
     statement="""SELECT COUNT(*) FROM information_schema.columns WHERE table_schema='t1_fitness'
         AND ((table_name='fit_order' AND column_name='bind_coach_id')
-          OR (table_name='fit_training_set' AND column_name='target_set_index'));
-        SELECT COUNT(*) FROM fit_store WHERE store_code LIKE 'QA_FLOW_1104_%';"""
+          OR (table_name='fit_training_set' AND column_name='target_set_index')
+          OR (table_name='fit_member' AND column_name IN ('contact_mobile','profile_setup_status')));
+        SELECT COUNT(*) FROM fit_store WHERE store_code LIKE 'QA_FLOW_1104_%';
+        SELECT COUNT(*) FROM sys_menu c JOIN sys_menu p ON p.menu_id=c.parent_id
+          WHERE c.component='fitness/portal/index' AND c.perms='fitness:portal:query' AND c.menu_name='励志标语'
+            AND p.menu_type='M' AND p.visible='0' AND p.status='0';
+        SELECT COUNT(*) FROM sys_menu c LEFT JOIN sys_menu p ON c.parent_id=p.menu_id
+          WHERE c.component LIKE 'fitness/%' AND c.menu_type='C' AND p.menu_id IS NULL;"""
     result=subprocess.run(['docker','exec','-i','t1-management-mysql-1','sh','-c',
-        'MYSQL_PWD="$(cat /run/secrets/database_root_password)" exec mysql -uroot -N -B t1_fitness'],
+        'MYSQL_PWD="$(cat /run/secrets/database_root_password)" exec mysql -uroot --default-character-set=utf8mb4 -N -B t1_fitness'],
         input=statement.encode(),stdout=subprocess.PIPE,stderr=subprocess.PIPE,check=True).stdout.decode().split()
-    assert result==['2','0'], 'Schema or isolated-fixture boundary mismatch'
+    assert result==['4','0','1','0'], 'Schema, visible menu hierarchy, or isolated-fixture boundary mismatch'
     receipt={'passed':True,'release':args.release,'runningArtifactsMatch':True,'wechatConfigured':True,
              'authEndpointHealthy':True,'anonymousMemberAccessDenied':True,
-             'incrementalColumnsPresent':True,'candidateStoreFixturesAbsent':True,
+             'incrementalColumnsPresent':True,'candidateStoreFixturesAbsent':True,'publicSlogansAndAdminMenuPresent':True,'uploadLimitsApplied':True,
              'scope':'Read-only production smoke; authenticated member/coach/admin business flows were tested in the isolated candidate.'}
     (current/'production-verification.json').write_text(json.dumps(receipt,indent=2))
     print(json.dumps(receipt))

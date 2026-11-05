@@ -110,6 +110,82 @@ async function renderWeight(value) {
 
 const cases = [];
 const test = (name, fn) => cases.push({ name, fn });
+for (const platform of ['MP-WEIXIN', 'H5']) {
+  test(platform + ' accepts long videos at 50 MiB, enforces exact file-size boundaries, and handles cancel', async () => {
+    const media = fs.readFileSync(path.join(frontend, 'utils/training-media.js'), 'utf8')
+      .replace(/\/\/ #ifdef ([\w-]+)\r?\n([\s\S]*?)\/\/ #endif/g, (_, target, body) => target === platform ? body : '')
+      .replace('export function selectTrainingMedia', 'function selectTrainingMedia');
+    let options;
+    const pick = value => { options = value; };
+    const uni = platform === 'H5' ? { chooseFile: pick, chooseImage: pick } : { chooseMedia: pick, chooseImage: pick };
+    const select = vm.runInNewContext(media + '\nselectTrainingMedia;', { uni });
+    const mib = 1024 * 1024;
+    const selected = (type, size, duration) => {
+      const promise = select(type);
+      if (type === 'video') {
+        assert.deepEqual(Array.from(options.sourceType), ['album']);
+        assert.equal(options.maxDuration, undefined);
+        assert.equal(options.type || options.mediaType[0], 'video');
+      }
+      const video = platform === 'MP-WEIXIN' && type === 'video';
+      const file = { [video ? 'tempFilePath' : 'path']: 'local/file', size, duration };
+      options.success({ tempFiles: [file] });
+      return promise.then(value => {
+        assert.equal(value, platform === 'H5' ? file : 'local/file');
+        return true;
+      });
+    };
+    await selected('video', 50 * mib, 3600);
+    await selected('video', 2000);
+    await assert.rejects(selected('video', 50 * mib + 1, 3), /50 MB/);
+    await selected('image', 10 * mib);
+    await assert.rejects(selected('image', 10 * mib + 1), /10 MB/);
+    await assert.rejects(selected('image', undefined), /无法读取/);
+    await assert.rejects(selected('video', 0), /无法读取/);
+    const cancel = select('video'); options.fail({ errMsg: 'chooseMedia:fail cancel' }); assert.equal(await cancel, null);
+  });
+}
+test('a new plan opens the picker on tap and only saves after a valid selection', async () => {
+  const { ctx, state } = setup();
+  state.editor = validEditor();
+  const ex = state.editor.days[0].exercises[0];
+  const steps = [];
+  ctx.selectTrainingMedia = async () => { steps.push('picker'); return null; };
+  state.persistEditor = async () => { steps.push('save'); state.editor.planId = 'offline-plan'; };
+  ctx.uploadTrainingMedia = async (path, id) => { steps.push([path, id]); return { url: 'offline-video' }; };
+  await state.upload(ex, 'video');
+  assert.deepEqual(steps, ['picker']);
+  ctx.selectTrainingMedia = async () => { steps.push('picker'); return 'selected-file'; };
+  await state.upload(ex, 'video');
+  assert.deepEqual(steps, ['picker', 'picker', 'save', ['selected-file', 'offline-plan']]);
+  assert.equal(ex.videoUrl, 'offline-video');
+  assert.equal(state.mediaViews['offline-video'], 'selected-file');
+  assert.equal(state.busy, false);
+});
+test('new browser media uses the original file, falls back once, and only saves the protected URL', async () => {
+  const { ctx, state, events } = setup();
+  state.editor = validEditor();
+  state.editor.planId = 'offline-plan';
+  const ex = state.editor.days[0].exercises[0];
+  const file = {};
+  ctx.selectTrainingMedia = async () => file;
+  ctx.URL.createObjectURL = chosen => { assert.equal(chosen, file); return 'blob:local'; };
+  const resource = '/fitness/training/media/accepted';
+  ctx.uploadTrainingMedia = async () => ({ url: resource });
+  let reads = 0;
+  ctx.resolveTrainingMedia = async () => { ++reads; return 'blob:authenticated'; };
+  await state.upload(ex, 'video');
+  assert.equal(reads, 0);
+  assert.equal(state.mediaViews[resource], 'blob:local');
+  assert.equal(state.planPayload().days[0].exercises[0].videoUrl, resource);
+  await state.mediaPreviewFailed(resource);
+  assert.equal(reads, 1);
+  assert.equal(state.mediaViews[resource], 'blob:authenticated');
+  await state.mediaPreviewFailed(resource);
+  assert.equal(reads, 1);
+  assert.equal(state.mediaFailed[resource], true);
+  assert.deepEqual(events.filter(e => e[0] === 'revoke'), [['revoke','blob:local'], ['revoke','blob:authenticated']]);
+});
 test('exercise library has 24 unique keys and combined filters work', () => {
   assert.equal(library.EXERCISES.length, 24);
   assert.equal(new Set(library.EXERCISES.map(x => x.key)).size, 24);

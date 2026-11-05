@@ -28,7 +28,7 @@ def main() -> None:
     repo = deploy.parent
     target = deploy / "local" / args.release
     target.mkdir(parents=True, exist_ok=False)
-    for name in ["compose.yml", "application-production.yml", "web.conf", "gateway.conf", "initialize_server.py", "activate_gateway.py", "upgrade_server.py", "verify_public_release.py", "verify_server_release.py"]:
+    for name in ["compose.yml", "application-production.yml", "web.conf", "gateway.conf", "initialize_server.py", "activate_gateway.py", "update_upload_gateway.py", "upgrade_server.py", "verify_public_release.py", "verify_server_release.py"]:
         shutil.copy2(deploy / name, target / name)
     if args.verification:
         verification = json.loads(args.verification.read_text(encoding="utf-8"))

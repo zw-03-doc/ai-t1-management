@@ -10,7 +10,7 @@ import java.nio.file.Path;
 public final class FitnessTrainingVideoRules {
     private FitnessTrainingVideoRules() { }
 
-    public static void validateShortMp4(Path path) {
+    public static void validateMp4(Path path) {
         try (RandomAccessFile input = new RandomAccessFile(path.toFile(), "r")) {
             long[] movie = findBox(input, 0, input.length(), "moov");
             if (movie == null) throw invalid();
@@ -18,14 +18,7 @@ public final class FitnessTrainingVideoRules {
             if (header == null || header[1] - header[0] < 20) throw invalid();
             input.seek(header[0]);
             int version = input.readUnsignedByte();
-            input.skipBytes(3);
-            if (version == 0) input.skipBytes(8);
-            else if (version == 1 && header[1] - header[0] >= 32) input.skipBytes(16);
-            else throw invalid();
-            long timescale = Integer.toUnsignedLong(input.readInt());
-            long duration = version == 0 ? Integer.toUnsignedLong(input.readInt()) : input.readLong();
-            FitnessTrainingRules.require(timescale > 0 && duration > 0 && duration <= timescale * 60L,
-                "视频须为不超过 60 秒的完整 MP4 短片");
+            if (version != 0 && (version != 1 || header[1] - header[0] < 32)) throw invalid();
         } catch (IOException ex) {
             throw invalid();
         }
@@ -49,5 +42,5 @@ public final class FitnessTrainingVideoRules {
         return null;
     }
 
-    private static ServiceException invalid() { return new ServiceException("MP4 视频缺少有效时长信息，请重新导出后上传"); }
+    private static ServiceException invalid() { return new ServiceException("MP4 视频文件格式无效，请重新导出后上传"); }
 }

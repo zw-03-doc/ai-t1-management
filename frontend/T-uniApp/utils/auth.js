@@ -62,3 +62,23 @@ export function resolveTargetUrl(role, target) {
 	}
 	return role === 'coach' ? '/pages/coach/home/index' : '/pages/index/index'
 }
+
+const memberDestinations = [
+	'/pages/index/index', '/pages/mine/index', '/pages/course/index', '/pages/course/detail',
+	'/pages/training/index', '/pages/activity/index', '/pages/activity/detail',
+	'/pages/activity/plan', '/pages/guide/index'
+]
+
+export function memberProfileTarget(value) {
+	const home = '/pages/index/index'
+	if (!value || typeof value !== 'string') return home
+	try {
+		const target = value.startsWith('/') ? value : decodeURIComponent(value)
+		const [path, query = ''] = target.split('?')
+		if (!memberDestinations.includes(path) || /[#\r\n]/.test(target)) return home
+		if (path === '/pages/training/index' && /(?:^|&)role=coach(?:&|$)/.test(decodeURIComponent(query))) return home
+		return target
+	} catch {
+		return home
+	}
+}

@@ -21,14 +21,15 @@
             </div>
           </template>
           <div class="member-info">
-            <el-avatar :size="72" :src="detail.member?.avatarUrl" class="member-avatar">
-              {{ detail.member?.realName?.charAt(0) || '?' }}
+            <el-avatar :size="72" :src="avatarSrc" class="member-avatar">
+              {{ (detail.member?.realName || detail.member?.nickname || '会员').charAt(0) }}
             </el-avatar>
             <div class="member-name">{{ detail.member?.realName || detail.member?.nickname || '-' }}</div>
             <div class="member-no">编号: {{ detail.member?.memberNo }}</div>
             <el-divider />
             <ul class="info-list">
-              <li><span class="label">手机号</span><span class="value">{{ detail.member?.mobile || '-' }}</span></li>
+              <li><span class="label">联系电话（本人填写）</span><span class="value">{{ detail.member?.contactMobile || '-' }}</span></li>
+              <li><span class="label">档案手机号</span><span class="value">{{ detail.member?.mobile || '-' }}</span></li>
               <li><span class="label">性别</span><span class="value">{{ findDictLabel(genderOptions, detail.member?.gender) || '-' }}</span></li>
               <li><span class="label">归属门店</span><span class="value">{{ detail.member?.homeStoreName || '-' }}</span></li>
               <li><span class="label">会员状态</span>
@@ -174,6 +175,7 @@
 
 <script setup name="FitnessMemberDetail" lang="ts">
 import { getMemberDetail } from '@/api/fitness/member';
+import request from '@/utils/request';
 import { useRoute, useRouter } from 'vue-router';
 import { useFitnessDictOptions, findDictLabel } from '../../components/useFitnessDictOptions';
 import { openFitnessPage } from '../../components/navigation';
@@ -185,6 +187,30 @@ const { proxy } = getCurrentInstance() as ComponentInternalInstance;
 const loading = ref(false);
 const activeTab = ref('cards');
 const detail = ref<any>({});
+const avatarSrc = ref('');
+watch(() => detail.value.member?.avatarUrl as string | undefined, async (path, _old, onCleanup) => {
+  avatarSrc.value = '';
+  if (!path) return;
+  if (!/^\/fitness\/member\/avatars\/\d+\/[a-f\d-]+\.jpg$/i.test(path)) {
+    if (/^https?:\/\//i.test(path)) avatarSrc.value = path;
+    return;
+  }
+  let active = true;
+  let objectUrl = '';
+  onCleanup(() => {
+    active = false;
+    if (objectUrl) URL.revokeObjectURL(objectUrl);
+  });
+  try {
+    const image = await request.get<Blob, Blob>(path, { responseType: 'blob' });
+    if (active && image.type.startsWith('image/')) {
+      objectUrl = URL.createObjectURL(image);
+      avatarSrc.value = objectUrl;
+    }
+  } catch {
+    // The member's initial remains visible if the image is unavailable.
+  }
+});
 const sourceNames: Record<string, string> = { admin: '门店建档', mini: '微信小程序', web: '会员网页', coach_app: '教练建档' };
 let detailRequest = 0;
 function openMemberPage(page: string) {

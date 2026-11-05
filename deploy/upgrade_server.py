@@ -8,6 +8,9 @@ EXPECTED_MIGRATIONS = (
     'V1.3.0__identity_and_orders.sql',
     'V1.3.1__booking_flow.sql',
     'V1.3.2__training_lifecycle.sql',
+    'V1.3.3__member_optional_profile.sql',
+    'V1.3.4__portal_slogans.sql',
+    'V1.3.5__fitness_navigation.sql',
 )
 
 def release_file(release, name):
@@ -31,7 +34,7 @@ def reviewed_migrations(manifest):
                 raise ValueError('Duplicate incremental migration: ' + name)
             found[name] = item
     if set(found) != set(EXPECTED_MIGRATIONS):
-        raise ValueError('Expected exactly the three reviewed incremental migrations')
+        raise ValueError('Reviewed incremental migration set is incomplete')
     return [found[name] for name in EXPECTED_MIGRATIONS]
 
 def read_env(path):
@@ -116,6 +119,14 @@ def main():
         if hashlib.sha256(file.read_bytes()).hexdigest() != digest:
             raise SystemExit('Release checksum mismatch: ' + name)
     migrations = reviewed_migrations(manifest)
+    previous_manifest = json.loads((current / 'manifest.json').read_text())
+    previous_sql = {Path(item['source']).name: previous_manifest['sha256']['sql/' + item['file']]
+                    for item in previous_manifest.get('sql_sources', [])}
+    for migration in migrations:
+        name = Path(migration['source']).name
+        if name in previous_sql and previous_sql[name] != manifest['sha256']['sql/' + migration['file']]:
+            raise SystemExit('Previously released migration changed: ' + name)
+    migrations = [item for item in migrations if Path(item['source']).name not in previous_sql]
     verification = json.loads((release / 'candidate-verification.json').read_text())
     if verification.get('passed') is not True or verification['jarSha256'] != manifest['sha256']['app.jar']:
         raise SystemExit('Candidate validation does not match the release JAR')

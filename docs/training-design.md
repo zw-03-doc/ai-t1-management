@@ -88,9 +88,9 @@
 
 上传返回 `{assetId,planId,url,mediaType,size}`。媒体地址为受保护的相对路径，不能直接作为永久公开链接。网页通过带认证头的 fetch 读取为 Blob URL；小程序通过带认证头的 `uni.downloadFile` 获取本地临时路径供图片/视频组件显示。公开计划的媒体仍需同租户登录，但不要求会员绑定。复制公开模板时，服务端把附件授权引用保存到新计划；源模板后来改为私有，不影响已经合法复制的计划附件，副本的权限随副本计划变化。附件引用不会授予源计划的实际记录或统计权限。
 
-只接受文件头匹配的 JPEG、PNG、WebP 或 MP4，拒绝 SVG/HTML。图片限 10MB、视频限 30MB。文件名由服务器随机生成，原始文件名不参与路径。响应设置 `nosniff` 和 `no-store`，不会把私人附件缓存为公开资源。可引用外部 HTTPS 动作资料；服务端不抓取这些地址。
+只接受文件头匹配的 JPEG、PNG、WebP 或 MP4，拒绝 SVG/HTML。每张图片上限为 10 MiB，每个视频上限为 50 MiB。文件名由服务器随机生成，原始文件名不参与路径。响应设置 `nosniff` 和 `no-store`，不会把私人附件缓存为公开资源。可引用外部 HTTPS 动作资料；服务端不抓取这些地址。
 
-部署时设置 `FITNESS_MEDIA_PATH=/app/media` 并挂载持久卷。默认本地路径为 `./data/training-media`。Spring multipart 限制需至少 30MB/35MB，代理请求体上限至少 35MB。服务器解析 MP4 的 moov/mvhd 元数据，拒绝超过 60 秒、零时长或缺少有效时长的文件；支持版本 0/1 电影头，不会启动外部解码进程。未提供视频转码。
+部署时设置 `FITNESS_MEDIA_PATH=/app/media` 并挂载持久卷。默认本地路径为 `./data/training-media`。Spring multipart 单文件上限为 50 MiB，表单请求、T1 Web 和域名网关的请求体上限为 55 MiB。服务器校验 MP4 容器及电影头结构，允许任意时长，也支持电影头时长为零或未知的分片视频。
 
 ## 初始化与验证
 

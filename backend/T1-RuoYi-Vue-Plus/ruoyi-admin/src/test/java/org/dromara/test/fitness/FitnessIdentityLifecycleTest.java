@@ -45,7 +45,8 @@ class FitnessIdentityLifecycleTest {
     private class IdentityFixture {
         final FitnessIdentityMapper identities = mock(FitnessIdentityMapper.class);
         final FitnessMiniMapper mini = mock(FitnessMiniMapper.class);
-        final FitnessIdentityService service = new FitnessIdentityService(identities, mini);
+        final FitnessMemberAvatarService avatars = mock(FitnessMemberAvatarService.class);
+        final FitnessIdentityService service = new FitnessIdentityService(identities, mini, avatars);
         final FitMember source = member(1L, null, "verified-wechat", "mini");
         final FitMember target = member(2L, "13800000000", null, "admin");
         final FitnessMiniBo.BindPhoneBo bo = new FitnessMiniBo.BindPhoneBo();
@@ -54,7 +55,7 @@ class FitnessIdentityLifecycleTest {
             when(identities.lockMember("000000", 1L)).thenReturn(source);
             when(identities.lockPhoneOwners("000000", bo.getMobile())).thenReturn(List.of(target));
             when(identities.retireBlankIdentity("000000", 1L)).thenReturn(1);
-            when(identities.claimIdentity("000000", 2L, "verified-wechat", null)).thenReturn(1);
+            when(identities.claimIdentity("000000", 2L, source, null)).thenReturn(1);
         }
         Long bind() { return service.bindVerifiedPhone("000000", 1L, "verified-wechat", bo); }
     }
@@ -63,7 +64,7 @@ class FitnessIdentityLifecycleTest {
         try (var revoke = mockStatic(FitnessSessionRevoker.class)) {
             assertEquals(2L, f.bind());
             revoke.verify(() -> FitnessSessionRevoker.member(1L));
-            verify(f.identities).claimIdentity("000000", 2L, "verified-wechat", null);
+            verify(f.identities).claimIdentity("000000", 2L, f.source, null);
             verifyNoInteractions(f.mini);
         }
     }
@@ -76,7 +77,7 @@ class FitnessIdentityLifecycleTest {
         var f = new IdentityFixture(); f.target.setWxOpenid("somebody-else");
         assertThrows(ServiceException.class, f::bind); f.target.setWxOpenid(null); f.target.setMemberStatus("frozen");
         assertThrows(ServiceException.class, f::bind);
-        verify(f.identities,never()).claimIdentity(anyString(),anyLong(),anyString(),any());
+        verify(f.identities,never()).claimIdentity(anyString(),anyLong(),any(),any());
     }
     @Test void sourceMustMatchTheAuthenticatedWechatIdentity() {
         var f = new IdentityFixture(); f.source.setWxOpenid("different-wechat");

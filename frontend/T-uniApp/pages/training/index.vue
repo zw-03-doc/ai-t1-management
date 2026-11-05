@@ -679,7 +679,7 @@
                 >
                 <view class="media-section"
                   ><view class="name">动作素材</view
-                  ><view class="hint">图片帮助找位置，短视频记录动作节奏。</view
+                  ><view class="hint">用图片标出动作位置，用视频示范节奏。</view
                   ><view v-if="exercise.imageUrls.length" class="media-grid"
                     ><view
                       v-for="(url, imageIndex) in exercise.imageUrls"
@@ -689,6 +689,7 @@
                         v-if="mediaViews[url]"
                         :src="mediaViews[url]"
                         mode="aspectFill"
+                        @error="mediaPreviewFailed(url)"
                         @tap="previewMedia(url, exercise.imageUrls)"
                       /><view
                         v-else
@@ -706,6 +707,7 @@
                     ><video
                       v-if="mediaViews[exercise.videoUrl]"
                       :src="mediaViews[exercise.videoUrl]"
+                      @error="mediaPreviewFailed(exercise.videoUrl)"
                       controls
                       class="guide-video"
                     /><view
@@ -715,7 +717,7 @@
                       >{{
                         mediaFailed[exercise.videoUrl]
                           ? "视频未读取，点击重试"
-                          : "点此加载短视频"
+                          : "点此加载视频"
                       }}</view
                     ><button
                       class="text-button danger"
@@ -735,13 +737,10 @@
                       :disabled="busy"
                       @tap="upload(exercise, 'video')"
                     >
-                      ＋ 短视频
+                      ＋ 视频
                     </button></view
-                  ><view class="hint space-top">{{
-                    editor.planId
-                      ? "图片不超过 10 MB，视频不超过 60 秒 / 30 MB。"
-                      : "首次添加素材时，会先保存当前计划。"
-                  }}</view></view
+                  ><view class="hint space-top">每张图片最多 10 MB，每个 MP4 视频最多 50 MB。</view
+                  ><view v-if="!editor.planId" class="hint">首次上传时会保存当前计划。</view></view
                 >
               </view>
               <button class="primary" @tap="openLibrary(true)">
@@ -996,6 +995,7 @@
                       v-if="mediaViews[url]"
                       :src="mediaViews[url]"
                       mode="aspectFill"
+                      @error="mediaPreviewFailed(url)"
                       @tap="previewMedia(url, exercise.imageUrls)"
                     /><view
                       v-else
@@ -1007,6 +1007,7 @@
                 ><video
                   v-if="exercise.videoUrl && mediaViews[exercise.videoUrl]"
                   :src="mediaViews[exercise.videoUrl]"
+                  @error="mediaPreviewFailed(exercise.videoUrl)"
                   controls
                   class="guide-video"
                 /><button
@@ -1017,7 +1018,7 @@
                   {{
                     mediaFailed[exercise.videoUrl]
                       ? "重试读取视频"
-                      : "查看动作短视频"
+                      : "查看动作视频"
                   }}
                 </button></view
               >
@@ -1136,6 +1137,7 @@ import {
   resolveTrainingMedia,
 } from "../../api/training";
 import { hasMemberSession, hasCoachSession } from "../../utils/auth";
+import { selectTrainingMedia } from "../../utils/training-media";
 import {
   MUSCLE_FILTERS,
   EQUIPMENT_FILTERS,
@@ -1392,6 +1394,8 @@ export default {
         URL.revokeObjectURL(url);
     });
     // #endif
+    this.mediaViews = {};
+    this._localPreviews?.clear();
   },
   onBackPress() {
     if (this.busy) return true;
@@ -1970,6 +1974,16 @@ export default {
       this.mediaFailed = { ...this.mediaFailed, [url]: false };
       this.ensureMedia(url);
     },
+    mediaPreviewFailed(url) {
+      const current = this.mediaViews[url];
+      if (!current || this._disposed) return;
+      // #ifdef H5
+      if (current.startsWith("blob:")) URL.revokeObjectURL(current);
+      // #endif
+      this.mediaViews = { ...this.mediaViews, [url]: "" };
+      if (this._localPreviews?.delete(url)) return this.ensureMedia(url);
+      this.mediaFailed = { ...this.mediaFailed, [url]: true };
+    },
     previewMedia(url, urls) {
       const current = this.mediaViews[url];
       if (current)
@@ -1978,47 +1992,28 @@ export default {
           urls: urls.map((item) => this.mediaViews[item]).filter(Boolean),
         });
     },
-    async upload(exercise, type) {
+    upload(exercise, type) {
       if (this.busy) return;
-      if (!this.editor.planId) {
-        await this.act(async () => {
-          await this.persistEditor();
-        });
-        if (!this.editor.planId) return;
-      }
       if (type === "image" && exercise.imageUrls.length >= 9)
         return this.toast("每个动作最多添加 9 张图片");
-      const send = (filePath) =>
-        this.act(async () => {
-          const result = await uploadTrainingMedia(
-            filePath,
-            this.editor.planId,
-            this.role,
-          );
-          if (type === "image") exercise.imageUrls.push(result.url);
-          else exercise.videoUrl = result.url;
-          await this.ensureMedia(result.url);
-          this.toast("素材已上传，记得保存计划");
-        });
-      if (type === "image")
-        uni.chooseImage({
-          count: 1,
-          success: (result) => {
-            if (result.tempFiles && result.tempFiles[0].size > 10 * 1024 * 1024)
-              return this.toast("请选择 10 MB 以内的图片");
-            send(result.tempFilePaths[0]);
-          },
-        });
-      else
-        uni.chooseVideo({
-          maxDuration: 60,
-          compressed: true,
-          success: (result) => {
-            if (result.duration > 60 || result.size > 30 * 1024 * 1024)
-              return this.toast("请选择 60 秒、30 MB 以内的视频");
-            send(result.tempFilePath);
-          },
-        });
+      return this.act(async () => {
+        const selectedFile = await selectTrainingMedia(type);
+        if (!selectedFile) return;
+        if (!this.editor.planId) await this.persistEditor();
+        const result = await uploadTrainingMedia(selectedFile, this.editor.planId, this.role);
+        if (this._disposed) return;
+        if (type === "image") exercise.imageUrls.push(result.url);
+        else exercise.videoUrl = result.url;
+        try {
+          const preview = typeof selectedFile === "string" ? selectedFile : URL.createObjectURL(selectedFile);
+          this._localPreviews ||= new Set();
+          this._localPreviews.add(result.url);
+          this.mediaViews = { ...this.mediaViews, [result.url]: preview };
+        } catch {
+          this.ensureMedia(result.url);
+        }
+        this.toast("素材已上传，记得保存计划");
+      });
     },
     async openLog(workout) {
       if (this.busy) return;
@@ -2798,7 +2793,8 @@ export default {
   min-width: 0;
 }
 .set-field input {
-  padding: 12rpx 8rpx;
+  height: 80rpx;
+  padding: 0 8rpx;
   text-align: center;
 }
 .input-caption {
@@ -2927,15 +2923,16 @@ textarea {
   border-radius: 12rpx;
   color: #f6f4ef;
   font-size: 27rpx;
-  padding: 18rpx;
   min-width: 0;
   width: 100%;
 }
 input {
   height: 84rpx;
+  padding: 0 18rpx;
 }
 textarea {
   height: 170rpx;
+  padding: 18rpx;
   line-height: 1.6;
   margin-bottom: 16rpx;
 }
@@ -3268,7 +3265,7 @@ button::after {
   height: 60rpx;
   width: 150rpx;
   font-size: 22rpx;
-  padding: 10rpx;
+  padding: 0 10rpx;
 }
 .set-extra .input-placeholder {
   font-size: 21rpx;

@@ -14,12 +14,18 @@ function headers(role) {
     clientid: session.clientId,
   };
 }
-export function uploadTrainingMedia(filePath, planId, role) {
+export function uploadTrainingMedia(selectedFile, planId, role) {
   return new Promise((resolve, reject) =>
     uni.uploadFile({
       url: `${API_BASE_URL}/fitness/training/media`,
-      filePath,
+      // #ifdef H5
+      files: [{ name: "file", file: selectedFile }],
+      // #endif
+      // #ifdef MP-WEIXIN
+      filePath: selectedFile,
       name: "file",
+      // #endif
+      timeout: 300000,
       formData: { planId: String(planId) },
       header: headers(role),
       success(res) {

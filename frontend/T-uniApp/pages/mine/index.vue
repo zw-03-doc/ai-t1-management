@@ -6,13 +6,7 @@
         ><view class="profile-name">{{ displayName }}</view
         ><view class="page-subtitle">把每一次坚持，留给自己。</view></view
       >
-      <image
-        v-if="summary.avatarUrl"
-        class="avatar"
-        :src="summary.avatarUrl"
-        mode="aspectFill"
-      />
-      <view v-else class="avatar avatar-letter">T1</view>
+      <MemberAvatar :source="summary.avatarUrl || ''" />
     </view>
     <view class="stats-grid">
       <view
@@ -98,6 +92,7 @@
 </template>
 <script>
 import T1Nav from "../../components/T1Nav.vue";
+import MemberAvatar from "../../components/MemberAvatar.vue";
 import {
   memberBindPhone,
   memberMineSummary,
@@ -106,7 +101,7 @@ import {
 import { getMemberSession, saveMemberSession } from "../../utils/auth";
 
 export default {
-  components: { T1Nav },
+  components: { T1Nav, MemberAvatar },
   data() {
     return {
       loading: false,
@@ -437,22 +432,6 @@ export default {
 .profile .page-subtitle {
   font-size: 24rpx;
   margin-top: 14rpx;
-}
-.avatar {
-  width: 116rpx;
-  height: 116rpx;
-  flex-shrink: 0;
-  border-radius: 20rpx;
-  border: 1rpx solid #42453f;
-}
-.avatar-letter {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: #1c1d1b;
-  color: #ff7a35;
-  font-size: 44rpx;
-  font-weight: 800;
 }
 .stats-grid {
   display: flex;

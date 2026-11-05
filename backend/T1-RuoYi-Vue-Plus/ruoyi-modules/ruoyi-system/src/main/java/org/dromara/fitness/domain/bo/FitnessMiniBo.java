@@ -1,6 +1,9 @@
 package org.dromara.fitness.domain.bo;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Pattern;
+import jakarta.validation.constraints.Size;
 import jakarta.validation.constraints.NotNull;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
@@ -20,37 +23,14 @@ public final class FitnessMiniBo {
     }
 
     @Data
-    @EqualsAndHashCode(callSuper = true)
-    public static class WechatLoginBo extends BaseEntity {
+    @JsonIgnoreProperties(ignoreUnknown = true)
+    public static class WechatLoginBo {
 
         /**
          * 小程序 wx.login() 返回的 code
          */
+        @NotBlank(message = "请通过微信登录凭证登录")
         private String code;
-
-        /**
-         * 微信手机号授权返回的 code，兼容保留，当前登录链路不再强依赖
-         */
-        private String phoneCode;
-
-        /**
-         * 兼容旧链路的 openid 直传方式
-         */
-        private String openid;
-
-        private String unionId;
-
-        private String nickname;
-
-        private String avatarUrl;
-
-        private String realName;
-
-        private String mobile;
-
-        private Long homeStoreId;
-
-        private String remark;
     }
 
     @Data
@@ -149,16 +129,29 @@ public final class FitnessMiniBo {
     @EqualsAndHashCode(callSuper = true)
     public static class ProfileUpdateBo extends BaseEntity {
 
+        @Size(max = 50, message = "姓名最多50个字符")
         private String realName;
 
+        @Size(max = 50, message = "昵称最多50个字符")
         private String nickname;
 
+        @Pattern(regexp = "[012]", message = "请选择有效的性别")
         private String gender;
 
         private Date birthday;
 
+        private Boolean clearBirthday;
+
+        @Pattern(regexp = "(?:|1[3-9]\\d{9}|\\+[1-9]\\d{6,14})", message = "请输入有效的联系电话")
+        private String contactMobile;
+
+        @Pattern(regexp = "skip|complete", message = "请选择有效的资料设置操作")
+        private String profileSetupAction;
+
+        @Size(max = 255, message = "头像地址过长")
         private String avatarUrl;
 
+        @Size(max = 500, message = "备注最多500个字符")
         private String remark;
     }
 

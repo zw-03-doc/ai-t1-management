@@ -4,6 +4,7 @@ export interface FitnessMemberVO extends BaseEntity {
   realName?: string;
   nickname?: string;
   mobile?: string;
+  contactMobile?: string;
   gender?: string;
   homeStoreId?: number | string;
   homeStoreName?: string;

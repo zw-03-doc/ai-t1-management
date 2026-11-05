@@ -39,6 +39,11 @@ input,
 textarea {
   caret-color: #ff7a35;
 }
+input {
+  line-height: normal;
+  padding-top: 0;
+  padding-bottom: 0;
+}
 .t1-page {
   width: 100%;
   max-width: 760px;

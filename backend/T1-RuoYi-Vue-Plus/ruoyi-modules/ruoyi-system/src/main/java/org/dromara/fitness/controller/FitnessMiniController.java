@@ -193,9 +193,8 @@ public class FitnessMiniController extends BaseController {
     }
 
     @SaCheckLogin
-    @RepeatSubmit
     @PutMapping("/mine/profile")
-    public R<Void> updateProfile(@RequestBody FitnessMiniBo.ProfileUpdateBo bo) {
+    public R<Void> updateProfile(@Validated @RequestBody FitnessMiniBo.ProfileUpdateBo bo) {
         fitnessMiniService.updateProfile(bo);
         return R.ok();
     }

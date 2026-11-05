@@ -44,6 +44,9 @@ public class FitMember extends TenantEntity {
      */
     private String mobile;
 
+    /** 会员自行填写的联系号码，不参与登录或档案认领。 */
+    private String contactMobile;
+
     /**
      * 真实姓名
      */
