@@ -2,6 +2,7 @@ package org.dromara.fitness.service.support;
 
 import cn.dev33.satoken.stp.StpUtil;
 import lombok.RequiredArgsConstructor;
+import org.dromara.common.core.constant.GlobalConstants;
 import org.dromara.common.core.exception.ServiceException;
 import org.redisson.api.RedissonClient;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
@@ -25,7 +26,7 @@ import java.util.Objects;
 @RequiredArgsConstructor
 public class FitnessWebLoginService {
     private static final SecureRandom RANDOM = new SecureRandom();
-    private static final String PREFIX = "fitness:web-login:";
+    private static final Duration CODE_TTL = Duration.ofSeconds(120);
     private final FitnessMemberMapper memberMapper;
     private final FitnessMiniMapper miniMapper;
     private final RedissonClient redis;
@@ -39,18 +40,18 @@ public class FitnessWebLoginService {
         byte[] bytes = new byte[16];
         RANDOM.nextBytes(bytes);
         String code = HexFormat.of().formatHex(bytes);
-        var owner = redis.<String>getBucket("fitness:web-login-owner:" + user.getMemberId());
+        var owner = redis.<String>getBucket(ownerKey(user.getTenantId(), user.getMemberId()));
         String previous = owner.get();
-        if (previous != null) redis.getBucket(PREFIX + previous).delete();
-        redis.<String>getBucket(PREFIX + code).set(user.getTenantId() + ":" + user.getMemberId() + ":v2", Duration.ofSeconds(120));
-        owner.set(code, Duration.ofSeconds(120));
-        return Map.of("code", code, "expiresIn", 120);
+        redis.<String>getBucket(codeKey(code)).set(user.getTenantId() + ":" + user.getMemberId() + ":v2", CODE_TTL);
+        owner.set(code, CODE_TTL);
+        if (previous != null) redis.getBucket(codeKey(previous)).delete();
+        return Map.of("code", code, "expiresIn", CODE_TTL.toSeconds());
     }
 
     @Transactional(rollbackFor = Exception.class)
     public FitnessMiniVo.LoginVo login(String code) {
         if (code == null || !code.matches("[a-f0-9]{32}")) throw new ServiceException("网页登录码格式不正确");
-        String identity = redis.<String>getBucket(PREFIX + code).getAndDelete();
+        String identity = redis.<String>getBucket(codeKey(code)).getAndDelete();
         if (identity == null) throw new ServiceException("网页登录码已使用或已过期，请在微信中重新生成");
         String[] parts = identity.split(":");
         if (parts.length != 3 || !"v2".equals(parts[2])) throw new ServiceException("网页登录码已失效，请重新生成");
@@ -59,6 +60,8 @@ public class FitnessWebLoginService {
             FitMember member = memberMapper.selectOne(new LambdaQueryWrapper<FitMember>().eq(FitMember::getMemberId, memberId).last("FOR UPDATE"));
             if (member == null || !Objects.equals(member.getTenantId(), parts[0]) || !"normal".equals(member.getMemberStatus()))
                 throw new ServiceException("会员已停用或不存在");
+            if (!redis.<String>getBucket(ownerKey(parts[0], memberId)).compareAndSet(code, null))
+                throw new ServiceException("网页登录码已使用或已过期，请在微信中重新生成");
             FitnessMiniVo.MemberInfoVo info = miniMapper.selectMemberById(memberId);
             FitnessSecurityUtils.loginMember(info, member.getWxOpenid(), "web");
             FitnessMiniVo.LoginVo result = new FitnessMiniVo.LoginVo();
@@ -66,5 +69,14 @@ public class FitnessWebLoginService {
             result.setClientId(FitnessMobileConstants.MINI_CLIENT_ID); result.setMemberInfo(info);
             return result;
         });
+    }
+
+    // The browser has no tenant before exchanging its one-time code.
+    static String codeKey(String code) {
+        return GlobalConstants.GLOBAL_REDIS_KEY + "fitness:web-login:" + code;
+    }
+
+    static String ownerKey(String tenantId, Long memberId) {
+        return GlobalConstants.GLOBAL_REDIS_KEY + "fitness:web-login-owner:" + tenantId + ":" + memberId;
     }
 }

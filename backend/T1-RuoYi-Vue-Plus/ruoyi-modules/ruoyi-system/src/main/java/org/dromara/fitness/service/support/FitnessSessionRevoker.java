@@ -9,11 +9,11 @@ import org.springframework.transaction.support.TransactionSynchronizationManager
 /** Revoke every device only after a successful database commit. */
 public final class FitnessSessionRevoker {
     private FitnessSessionRevoker() {}
-    public static void member(Long id) {
+    public static void member(String tenantId, Long id) {
         afterCommit(() -> {
             StpUtil.logout("app_user:" + (FitnessMobileConstants.MEMBER_LOGIN_ID_OFFSET + id));
-            String code = RedisUtils.getClient().<String>getBucket("fitness:web-login-owner:" + id).getAndDelete();
-            if (code != null) RedisUtils.deleteObject("fitness:web-login:" + code);
+            String code = RedisUtils.getClient().<String>getBucket(FitnessWebLoginService.ownerKey(tenantId, id)).getAndDelete();
+            if (code != null) RedisUtils.deleteObject(FitnessWebLoginService.codeKey(code));
         });
     }
     public static void coach(Long userId) {

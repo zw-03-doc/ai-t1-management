@@ -21,7 +21,7 @@ public class FitnessAccountGuard {
         if (principal instanceof FitnessLoginUser.MemberLoginUser login) {
             var member = members.selectById(login.getMemberId());
             if (member == null || !Objects.equals(member.getTenantId(), login.getTenantId()) || !"normal".equals(member.getMemberStatus())) {
-                FitnessSessionRevoker.member(login.getMemberId());
+                FitnessSessionRevoker.member(login.getTenantId(), login.getMemberId());
                 throw new ServiceException("会员已冻结、流失或删除，请联系门店后重新登录", 401);
             }
         } else if (principal instanceof FitnessLoginUser.CoachLoginUser login) {

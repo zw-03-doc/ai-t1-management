@@ -63,7 +63,7 @@ class FitnessIdentityLifecycleTest {
         var f = new IdentityFixture();
         try (var revoke = mockStatic(FitnessSessionRevoker.class)) {
             assertEquals(2L, f.bind());
-            revoke.verify(() -> FitnessSessionRevoker.member(1L));
+            revoke.verify(() -> FitnessSessionRevoker.member("000000", 1L));
             verify(f.identities).claimIdentity("000000", 2L, f.source, null);
             verifyNoInteractions(f.mini);
         }
@@ -107,7 +107,7 @@ class FitnessIdentityLifecycleTest {
             assertEquals(401,assertThrows(ServiceException.class,()->guard.check(login)).getCode());
             m.setMemberStatus("normal");m.setTenantId("another-tenant");
             assertThrows(ServiceException.class,()->guard.check(login));
-            revoke.verify(()->FitnessSessionRevoker.member(1L),times(2));
+            revoke.verify(()->FitnessSessionRevoker.member("000000", 1L),times(2));
         }
     }
     @Test void aDisabledCoachCannotUseAnExistingSessionButAnActiveCoachCan() {

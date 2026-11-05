@@ -70,14 +70,14 @@ public class FitnessMemberServiceImpl implements IFitnessMemberService {
         FitMember update = MapstructUtils.convert(bo, FitMember.class);
         validEntityBeforeSave(update);
         boolean changed = baseMapper.updateById(update) > 0;
-        if (changed && !"normal".equals(update.getMemberStatus())) FitnessSessionRevoker.member(update.getMemberId());
+        if (changed && !"normal".equals(update.getMemberStatus())) FitnessSessionRevoker.member(existing.getTenantId(), existing.getMemberId());
         return changed;
     }
 
     @Override
     @Transactional(rollbackFor = Exception.class)
     public Boolean deleteWithValidByIds(Collection<Long> ids, Boolean isValid) {
-        baseMapper.selectList(new LambdaQueryWrapper<FitMember>().in(FitMember::getMemberId, ids).orderByAsc(FitMember::getMemberId).last("FOR UPDATE"));
+        var members = baseMapper.selectList(new LambdaQueryWrapper<FitMember>().in(FitMember::getMemberId, ids).orderByAsc(FitMember::getMemberId).last("FOR UPDATE"));
         if (isValid) {
             long count = baseMapper.selectCount(new LambdaQueryWrapper<FitMember>().in(FitMember::getMemberId, ids));
             if (count != ids.size()) {
@@ -85,7 +85,7 @@ public class FitnessMemberServiceImpl implements IFitnessMemberService {
             }
         }
         boolean deleted = baseMapper.deleteByIds(ids) > 0;
-        if (deleted) ids.forEach(FitnessSessionRevoker::member);
+        if (deleted) members.forEach(member -> FitnessSessionRevoker.member(member.getTenantId(), member.getMemberId()));
         return deleted;
     }
 

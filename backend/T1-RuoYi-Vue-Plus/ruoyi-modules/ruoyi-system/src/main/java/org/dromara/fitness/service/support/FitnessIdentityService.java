@@ -45,7 +45,7 @@ public class FitnessIdentityService {
         if (identities.retireBlankIdentity(tenant, memberId) != 1
             || identities.claimIdentity(tenant, target.getMemberId(), source, avatar) != 1)
             throw new ServiceException("会员认领状态已变化，请刷新重试");
-        FitnessSessionRevoker.member(memberId);
+        FitnessSessionRevoker.member(tenant, memberId);
         return target.getMemberId();
     }
 }
