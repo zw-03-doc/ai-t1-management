@@ -68,13 +68,19 @@ function redirectToPortal(auth, message) {
     return;
   }
   redirecting = true;
+  const pages = getCurrentPages();
+  const page = pages[pages.length - 1];
+  const tab = page?.$vm?.currentTab || page?.currentTab || page?.options?.tab;
+  const courseTarget = auth === "member" && page?.route === "pages/course/index"
+    && (tab === "schedule" || tab === "reservation")
+    ? `&target=${encodeURIComponent("/pages/course/index?tab=" + tab)}` : "";
   uni.showToast({
     title: message || "登录已失效，请重新登录",
     icon: "none",
   });
   setTimeout(() => {
     uni.reLaunch({
-      url: `/pages/portal/index?role=${auth === "coach" ? "coach" : "member"}`,
+      url: `/pages/portal/index?role=${auth === "coach" ? "coach" : "member"}${courseTarget}`,
     });
     setTimeout(() => {
       redirecting = false;

@@ -34,6 +34,26 @@
         </view>
         <view class="hero-desc">{{ slogans.subtitle }}</view>
       </view>
+      <view class="hero-actions">
+        <button
+          class="hero-action booking-action"
+          hover-class="hero-action-pressed"
+          :disabled="loginBusy || coachBusy || browserBusy"
+          @tap="openMemberAction('booking')"
+        >
+          <view class="action-calendar" aria-hidden="true" />
+          <text>约课</text>
+        </button>
+        <button
+          class="hero-action checkin-action"
+          hover-class="hero-action-pressed"
+          :disabled="loginBusy || coachBusy || browserBusy"
+          @tap="openMemberAction('checkin')"
+        >
+          <view class="action-check" aria-hidden="true" />
+          <text>签到</text>
+        </button>
+      </view>
     </view>
     <view class="portal-body">
       <view class="space-head"
@@ -91,7 +111,7 @@
     <view v-if="browserLogin" class="modal-mask" @tap="closeBrowserLogin">
       <view class="login-sheet" @tap.stop>
         <view class="sheet-heading"
-          ><text>{{ browserRole === "coach" ? "教练登录" : "接着上次练" }}</text
+          ><text>{{ browserRole === "coach" ? "教练登录" : "会员登录" }}</text
           ><button
             class="close-button"
             :disabled="browserBusy"
@@ -103,7 +123,7 @@
         <view class="sheet-description">{{
           browserRole === "coach"
             ? "使用门店为你开通的账号。"
-            : "在小程序「我的」获取网页登录码，在这里继续记录。"
+            : "在小程序「我的」获取一次性网页登录码。"
         }}</view>
         <view v-if="browserRole === 'coach'">
           <text class="field-label">教练账号</text
@@ -226,6 +246,7 @@ export default {
       browserForm: { username: "", password: "", code: "" },
       browserBusy: false,
       targetRoute: "",
+      memberShortcutRoute: "",
       memberLoggedIn: false,
       coachLoggedIn: false,
       activationPopupVisible: false,
@@ -281,14 +302,21 @@ export default {
         ],
       });
     },
-    async startTraining() {
-      if (this.coachBusy || this.browserBusy) return;
+    openMemberAction(action) {
+      const routes = {
+        booking: "/pages/course/index?tab=schedule",
+        checkin: "/pages/course/index?tab=reservation",
+      };
+      if (routes[action]) return this.startTraining(routes[action]);
+    },
+    async startTraining(shortcutRoute = "") {
+      if (this.loginBusy || this.coachBusy || this.browserBusy || this.browserLogin) return;
+      this.memberShortcutRoute = shortcutRoute;
       if (this.memberLoggedIn) {
         this.enterHome();
         return;
       }
       // #ifdef MP-WEIXIN
-      if (this.loginBusy) return;
       this.loginBusy = true;
       try {
         await this.handleMemberLogin();
@@ -319,7 +347,10 @@ export default {
       // #endif
     },
     closeBrowserLogin() {
-      if (!this.browserBusy) this.browserLogin = false;
+      if (!this.browserBusy) {
+        this.browserLogin = false;
+        this.memberShortcutRoute = "";
+      }
     },
     async submitBrowserLogin() {
       if (this.browserBusy) return;
@@ -368,13 +399,16 @@ export default {
       return resolveTargetUrl(role);
     },
     navigateAfterLogin(role) {
-      const target = this.resolveRoute(role);
+      const shortcut = role === "member" ? this.memberShortcutRoute : "";
+      const target = shortcut || this.resolveRoute(role);
       const needsProfile = role === "member" &&
         getMemberSession().memberInfo?.profileSetupStatus === "pending";
       const url = needsProfile
         ? `/pages/mine/profile?onboarding=1&target=${encodeURIComponent(target)}`
         : target;
-      uni.reLaunch({ url });
+      this.memberShortcutRoute = "";
+      if (shortcut && !needsProfile) uni.navigateTo({ url });
+      else uni.reLaunch({ url });
     },
     wxLogin() {
       return new Promise((resolve, reject) => {
@@ -518,6 +552,8 @@ export default {
 }
 .portal-hero {
   flex: 1 0 auto;
+  display: flex;
+  flex-direction: column;
   position: relative;
   min-height: 790rpx;
   overflow: hidden;
@@ -572,7 +608,7 @@ export default {
 }
 .hero-copy {
   position: relative;
-  padding: 0 40rpx 128rpx;
+  padding: 0 40rpx 32rpx;
 }
 .hero-eyebrow {
   display: flex;
@@ -612,6 +648,76 @@ export default {
   color: #d1d2cc;
   font-size: 27rpx;
   margin-top: 26rpx;
+}
+.hero-actions {
+  position: relative;
+  display: flex;
+  gap: 20rpx;
+  margin-top: auto;
+  padding: 0 40rpx 120rpx;
+}
+.hero-action {
+  flex: 1;
+  min-width: 0;
+  min-height: 144rpx;
+  margin: 0;
+  padding: 18rpx 12rpx;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12rpx;
+  border: 1px solid rgba(255, 255, 255, 0.24);
+  border-radius: 16rpx;
+  background: rgba(24, 25, 23, 0.84);
+  color: #f6f4ef;
+  font-size: 32rpx;
+  font-weight: 700;
+  line-height: 1.2;
+}
+.hero-action-pressed {
+  border-color: #ff7a35;
+  background: #30261f;
+}
+.action-calendar,
+.action-check {
+  position: relative;
+  width: 42rpx;
+  height: 42rpx;
+  border: 2px solid #ff8b52;
+  border-radius: 8rpx;
+}
+.action-calendar::before {
+  content: "";
+  position: absolute;
+  top: -6rpx;
+  left: 6rpx;
+  right: 6rpx;
+  height: 10rpx;
+  border-left: 2px solid #ff8b52;
+  border-right: 2px solid #ff8b52;
+}
+.action-calendar::after {
+  content: "";
+  position: absolute;
+  top: 11rpx;
+  left: 0;
+  right: 0;
+  border-top: 2px solid #ff8b52;
+}
+.action-check {
+  border-radius: 50%;
+}
+.action-check::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: 43%;
+  width: 9rpx;
+  height: 18rpx;
+  border-right: 2px solid #ff8b52;
+  border-bottom: 2px solid #ff8b52;
+  transform: translate(-50%, -50%) rotate(45deg);
 }
 .portal-body {
   flex-shrink: 0;
@@ -775,6 +881,8 @@ export default {
   }
   .hero-copy {
     padding-top: 250px !important;
+  }
+  .hero-actions {
     padding-bottom: 168px;
   }
   .hero-title {
