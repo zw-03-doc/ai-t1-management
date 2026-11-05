@@ -53,8 +53,10 @@
         "appid" : "wx556bef49cde7a986",
         "__usePrivacyCheck__" : false,
         "setting" : {
-            "urlCheck" : false
+            "urlCheck" : false,
+            "minified" : true
         },
+        "lazyCodeLoading" : "requiredComponents",
         "usingComponents" : true,
         "permission" : {}
     },
