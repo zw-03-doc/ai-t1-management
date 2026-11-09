@@ -28,6 +28,7 @@
             <div class="member-no">编号: {{ detail.member?.memberNo }}</div>
             <el-divider />
             <ul class="info-list">
+              <li><span class="label">昵称</span><span class="value">{{ detail.member?.nickname || '—' }}</span></li>
               <li><span class="label">联系电话（本人填写）</span><span class="value">{{ detail.member?.contactMobile || '-' }}</span></li>
               <li><span class="label">档案手机号</span><span class="value">{{ detail.member?.mobile || '-' }}</span></li>
               <li><span class="label">性别</span><span class="value">{{ findDictLabel(genderOptions, detail.member?.gender) || '-' }}</span></li>

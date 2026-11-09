@@ -92,14 +92,15 @@
       </template>
 
       <el-table v-loading="loading" border :data="list" @selection-change="handleSelectionChange">
-        <el-table-column type="selection" width="55" align="center" />
+        <el-table-column v-if="allowDelete && checkPermi([`${permPrefix}:remove`])" type="selection" width="44" align="center" />
         <el-table-column
           v-for="column in tableColumns"
           :key="column.prop"
           :label="column.label"
-          align="center"
+          align="left"
           :prop="column.prop"
           :width="column.width"
+          :min-width="column.minWidth"
           :show-overflow-tooltip="column.showOverflow !== false"
         >
           <template #default="scope">
@@ -110,18 +111,23 @@
               :class="resolveTagClass(column.options, scope.row[column.prop])"
               >{{ resolveOptionLabel(column.options, scope.row[column.prop]) }}</el-tag
             >
-            <span v-else>{{ scope.row[column.prop] }}</span>
+            <span v-else>{{ cellText(scope.row, column) }}</span>
           </template>
         </el-table-column>
-        <el-table-column label="操作" align="center" class-name="small-padding fixed-width" width="160">
+        <el-table-column label="操作" fixed="right" align="center" :width="$slots['row-actions'] ? 164 : 120">
           <template #default="scope">
-            <el-tooltip v-if="allowEdit" content="修改" placement="top">
-              <el-button v-hasPermi="[`${permPrefix}:edit`]" link type="primary" icon="Edit" @click="handleUpdate(scope.row)" />
-            </el-tooltip>
-            <el-tooltip v-if="allowDelete" content="删除" placement="top">
-              <el-button v-hasPermi="[`${permPrefix}:remove`]" link type="primary" icon="Delete" @click="handleDelete(scope.row)" />
-            </el-tooltip>
-            <slot name="row-actions" :row="scope.row" :refresh="getList"></slot>
+            <div class="record-actions">
+              <slot name="detail-action" :row="scope.row">
+                <el-button v-hasPermi="[`${permPrefix}:query`]" link type="primary" @click="detailRow = scope.row">详情</el-button>
+              </slot>
+              <el-tooltip v-if="allowEdit" content="修改" placement="top">
+                <el-button v-hasPermi="[`${permPrefix}:edit`]" link type="primary" icon="Edit" @click="handleUpdate(scope.row)" />
+              </el-tooltip>
+              <el-tooltip v-if="allowDelete" content="删除" placement="top">
+                <el-button v-hasPermi="[`${permPrefix}:remove`]" link type="primary" icon="Delete" @click="handleDelete(scope.row)" />
+              </el-tooltip>
+              <slot name="row-actions" :row="scope.row" :refresh="getList"></slot>
+            </div>
           </template>
         </el-table-column>
       </el-table>
@@ -129,11 +135,14 @@
       <pagination v-show="total > 0" v-model:page="queryParams.pageNum" v-model:limit="queryParams.pageSize" :total="total" @pagination="getList" />
     </el-card>
 
-    <el-dialog v-model="dialog.visible" :title="dialog.title" width="820px" append-to-body :before-close="closeDialog">
-      <el-form ref="formRef" :model="form" :rules="rules" label-width="110px">
+    <FitnessRecordDetails v-if="detailRow" :key="detailRow[idKey]" :title="title + '详情'" :row="detailRow"
+      :fields="[...tableColumns, ...(detailColumns || [])]" :fetch-record="fetchDetail" @close="detailRow = undefined" />
+    <el-dialog v-model="dialog.visible" :title="dialog.title" width="min(900px, 96vw)" append-to-body destroy-on-close :before-close="closeDialog">
+      <el-form v-if="dialog.visible" ref="formRef" :model="form" :rules="rules" :disabled="saving" label-width="110px">
         <el-row>
-          <el-col v-for="field in formFields" :key="field.prop" :span="field.span || 12">
-            <el-form-item :label="field.label" :prop="field.prop">
+          <el-col v-for="field in formFields" :key="field.prop" :span="field.span || 12" :xs="24">
+            <slot v-if="field.type === 'custom'" :name="'field-' + field.prop" :model="form" />
+            <el-form-item v-else :label="field.label" :prop="field.prop">
               <el-input
                 v-if="field.type === 'input' || !field.type"
                 v-model="form[field.prop]"
@@ -205,10 +214,11 @@
           </el-col>
         </el-row>
       </el-form>
+      <el-alert v-if="saveError" :title="saveError" type="error" :closable="false" />
       <template #footer>
         <div class="dialog-footer">
-          <el-button type="primary" @click="submitForm">确 定</el-button>
-          <el-button @click="cancel">取 消</el-button>
+          <el-button type="primary" :loading="saving" @click="submitForm"><slot name="submit-label" :model="form">确定</slot></el-button>
+          <el-button :disabled="saving" @click="cancel">取消</el-button>
         </div>
       </template>
     </el-dialog>
@@ -217,6 +227,8 @@
 
 <script setup name="FitnessCrudPage" lang="ts">
 import { useRoute, useRouter } from 'vue-router';
+import { checkPermi } from '@/utils/permission';
+import FitnessRecordDetails from './FitnessRecordDetails.vue';
 interface OptionItem {
   label: string;
   value: string | number | boolean;
@@ -233,7 +245,7 @@ interface RemoteOptionRequest {
 
 type RemoteMethod = (params: RemoteOptionRequest) => Promise<OptionItem[] & { hasMore?: boolean }>;
 type QueryFieldType = 'input' | 'select' | 'remoteSelect' | 'remoteSelectMultiple' | 'date' | 'datetime';
-type FormFieldType = 'input' | 'textarea' | 'number' | 'select' | 'remoteSelect' | 'remoteSelectMultiple' | 'date' | 'datetime' | 'imageUpload';
+type FormFieldType = 'input' | 'textarea' | 'number' | 'select' | 'remoteSelect' | 'remoteSelectMultiple' | 'date' | 'datetime' | 'imageUpload' | 'custom';
 
 type FieldScope = 'query' | 'form';
 
@@ -265,6 +277,8 @@ interface TableColumn {
   label: string;
   prop: string;
   width?: string | number;
+  minWidth?: number;
+  fallbackProp?: string;
   showOverflow?: boolean;
   type?: 'text' | 'date' | 'tag';
   format?: string;
@@ -286,6 +300,7 @@ const props = withDefaults(
     queryFields: QueryField[];
     formFields: FormField[];
     tableColumns: TableColumn[];
+    detailColumns?: TableColumn[];
     initialQuery: Record<string, any>;
     initialForm: Record<string, any>;
     rules?: Record<string, any>;
@@ -321,6 +336,8 @@ function clearContext() {
   router.replace({ path: route.path, query });
 }
 const loading = ref(false);
+const detailRow = ref<Record<string, any>>();
+const fetchDetail = () => props.getFn(detailRow.value![props.idKey]);
 const showSearch = ref(true);
 const list = ref<any[]>([]);
 const total = ref(0);
@@ -393,6 +410,12 @@ function getFieldOptions(field: FieldConfig, scope: FieldScope) {
     return field.options || [];
   }
   return remoteOptionsMap[getRemoteKey(scope, field.prop)] || [];
+}
+
+function cellText(row: Record<string, any>, column: TableColumn) {
+  const value = row[column.prop];
+  if (value !== null && value !== undefined && value !== '') return value;
+  return column.fallbackProp && row[column.fallbackProp] || '—';
 }
 
 function resolveOptionLabel(options: OptionItem[] | undefined, value: any) {
@@ -481,6 +504,7 @@ const getList = async () => {
 
 const reset = () => {
   editRequest += 1;
+  saveError.value = '';
   invalidateRemoteOptions('form');
   dialog.visible = false;
   formRef.value?.resetFields();
@@ -492,6 +516,7 @@ const cancel = () => {
 };
 
 const closeDialog = (done: () => void) => {
+  if (saving.value) return;
   cancel();
   done();
 };
@@ -533,18 +558,29 @@ const handleUpdate = async (row?: any) => {
   dialog.title = `修改${props.title}`;
 };
 
+const saving = ref(false);
+const saveError = ref('');
 const submitForm = () => {
+  if (saving.value) return;
   const requestId = editRequest;
   formRef.value?.validate(async (valid: boolean) => {
-    if (!valid || requestId !== editRequest) {
+    if (!valid || saving.value || requestId !== editRequest) {
       return;
     }
-    const data = cloneValue(form.value);
-    data[props.idKey] ? await props.updateFn(data) : await props.addFn(data);
-    if (requestId !== editRequest) return;
-    proxy?.$modal.msgSuccess('操作成功');
-    reset();
-    await getList();
+    saving.value = true;
+    saveError.value = '';
+    try {
+      const data = cloneValue(form.value);
+      await (data[props.idKey] ? props.updateFn(data) : props.addFn(data));
+      if (requestId !== editRequest) return;
+      proxy?.$modal.msgSuccess('操作成功');
+      reset();
+      await getList();
+    } catch (error) {
+      if (requestId === editRequest) saveError.value = error instanceof Error ? error.message : '保存失败，请重试';
+    } finally {
+      saving.value = false;
+    }
   });
 };
 
@@ -570,6 +606,7 @@ onMounted(() => {
 });
 
 watch(() => [route.path, route.query], () => {
+  detailRow.value = undefined;
   reset();
   invalidateRemoteOptions('query');
   queryParams.value = applyContext(cloneValue(props.initialQuery));
@@ -584,3 +621,8 @@ onBeforeUnmount(() => {
   invalidateRemoteOptions('query');
 });
 </script>
+
+<style scoped>
+.record-actions { display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 4px 9px; }
+.record-actions :deep(.el-button) { margin: 0; }
+</style>

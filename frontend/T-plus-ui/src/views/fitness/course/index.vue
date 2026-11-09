@@ -63,18 +63,28 @@ const pageConfig = reactive({
     { label: '备注', prop: 'remark', type: 'textarea', span: 24 }
   ],
   tableColumns: [
-    { label: '课程编号', prop: 'courseNo' },
-    { label: '课程名称', prop: 'courseName' },
+    { label: '课程名称', prop: 'courseName', minWidth: 164 },
     { label: '课程类型', prop: 'courseType', type: 'tag', options: courseTypeOptions },
-    { label: '归属门店', prop: 'storeName' },
+    { label: '归属门店', prop: 'storeName', minWidth: 126 },
     { label: '负责教练', prop: 'coachName' },
-    { label: '时长(分钟)', prop: 'durationMinutes' },
     { label: '人数上限', prop: 'capacity' },
     { label: '展示价格(元)', prop: 'displayPrice' },
+    { label: '状态', prop: 'status', type: 'tag', options: statusOptions }
+  ],
+  detailColumns: [
+    { label: '课程编号', prop: 'courseNo' },
+    { label: '时长(分钟)', prop: 'durationMinutes' },
     { label: '上架截止', prop: 'listingUntil', type: 'date' },
     { label: '提前可约(天)', prop: 'bookingAdvanceDays' },
-    { label: '状态', prop: 'status', type: 'tag', options: statusOptions },
-    { label: '创建时间', prop: 'createTime', type: 'date' }
+    { label: '创建时间', prop: 'createTime', type: 'date' },
+    { label: '上架开始', prop: 'publishedAt', type: 'date' },
+    { label: '上架天数', prop: 'listingDays' },
+    { label: '开课前停止预约（分钟）', prop: 'bookingCloseMinutes' },
+    { label: '开课前停止取消（分钟）', prop: 'cancelCloseMinutes' },
+    { label: '提前签到（分钟）', prop: 'checkinBeforeMinutes' },
+    { label: '课后签到（分钟）', prop: 'checkinAfterMinutes' },
+    { label: '课程介绍', prop: 'description' },
+    { label: '备注', prop: 'remark' }
   ],
   initialQuery: {
     storeId: '',

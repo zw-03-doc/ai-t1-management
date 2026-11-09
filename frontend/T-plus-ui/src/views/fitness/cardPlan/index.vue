@@ -58,17 +58,23 @@ const pageConfig = reactive({
     { label: '备注', prop: 'remark', type: 'textarea', span: 24 }
   ],
   tableColumns: [
-    { label: '方案编号', prop: 'planNo' },
-    { label: '适用门店', prop: 'storeName' },
-    { label: '方案名称', prop: 'planName' },
+    { label: '方案名称', prop: 'planName', minWidth: 164 },
     { label: '卡项类型', prop: 'planType', type: 'tag', options: planTypeOptions },
+    { label: '适用门店', prop: 'storeName', minWidth: 126 },
     { label: '销售价', prop: 'salePrice' },
+    { label: '状态', prop: 'status', type: 'tag', options: statusOptions }
+  ],
+  detailColumns: [
+    { label: '方案编号', prop: 'planNo' },
     { label: '总次数', prop: 'totalTimes' },
     { label: '绑定教练', prop: 'customCoachName' },
     { label: '指定会员', prop: 'customMemberNames' },
     { label: '关联课程', prop: 'bindCourseName' },
-    { label: '状态', prop: 'status', type: 'tag', options: statusOptions },
-    { label: '创建时间', prop: 'createTime', type: 'date' }
+    { label: '创建时间', prop: 'createTime', type: 'date' },
+    { label: '有效天数', prop: 'validDays' },
+    { label: '赠送次数', prop: 'giftTimes' },
+    { label: '储值金额', prop: 'storedAmount' },
+    { label: '备注', prop: 'remark' }
   ],
   initialQuery: {
     pageNum: 1,

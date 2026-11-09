@@ -23,7 +23,7 @@
         <el-table-column label="状态" width="100"><template #default="scope"><el-tag>{{ planStatus(scope.row.status) }}</el-tag></template></el-table-column>
         <el-table-column label="公开范围" width="100"><template #default="scope">{{ scope.row.visibility === 'public' ? '公开免费' : '私人计划' }}</template></el-table-column>
         <el-table-column prop="startDate" label="开始日期" width="120" />
-        <el-table-column label="档案" width="170"><template #default="scope"><el-button link type="primary" @click="detail(scope.row)">日程、逐组记录与审计</el-button></template></el-table-column>
+        <el-table-column label="操作" fixed="right" width="80"><template #default="scope"><el-button link type="primary" @click="detail(scope.row)">详情</el-button></template></el-table-column>
       </el-table>
     </el-card>
     <el-dialog v-model="visible" :title="detailTitle" width="90%" @closed="closeDetail">

@@ -11,16 +11,25 @@
           label="行为"
           min-width="150" /><el-table-column prop="memberName" label="会员" /><el-table-column prop="storeName" label="门店" /><el-table-column
           prop="source"
-          label="来源" /><el-table-column prop="reservationId" label="预约编号" min-width="180" /><el-table-column
-          prop="remark"
-          label="说明 / 原因"
-          min-width="200" /></el-table
+          label="来源" />
+        <el-table-column label="操作" width="76" fixed="right">
+          <template #default="{ row }"><el-button link type="primary" @click="selected = row">详情</el-button></template>
+        </el-table-column></el-table
       ><pagination v-model:page="query.pageNum" v-model:limit="query.pageSize" :total="total" @pagination="load"
     /></el-card>
+    <FitnessRecordDetails v-if="selected" title="行为详情" :fields="detailFields" :row="selected" @close="selected = undefined" />
   </div>
 </template>
 <script setup lang="ts" name="FitnessBehavior">
 import request from '@/utils/request';
+import FitnessRecordDetails from '../components/FitnessRecordDetails.vue';
+const selected = ref<Record<string, any>>();
+const detailFields = [
+  { label: '时间（北京时间）', prop: 'createdAt', type: 'date' },
+  { label: '行为', prop: 'action' }, { label: '操作人', prop: 'actorName' }, { label: '身份', prop: 'actorType' },
+  { label: '会员', prop: 'memberName' }, { label: '门店', prop: 'storeName' }, { label: '来源', prop: 'source' },
+  { label: '预约记录 ID', prop: 'reservationId' }, { label: '说明 / 原因', prop: 'remark' },
+];
 const actionLabels: Record<string, string> = {
   coach_create_schedule: '教练排课',
   admin_finish_schedule: '管理员结束场次',

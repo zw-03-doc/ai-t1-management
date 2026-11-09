@@ -90,6 +90,20 @@ public class FitnessScheduleServiceImpl implements IFitnessScheduleService {
     }
 
     @Override
+    @Transactional(rollbackFor = Exception.class)
+    public void insertBatch(List<FitnessScheduleBo> rows) {
+        for (int i = 0; i < rows.size(); i++) {
+            FitnessScheduleBo row = rows.get(i);
+            row.setScheduleId(null);
+            try {
+                if (!insertByBo(row)) throw new ServiceException("创建失败");
+            } catch (ServiceException error) {
+                throw new ServiceException("第" + (i + 1) + "场：" + error.getMessage());
+            }
+        }
+    }
+
+    @Override
     @Lock4j(keys = {"'schedule:update:' + #bo.scheduleId"}, acquireTimeout = 3000)
     @Transactional(rollbackFor = Exception.class)
     public Boolean updateByBo(FitnessScheduleBo bo) {

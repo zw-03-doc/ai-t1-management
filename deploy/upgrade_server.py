@@ -15,6 +15,7 @@ EXPECTED_MIGRATIONS = (
     'V1.3.7__login_policy_consent.sql',
     'V1.3.8__archive_framework_examples.sql',
     'V1.3.9__coach_web_password.sql',
+    'V1.3.10__activity_plan_tenant.sql',
 )
 
 def release_file(release, name):

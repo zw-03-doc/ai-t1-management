@@ -2,6 +2,7 @@ package org.dromara.fitness.controller;
 
 import cn.dev33.satoken.annotation.SaCheckPermission;
 import jakarta.servlet.http.HttpServletResponse;
+import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotEmpty;
 import jakarta.validation.constraints.NotNull;
 import lombok.RequiredArgsConstructor;
@@ -63,6 +64,18 @@ public class FitnessScheduleController extends BaseController {
     @PostMapping()
     public R<Void> add(@Validated(AddGroup.class) @RequestBody FitnessScheduleBo bo) {
         return toAjax(fitnessScheduleService.insertByBo(bo));
+    }
+
+    public record BatchSchedules(@NotEmpty(groups = AddGroup.class, message = "请至少选择一个场次")
+                                 List<@NotNull(groups = AddGroup.class) @Valid FitnessScheduleBo> rows) {}
+
+    @SaCheckPermission("fitness:schedule:add")
+    @Log(title = "批量排课", businessType = BusinessType.INSERT)
+    @RepeatSubmit
+    @PostMapping("/batch")
+    public R<Void> addBatch(@Validated(AddGroup.class) @RequestBody BatchSchedules batch) {
+        fitnessScheduleService.insertBatch(batch.rows());
+        return R.ok();
     }
 
     @SaCheckPermission("fitness:schedule:edit")

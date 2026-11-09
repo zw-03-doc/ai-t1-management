@@ -1,7 +1,7 @@
 <template>
   <FitnessCrudPage v-bind="pageConfig as any">
-    <template #row-actions="{ row }">
-      <el-button v-hasPermi="['fitness:store:query']" link type="primary" @click="openDetail(row)">门店详情</el-button>
+    <template #detail-action="{ row }">
+      <el-button v-hasPermi="['fitness:store:query']" link type="primary" @click="openDetail(row)">详情</el-button>
     </template>
   </FitnessCrudPage>
   <el-drawer v-model="detailVisible" :title="selectedStore?.storeName || '门店详情'" size="min(900px, 95vw)">
@@ -11,6 +11,10 @@
         <el-descriptions-item label="营业时间">{{ selectedStore.businessHours || '未设置' }}</el-descriptions-item>
         <el-descriptions-item label="联系人">{{ selectedStore.contactName || '未设置' }}</el-descriptions-item>
         <el-descriptions-item label="联系电话">{{ selectedStore.contactPhone || '未设置' }}</el-descriptions-item>
+        <el-descriptions-item label="门店简称">{{ selectedStore.storeShortName || '—' }}</el-descriptions-item>
+        <el-descriptions-item label="状态">{{ statusOptions.find(option => option.value === selectedStore.status)?.label || '—' }}</el-descriptions-item>
+        <el-descriptions-item label="创建时间">{{ selectedStore.createTime || '—' }}</el-descriptions-item>
+        <el-descriptions-item label="备注" :span="2">{{ selectedStore.remark || '—' }}</el-descriptions-item>
         <el-descriptions-item label="地址" :span="2">{{ selectedStore.address || '未设置' }}</el-descriptions-item>
       </el-descriptions>
       <el-space wrap class="my-[16px]">
@@ -115,13 +119,11 @@ const pageConfig = reactive({
     { label: '备注', prop: 'remark', type: 'textarea', span: 24 }
   ],
   tableColumns: [
-    { label: '门店编码', prop: 'storeCode' },
-    { label: '门店名称', prop: 'storeName' },
-    { label: '联系人', prop: 'contactName' },
-    { label: '联系电话', prop: 'contactPhone' },
+    { label: '门店名称', prop: 'storeName', minWidth: 164 },
+    { label: '地址', prop: 'address', minWidth: 160 },
+    { label: '联系电话', prop: 'contactPhone', minWidth: 120 },
     { label: '营业时间', prop: 'businessHours' },
-    { label: '状态', prop: 'status', type: 'tag', options: statusOptions },
-    { label: '创建时间', prop: 'createTime', type: 'date' }
+    { label: '状态', prop: 'status', type: 'tag', options: statusOptions }
   ],
   initialQuery: {
     pageNum: 1,

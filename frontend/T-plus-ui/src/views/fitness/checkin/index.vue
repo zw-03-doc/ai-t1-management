@@ -58,6 +58,10 @@ const progressOptions = [
 
 const noop = async () => ({ code: 200, data: {} });
 
+function withProgress(row: any) {
+  return { ...row, redemptionState: row.checkinStatus === 'reversed' ? 'exception' : row.operatorUserId ? 'confirmed' : 'pending' };
+}
+
 const pageConfig = reactive({
   title: '签到核销',
   permPrefix: 'fitness:checkin',
@@ -74,19 +78,22 @@ const pageConfig = reactive({
   ],
   formFields: [],
   tableColumns: [
+    { label: '会员', prop: 'memberName', minWidth: 164 },
+    { label: '课程', prop: 'courseName', minWidth: 146 },
+    { label: '教练', prop: 'coachName' },
+    { label: '门店', prop: 'storeName', minWidth: 126 },
+    { label: '签到时间', prop: 'checkinTime', type: 'date', minWidth: 154 },
+    { label: '核销进度', prop: 'redemptionState', type: 'tag', options: progressOptions }
+  ],
+  detailColumns: [
     { label: '签到编号', prop: 'checkinNo' },
     { label: '预约编号', prop: 'reservationNo' },
-    { label: '门店', prop: 'storeName' },
-    { label: '课程', prop: 'courseName' },
-    { label: '教练', prop: 'coachName' },
-    { label: '会员', prop: 'memberName' },
     { label: '扣减卡项', prop: 'cardName' },
-    { label: '签到时间', prop: 'checkinTime', type: 'date' },
     { label: '消耗次数', prop: 'consumeTimes' },
     { label: '消耗金额', prop: 'consumeAmount' },
     { label: '核销人', prop: 'operatorUserName' },
-    { label: '核销进度', prop: 'redemptionState', type: 'tag', options: progressOptions },
-    { label: '签到状态', prop: 'checkinStatus', type: 'tag', options: statusOptions }
+    { label: '签到状态', prop: 'checkinStatus', type: 'tag', options: statusOptions },
+    { label: '备注', prop: 'remark' }
   ],
   initialQuery: {
     memberId: '',
@@ -104,13 +111,13 @@ const pageConfig = reactive({
     const response: any = await listCheckin(query);
     return {
       ...response,
-      rows: (response.rows || []).map((row: any) => ({
-        ...row,
-        redemptionState: row.checkinStatus === 'reversed' ? 'exception' : row.operatorUserId ? 'confirmed' : 'pending'
-      }))
+      rows: (response.rows || []).map(withProgress)
     };
   },
-  getFn: getCheckin,
+  getFn: async (id: string | number) => {
+    const response = await getCheckin(id);
+    return { ...response, data: response.data ? withProgress(response.data) : null };
+  },
   addFn: noop,
   updateFn: noop,
   delFn: noop

@@ -1,9 +1,7 @@
 <template>
   <FitnessCrudPage v-bind="pageConfig as any">
-    <template #row-actions="{ row }">
-      <el-tooltip content="详情" placement="top">
-        <el-button v-hasPermi="['fitness:member:query']" link type="primary" icon="View" @click="handleDetail(row)" />
-      </el-tooltip>
+    <template #detail-action="{ row }">
+      <el-button v-hasPermi="['fitness:member:query']" link type="primary" @click="handleDetail(row)">详情</el-button>
     </template>
   </FitnessCrudPage>
 </template>
@@ -53,13 +51,11 @@ const pageConfig = reactive({
     { label: '备注', prop: 'remark', type: 'textarea', span: 24 }
   ],
   tableColumns: [
-    { label: '会员编号', prop: 'memberNo' },
-    { label: '姓名', prop: 'realName' },
-    { label: '昵称', prop: 'nickname' },
-    { label: '手机号', prop: 'mobile' },
-    { label: '归属门店', prop: 'homeStoreName' },
+    { label: '姓名', prop: 'realName', minWidth: 164, fallbackProp: 'nickname' },
+    { label: '手机号', prop: 'mobile', minWidth: 120 },
+    { label: '归属门店', prop: 'homeStoreName', minWidth: 126 },
     { label: '会员状态', prop: 'memberStatus', type: 'tag', options: memberStatusOptions },
-    { label: '最近到店时间', prop: 'lastVisitTime', type: 'date' }
+    { label: '最近到店时间', prop: 'lastVisitTime', type: 'date', minWidth: 150 }
   ],
   initialQuery: {
     homeStoreId: '',

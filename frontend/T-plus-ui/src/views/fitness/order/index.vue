@@ -100,18 +100,20 @@ const pageConfig = reactive({
     { label: '备注', prop: 'remark', type: 'textarea', span: 24 }
   ],
   tableColumns: [
+    { label: '会员', prop: 'memberName', minWidth: 164 },
+    { label: '卡项方案', prop: 'planName', minWidth: 136 },
+    { label: '门店', prop: 'storeName', minWidth: 126 },
+    { label: '应付金额', prop: 'payableAmount' },
+    { label: '实付金额', prop: 'paidAmount' },
+    { label: '订单状态', prop: 'orderStatus', type: 'tag', options: orderStatusOptions },
+    { label: '创建时间', prop: 'createTime', type: 'date', minWidth: 154 }
+  ],
+  detailColumns: [
     { label: '订单号', prop: 'orderNo' },
-    { label: '门店', prop: 'storeName' },
-    { label: '会员', prop: 'memberName' },
-    { label: '卡项方案', prop: 'planName' },
     { label: '绑定教练', prop: 'coachName' },
     { label: '订单类型', prop: 'orderType', type: 'tag', options: orderTypeOptions },
     { label: '订单来源', prop: 'orderSource', type: 'tag', options: orderSourceOptions },
-    { label: '订单状态', prop: 'orderStatus', type: 'tag', options: orderStatusOptions },
-    { label: '支付方式', prop: 'payMethod', type: 'tag', options: payMethodOptions },
-    { label: '应付金额', prop: 'payableAmount' },
-    { label: '实付金额', prop: 'paidAmount' },
-    { label: '创建时间', prop: 'createTime', type: 'date' }
+    { label: '支付方式', prop: 'payMethod', type: 'tag', options: payMethodOptions }
   ],
   initialQuery: {
     pageNum: 1,

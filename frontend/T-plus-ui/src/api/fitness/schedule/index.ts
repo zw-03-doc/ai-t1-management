@@ -18,6 +18,10 @@ export function addSchedule(data: FitnessScheduleForm) {
   return request({ url: '/fitness/schedule', method: 'post', data });
 }
 
+export function addScheduleBatch(rows: FitnessScheduleForm[]) {
+  return request({ url: '/fitness/schedule/batch', method: 'post', data: { rows } });
+}
+
 export function updateSchedule(data: FitnessScheduleForm) {
   return request({ url: '/fitness/schedule', method: 'put', data });
 }

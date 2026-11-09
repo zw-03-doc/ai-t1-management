@@ -106,16 +106,18 @@ const pageConfig = reactive({
   ],
   formFields: [],
   tableColumns: [
-    { label: '门店', prop: 'storeName' },
-    { label: '会员', prop: 'memberName' },
-    { label: '手机号', prop: 'memberMobile' },
-    { label: '方案名称', prop: 'planName' },
-    { label: '卡号', prop: 'cardNo' },
+    { label: '会员', prop: 'memberName', minWidth: 164 },
+    { label: '方案名称', prop: 'planName', minWidth: 136 },
     { label: '卡项类型', prop: 'planType', type: 'tag', options: planTypeOptions },
     { label: '剩余次数', prop: 'remainTimes' },
     { label: '剩余余额', prop: 'balanceAmount' },
-    { label: '到期时间', prop: 'expireTime', type: 'date' },
+    { label: '到期时间', prop: 'expireTime', type: 'date', minWidth: 150 },
     { label: '卡状态', prop: 'cardStatus', type: 'tag', options: cardStatusOptions }
+  ],
+  detailColumns: [
+    { label: '门店', prop: 'storeName' },
+    { label: '手机号', prop: 'memberMobile' },
+    { label: '卡号', prop: 'cardNo' }
   ],
   initialQuery: {
     pageNum: 1,

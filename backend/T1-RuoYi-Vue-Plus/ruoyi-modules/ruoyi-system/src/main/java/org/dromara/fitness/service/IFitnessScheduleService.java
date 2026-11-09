@@ -23,6 +23,8 @@ public interface IFitnessScheduleService {
 
     Boolean insertByBo(FitnessScheduleBo bo);
 
+    void insertBatch(List<FitnessScheduleBo> rows);
+
     Boolean updateByBo(FitnessScheduleBo bo);
 
     Boolean cancelSchedule(Long scheduleId, String cancelReason);

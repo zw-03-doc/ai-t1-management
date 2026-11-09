@@ -90,20 +90,25 @@ const pageConfig = reactive({
     { label: '备注', prop: 'remark', type: 'textarea', span: 24 }
   ],
   tableColumns: [
+    { label: '会员', prop: 'memberName', minWidth: 164 },
+    { label: '课程', prop: 'courseName', minWidth: 146 },
+    { label: '教练', prop: 'coachName' },
+    { label: '门店', prop: 'storeName', minWidth: 126 },
+    { label: '开课时间', prop: 'startTime', type: 'date', minWidth: 154 },
+    { label: '预约状态', prop: 'reservationStatus', type: 'tag', options: statusOptions },
+    { label: '签到状态', prop: 'checkinStatus', type: 'tag', options: checkinStatusOptions }
+  ],
+  detailColumns: [
     { label: '预约编号', prop: 'reservationNo' },
     { label: '排课编号', prop: 'scheduleNo' },
-    { label: '门店', prop: 'storeName' },
-    { label: '课程', prop: 'courseName' },
-    { label: '教练', prop: 'coachName' },
-    { label: '会员', prop: 'memberName' },
     { label: '手机号', prop: 'memberMobile' },
     { label: '预约类型', prop: 'reservationType', type: 'tag', options: reservationTypeOptions },
     { label: '排课日期', prop: 'scheduleDate', type: 'date', format: '{y}-{m}-{d}' },
-
     { label: '预约来源', prop: 'reservationSource', type: 'tag', options: sourceOptions },
-    { label: '预约状态', prop: 'reservationStatus', type: 'tag', options: statusOptions },
-    { label: '签到状态', prop: 'checkinStatus', type: 'tag', options: checkinStatusOptions },
-    { label: '创建时间', prop: 'createTime', type: 'date' }
+    { label: '创建时间', prop: 'createTime', type: 'date' },
+    { label: '使用卡项', prop: 'cardName' },
+    { label: '取消原因', prop: 'cancelReason' },
+    { label: '备注', prop: 'remark' }
   ],
   initialQuery: {
     scheduleId: undefined,

@@ -65,16 +65,22 @@ const pageConfig = reactive({
     { label: '备注', prop: 'remark', type: 'textarea', span: 24 }
   ],
   tableColumns: [
-    { label: '活动编号', prop: 'activityNo' },
-    { label: '活动标题', prop: 'title' },
-    { label: '门店', prop: 'storeName' },
+    { label: '活动标题', prop: 'title', minWidth: 164 },
+    { label: '门店', prop: 'storeName', minWidth: 126 },
     { label: '活动类型', prop: 'activityType', type: 'tag', options: activityTypeOptions },
+    { label: '开始时间', prop: 'startTime', type: 'date', minWidth: 154 },
+    { label: '结束时间', prop: 'endTime', type: 'date', minWidth: 154 },
+    { label: '状态', prop: 'status', type: 'tag', options: statusOptions }
+  ],
+  detailColumns: [
+    { label: '活动编号', prop: 'activityNo' },
     { label: '动作类型', prop: 'actionType', type: 'tag', options: actionTypeOptions },
     { label: '价格亮点', prop: 'priceHighlight' },
     { label: '本周主推', prop: 'weeklyFeatured', type: 'tag', options: featuredOptions },
-    { label: '状态', prop: 'status', type: 'tag', options: statusOptions },
-    { label: '开始时间', prop: 'startTime', type: 'date' },
-    { label: '结束时间', prop: 'endTime', type: 'date' }
+    { label: '副标题', prop: 'subTitle' },
+    { label: '折扣', prop: 'discountLabel' },
+    { label: '活动规则', prop: 'ruleNote' },
+    { label: '活动说明', prop: 'detailContent' }
   ],
   initialQuery: {
     pageNum: 1,

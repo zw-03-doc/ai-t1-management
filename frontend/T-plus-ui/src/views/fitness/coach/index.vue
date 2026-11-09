@@ -53,18 +53,20 @@ const pageConfig = reactive({
     { label: '备注', prop: 'remark', type: 'textarea', span: 24 }
   ],
   tableColumns: [
+    { label: '教练姓名', prop: 'coachName', minWidth: 164 },
+    { label: '所属门店', prop: 'storeName', minWidth: 126 },
+    { label: '手机号', prop: 'mobile', minWidth: 120 },
+    { label: '擅长标签', prop: 'skillTags' },
+    { label: '任职状态', prop: 'hireStatus', type: 'tag', options: hireStatusOptions }
+  ],
+  detailColumns: [
     { label: '教练编号', prop: 'coachNo' },
     { label: '激活码', prop: 'activationCode' },
-    { label: '所属门店', prop: 'storeName' },
-    { label: '教练姓名', prop: 'coachName' },
-    { label: '手机号', prop: 'mobile' },
     { label: '咨询微信号', prop: 'contactWechat' },
-
-    { label: '擅长标签', prop: 'skillTags' },
-
     { label: '教练等级', prop: 'levelCode' },
-    { label: '任职状态', prop: 'hireStatus', type: 'tag', options: hireStatusOptions },
-    { label: '创建时间', prop: 'createTime', type: 'date' }
+    { label: '创建时间', prop: 'createTime', type: 'date' },
+    { label: '教练简介', prop: 'intro' },
+    { label: '备注', prop: 'remark' }
   ],
   initialQuery: {
     pageNum: 1,
