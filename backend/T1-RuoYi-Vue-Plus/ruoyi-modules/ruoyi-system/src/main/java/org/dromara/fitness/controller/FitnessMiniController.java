@@ -3,6 +3,7 @@ package org.dromara.fitness.controller;
 import cn.dev33.satoken.annotation.SaCheckLogin;
 import cn.dev33.satoken.annotation.SaIgnore;
 import lombok.RequiredArgsConstructor;
+import org.dromara.fitness.service.support.FitnessPolicyConsent;
 import org.dromara.common.core.domain.R;
 import org.dromara.common.idempotent.annotation.RepeatSubmit;
 import org.dromara.common.mybatis.core.page.PageQuery;
@@ -28,12 +29,14 @@ import java.util.List;
 @RequestMapping("/fitness/mini")
 public class FitnessMiniController extends BaseController {
 
+    private final FitnessPolicyConsent consent;
     private final IFitnessMiniService fitnessMiniService;
 
     @SaIgnore
     @PostMapping("/auth/wechatLogin")
     public R<FitnessMiniVo.LoginVo> wechatLogin(@Validated @RequestBody FitnessMiniBo.WechatLoginBo bo) {
-        return R.ok(fitnessMiniService.wechatLogin(bo));
+        consent.requireCurrent(bo.getConsentVersion());
+        return R.ok(consent.recordMember(fitnessMiniService.wechatLogin(bo)));
     }
 
     @SaCheckLogin

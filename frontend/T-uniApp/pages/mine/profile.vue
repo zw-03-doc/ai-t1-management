@@ -249,34 +249,34 @@ export default {
 <style scoped>
 .profile-page {
   min-height: 100vh; box-sizing: border-box; max-width: 860rpx; margin: auto;
-  padding: 40rpx 32rpx calc(56rpx + env(safe-area-inset-bottom)); background: #111211; color: #f6f4ef;
+  padding: 40rpx 32rpx calc(56rpx + env(safe-area-inset-bottom)); background: var(--t1-bg); color: var(--t1-text);
 }
 .page-title { font-size: 48rpx; line-height: 1.25; font-weight: 700; }
-.intro, .hint, .field-note, .character-count { color: #abaea6; line-height: 1.6; }
+.intro, .hint, .field-note, .character-count { color: var(--t1-muted); line-height: 1.6; }
 .intro { margin-top: 14rpx; font-size: 26rpx; }
 .avatar-row { display: flex; align-items: center; gap: 24rpx; padding: 40rpx 0; }
 .avatar-actions { flex: 1; }
-.avatar-button, .text-button, .skip { margin: 0; color: #f6f4ef; background: transparent; font-weight: 500; }
+.avatar-button, .text-button, .skip { margin: 0; color: var(--t1-text); background: transparent; font-weight: 500; }
 button::after { border: 0; }
 .avatar-button { padding: 0; font-size: 30rpx; line-height: 1.6; text-align: left; }
 .hint { display: block; margin-top: 6rpx; font-size: 22rpx; }
-.text-button { padding: 12rpx 0; font-size: 26rpx; color: #ff985d; }
-.remove { color: #abaea6; padding: 20rpx 4rpx; }
-.form-card { border: 1rpx solid #33352f; border-radius: 20rpx; padding: 0 26rpx; background: #1d1e1b; }
-.field { display: flex; align-items: center; justify-content: space-between; gap: 18rpx; min-height: 102rpx; border-bottom: 1rpx solid #32342f; }
+.text-button { padding: 12rpx 0; font-size: 26rpx; color: var(--t1-accent); }
+.remove { color: var(--t1-muted); padding: 20rpx 4rpx; }
+.form-card { border: 1rpx solid var(--t1-border); border-radius: 20rpx; padding: 0 26rpx; background: var(--t1-surface); }
+.field { display: flex; align-items: center; justify-content: space-between; gap: 18rpx; min-height: 102rpx; border-bottom: 1rpx solid var(--t1-border); }
 .field.last { border-bottom: 0; }
-.label { white-space: nowrap; color: #c9cbc4; font-size: 27rpx; }
-.input, .value { min-width: 0; flex: 1; font-size: 28rpx; color: #f6f4ef; text-align: right; }
+.label { white-space: nowrap; color: var(--t1-muted); font-size: 27rpx; }
+.input, .value { min-width: 0; flex: 1; font-size: 28rpx; color: var(--t1-text); text-align: right; }
 .input { height: 90rpx; }
 .field-note { padding: 18rpx 0; font-size: 22rpx; }
 .section-title { margin: 32rpx 0 16rpx; font-size: 27rpx; font-weight: 600; }
 .note-card { padding: 22rpx 26rpx; }
 .note-card textarea { width: 100%; height: 154rpx; font-size: 27rpx; line-height: 1.6; }
 .character-count { text-align: right; font-size: 21rpx; }
-.primary { margin-top: 32rpx; background: #ff7a35; color: #111211; font-size: 30rpx; border-radius: 14rpx; font-weight: 700; line-height: 88rpx; }
+.primary { margin-top: 32rpx; background: var(--t1-text); color: var(--t1-on-dark); font-size: 30rpx; border-radius: 14rpx; font-weight: 700; line-height: 88rpx; }
 .skip { margin-top: 12rpx; width: 100%; font-size: 27rpx; line-height: 80rpx; }
 .clear-date { margin-left: auto; text-align: right; }
 .notice, .error-message { margin: 28rpx 0 0; font-size: 26rpx; }
-.error-message { color: #ffb18c; }
+.error-message { color: var(--t1-danger); }
 button[disabled] { opacity: .55; }
 </style>

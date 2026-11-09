@@ -1,10 +1,5 @@
 <template>
   <view class="student-page">
-    <view class="page-head"
-      ><text class="eyebrow">学员管理</text
-      ><view class="page-title">我的学员</view
-      ><view class="page-desc">查看到课记录，持续跟进训练</view></view
-    >
     <view class="search-row"
       ><input
         v-model.trim="keyword"
@@ -25,7 +20,7 @@
     >
     <view v-if="loading" class="state-card"
       ><text class="state-title">正在加载学员</text
-      ><text class="muted">请稍候</text></view
+      ></view
     >
     <view v-else-if="errorText && !list.length" class="state-card"
       ><text class="state-title">学员加载失败</text
@@ -34,7 +29,6 @@
     >
     <block v-else>
       <view v-if="!students.length" class="state-card"
-        ><text class="empty-mark">—</text
         ><text class="state-title">{{
           keyword ? "没有找到匹配的学员" : "暂无绑定学员"
         }}</text
@@ -212,8 +206,8 @@ export default {
   margin: 0 auto;
   min-height: 100vh;
   padding: 32rpx 32rpx calc(160rpx + env(safe-area-inset-bottom));
-  background: #111211;
-  color: #f6f4ef;
+  background: var(--t1-bg);
+  color: var(--t1-text);
 }
 button {
   padding: 0;
@@ -230,22 +224,6 @@ button::after {
 button[disabled] {
   opacity: 0.5;
 }
-.page-head {
-  padding: 8rpx 0 32rpx;
-}
-.eyebrow {
-  color: #ff7a35;
-  font-size: 22rpx;
-}
-.page-title {
-  font-size: 46rpx;
-  font-weight: 700;
-  margin: 12rpx 0;
-}
-.page-desc {
-  font-size: 26rpx;
-  color: #a2a49c;
-}
 .search-row {
   display: flex;
   gap: 12rpx;
@@ -255,12 +233,12 @@ button[disabled] {
   min-width: 0;
   height: 90rpx;
   box-sizing: border-box;
-  background: #1c1d1b;
-  border: 1rpx solid #30322f;
+  background: var(--t1-surface);
+  border: 1rpx solid var(--t1-border);
   border-radius: 14rpx;
   padding: 0 22rpx;
   font-size: 25rpx;
-  color: #f6f4ef;
+  color: var(--t1-text);
 }
 .search-btn {
   min-width: 116rpx;
@@ -268,8 +246,8 @@ button[disabled] {
   display: flex;
   justify-content: center;
   align-items: center;
-  color: #111211;
-  background: #ff7a35;
+  color: var(--t1-on-dark);
+  background: var(--t1-text);
   border-radius: 14rpx;
   font-size: 26rpx;
   font-weight: 600;
@@ -286,12 +264,12 @@ button[disabled] {
   font-weight: 600;
 }
 .count-label {
-  color: #a2a49c;
+  color: var(--t1-muted);
   font-size: 23rpx;
 }
 .student-card {
-  background: #1c1d1b;
-  border: 1rpx solid #30322f;
+  background: var(--t1-surface);
+  border: 1rpx solid var(--t1-border);
   border-radius: 20rpx;
   margin-bottom: 20rpx;
   padding: 28rpx;
@@ -306,11 +284,11 @@ button[disabled] {
   width: 84rpx;
   flex-shrink: 0;
   border-radius: 18rpx;
-  border: 1rpx solid #30322f;
+  border: 1rpx solid var(--t1-border);
   display: flex;
   align-items: center;
   justify-content: center;
-  color: #ff7a35;
+  color: var(--t1-accent);
   font-size: 32rpx;
 }
 .student-main {
@@ -324,19 +302,19 @@ button[disabled] {
 }
 .student-mobile {
   display: block;
-  color: #a2a49c;
+  color: var(--t1-muted);
   font-size: 24rpx;
   margin-top: 8rpx;
 }
 .upcoming {
   padding: 24rpx;
   border-radius: 14rpx;
-  background: #252722;
+  background: var(--t1-inset);
   margin-top: 26rpx;
 }
 .upcoming-label {
   display: block;
-  color: #a2a49c;
+  color: var(--t1-muted);
   font-size: 22rpx;
 }
 .upcoming-title {
@@ -346,7 +324,7 @@ button[disabled] {
   font-weight: 600;
 }
 .muted {
-  color: #a2a49c;
+  color: var(--t1-muted);
   display: block;
   font-size: 24rpx;
   line-height: 1.7;
@@ -360,7 +338,7 @@ button[disabled] {
 }
 .small-label {
   display: block;
-  color: #a2a49c;
+  color: var(--t1-muted);
   font-size: 22rpx;
 }
 .visit-value {
@@ -372,23 +350,23 @@ button[disabled] {
   text-align: right;
 }
 .cards {
-  border-top: 1rpx solid #30322f;
+  border-top: 1rpx solid var(--t1-border);
 }
 .card-row {
   padding: 20rpx 0;
 }
 .card-row + .card-row {
-  border-top: 1rpx solid #30322f;
+  border-top: 1rpx solid var(--t1-border);
 }
 .card-name {
-  color: #c4c6bd;
+  color: var(--t1-muted);
   font-size: 24rpx;
 }
 .card-detail {
   display: flex;
   flex-wrap: wrap;
   gap: 8rpx 24rpx;
-  color: #a2a49c;
+  color: var(--t1-muted);
   font-size: 22rpx;
   margin-top: 8rpx;
 }
@@ -400,8 +378,8 @@ button[disabled] {
   min-height: 88rpx;
   padding: 0 22rpx;
   box-sizing: border-box;
-  border: 1rpx solid #62422e;
-  color: #ff7a35;
+  border: 1rpx solid var(--t1-accent);
+  color: var(--t1-accent);
   border-radius: 12rpx;
   font-size: 26rpx;
   font-weight: 600;
@@ -410,8 +388,8 @@ button[disabled] {
 .state-card {
   text-align: center;
   padding: 48rpx 28rpx;
-  border: 1rpx solid #30322f;
-  background: #1c1d1b;
+  border: 1rpx solid var(--t1-border);
+  background: var(--t1-surface);
   border-radius: 20rpx;
 }
 .state-title {
@@ -419,32 +397,26 @@ button[disabled] {
   font-size: 29rpx;
   font-weight: 600;
 }
-.empty-mark {
-  display: block;
-  color: #ff7a35;
-  font-size: 50rpx;
-  margin-bottom: 14rpx;
-}
 .secondary-btn {
   margin-top: 24rpx;
   min-height: 88rpx;
   line-height: 88rpx;
   border-radius: 12rpx;
   padding: 0 24rpx;
-  color: #f6f4ef;
-  background: #30322f;
+  color: var(--t1-text);
+  background: var(--t1-inset);
   font-size: 26rpx;
 }
 .end-label,
 .inline-error {
   display: block;
   text-align: center;
-  color: #a2a49c;
+  color: var(--t1-danger);
   font-size: 22rpx;
   line-height: 1.7;
   padding: 20rpx 0;
 }
 .inline-error {
-  color: #ff7a35;
+  color: var(--t1-danger);
 }
 </style>

@@ -1,8 +1,6 @@
 <template>
   <view class="page-wrap with-nav">
-    <view class="eyebrow">T1 / CLASSES</view>
-    <view class="page-title">让训练有个约定</view>
-    <view class="page-subtitle">先了解课程，再选择适合你的日期与时段。</view>
+
     <scroll-view class="scroll tabs" scroll-x :show-scrollbar="false">
       <view
         class="chip"
@@ -123,7 +121,7 @@
           >
         </view>
         <view v-if="!courseList.length" class="empty"
-          ><text class="empty-title">新课程正在准备</text
+          ><text class="empty-title">暂无课程</text
           >换个类型看看，或稍后再来。</view
         >
       </block>
@@ -172,7 +170,7 @@
           <view class="card-footer"
             ><view
               ><text class="price">{{ priceText(item.displayPrice) }}</text
-              ><text class="price-caption">本场参考价 · 线下咨询</text></view
+              ><text class="price-caption">本场参考价</text></view
             ><button
               class="btn"
               :disabled="
@@ -199,7 +197,7 @@
         <view class="batch-toggle row" @tap="toggleBatchDateEditor"
           ><view
             ><view class="section-title">一次预约多个时段</view
-            ><view class="muted">已有固定训练时间时使用</view></view
+            ></view
           ><text class="text-link">{{
             batchDateEditorVisible ? "收起 −" : "展开 +"
           }}</text></view
@@ -335,7 +333,7 @@
           >
         </view>
         <view v-if="!reservationList.length" class="empty"
-          ><text class="empty-title">下一次训练，从预约开始</text
+          ><text class="empty-title">暂无预约</text
           >挑一节喜欢的课，为自己留一点时间。<button
             class="btn empty-action"
             @tap="switchTab('schedule')"
@@ -351,7 +349,6 @@
           :key="item.cardId"
         >
           <view class="row"
-            ><text class="eyebrow">T1 MEMBERSHIP</text
             ><text class="tag">{{
               cardStatusText(item.cardStatus)
             }}</text></view
@@ -986,8 +983,8 @@ export default {
 .page-wrap {
   min-height: 100vh;
   box-sizing: border-box;
-  background: #111211;
-  color: #f6f4ef;
+  background: var(--t1-bg);
+  color: var(--t1-text);
   padding: 32rpx 32rpx calc(48rpx + env(safe-area-inset-bottom));
   max-width: 960px;
   margin: auto;
@@ -995,32 +992,16 @@ export default {
 .with-nav {
   padding-bottom: calc(164rpx + env(safe-area-inset-bottom));
 }
-.eyebrow {
-  font-size: 20rpx;
-  letter-spacing: 4rpx;
-  color: #ff7a35;
-  font-weight: 700;
-}
-.page-title {
-  font-size: 52rpx;
-  line-height: 1.25;
-  font-weight: 700;
-  margin-top: 12rpx;
-  letter-spacing: -1rpx;
-}
 .page-subtitle,
 .muted {
   font-size: 25rpx;
   line-height: 1.7;
-  color: #a2a49c;
-}
-.page-subtitle {
-  margin-top: 14rpx;
+  color: var(--t1-muted);
 }
 .panel,
 .card {
-  background: #1c1d1b;
-  border: 1rpx solid #30322f;
+  background: var(--t1-surface);
+  border: 1rpx solid var(--t1-border);
   border-radius: 20rpx;
   padding: 28rpx;
   margin-top: 24rpx;
@@ -1039,8 +1020,8 @@ export default {
   font-size: 21rpx;
   line-height: 1.5;
   padding: 8rpx 14rpx;
-  background: #30271f;
-  color: #ff7a35;
+  background: var(--t1-tint);
+  color: var(--t1-accent);
   border-radius: 8rpx;
   white-space: nowrap;
   flex-shrink: 0;
@@ -1051,8 +1032,8 @@ export default {
   line-height: 88rpx;
   padding: 0 28rpx;
   border-radius: 14rpx;
-  background: #ff7a35;
-  color: #111211;
+  background: var(--t1-text);
+  color: var(--t1-on-dark);
   font-size: 28rpx;
   font-weight: 700;
 }
@@ -1061,33 +1042,33 @@ export default {
 }
 .btn.ghost {
   background: transparent;
-  border: 1rpx solid #42453f;
-  color: #f6f4ef;
+  border: 1rpx solid var(--t1-border);
+  color: var(--t1-text);
 }
 .btn[disabled] {
-  background: #30322f;
-  color: #85887f;
+  background: var(--t1-inset);
+  color: var(--t1-muted);
   opacity: 0.7;
 }
 .empty {
   padding: 64rpx 28rpx;
   text-align: center;
-  border: 1rpx dashed #30322f;
+  border: 1rpx dashed var(--t1-border);
   border-radius: 20rpx;
   margin-top: 24rpx;
-  color: #a2a49c;
+  color: var(--t1-muted);
   font-size: 26rpx;
   line-height: 1.8;
 }
 .empty-title {
   display: block;
-  color: #f6f4ef;
+  color: var(--t1-text);
   font-size: 32rpx;
   font-weight: 600;
   margin-bottom: 12rpx;
 }
 .error {
-  color: #ffb18c;
+  color: var(--t1-danger);
 }
 .scroll {
   white-space: nowrap;
@@ -1102,23 +1083,23 @@ export default {
   padding: 0 26rpx;
   margin-right: 12rpx;
   border-radius: 14rpx;
-  border: 1rpx solid #30322f;
-  background: #1c1d1b;
-  color: #a2a49c;
+  border: 1rpx solid var(--t1-border);
+  background: var(--t1-surface);
+  color: var(--t1-muted);
   font-size: 26rpx;
   box-sizing: border-box;
 }
 .chip.active {
-  color: #111211;
-  background: #ff7a35;
-  border-color: #ff7a35;
+  color: var(--t1-on-dark);
+  background: var(--t1-text);
+  border-color: var(--t1-accent);
   font-weight: 700;
 }
 .back-link {
   display: inline-flex;
   align-items: center;
   min-height: 80rpx;
-  color: #a2a49c;
+  color: var(--t1-muted);
   font-size: 26rpx;
   margin: -12rpx 0 12rpx;
 }
@@ -1132,12 +1113,12 @@ export default {
 }
 .course-filter {
   font-size: 24rpx;
-  color: #a2a49c;
-  border-bottom: 1rpx solid #30322f;
+  color: var(--t1-muted);
+  border-bottom: 1rpx solid var(--t1-border);
   margin-top: 12rpx;
 }
 .clear-filter {
-  color: #ff7a35;
+  color: var(--t1-accent);
   padding: 24rpx 0 24rpx 20rpx;
   white-space: nowrap;
 }
@@ -1149,9 +1130,9 @@ export default {
   background: transparent;
 }
 .filters .chip.active {
-  background: #30271f;
-  color: #ff7a35;
-  border-color: #ff7a35;
+  background: var(--t1-tint);
+  color: var(--t1-accent);
+  border-color: var(--t1-accent);
 }
 .course-cover {
   display: block;
@@ -1169,7 +1150,7 @@ export default {
 }
 .card-desc {
   font-size: 25rpx;
-  color: #a2a49c;
+  color: var(--t1-muted);
   line-height: 1.8;
   margin-top: 12rpx;
 }
@@ -1181,7 +1162,7 @@ export default {
   align-items: center;
   justify-content: space-between;
   gap: 18rpx;
-  border-top: 1rpx solid #30322f;
+  border-top: 1rpx solid var(--t1-border);
   padding-top: 24rpx;
   margin-top: 24rpx;
 }
@@ -1189,18 +1170,18 @@ export default {
   display: block;
   font-size: 34rpx;
   font-weight: 700;
-  color: #ff7a35;
+  color: var(--t1-accent);
 }
 .price-caption {
   display: block;
   font-size: 21rpx;
-  color: #a2a49c;
+  color: var(--t1-muted);
   margin-top: 7rpx;
   line-height: 1.5;
 }
 .text-link {
   font-size: 25rpx;
-  color: #ff7a35;
+  color: var(--t1-accent);
   white-space: nowrap;
 }
 .date-chip {
@@ -1211,18 +1192,18 @@ export default {
   gap: 10rpx;
   min-width: 126rpx;
   height: 124rpx;
-  background: #1c1d1b;
-  border: 1rpx solid #30322f;
+  background: var(--t1-surface);
+  border: 1rpx solid var(--t1-border);
   border-radius: 16rpx;
   margin-right: 14rpx;
   padding: 0 18rpx;
   font-size: 21rpx;
-  color: #a2a49c;
+  color: var(--t1-muted);
 }
 .date-chip.active {
-  background: #ff7a35;
-  color: #111211;
-  border-color: #ff7a35;
+  background: var(--t1-text);
+  color: var(--t1-on-dark);
+  border-color: var(--t1-accent);
 }
 .date-day {
   font-size: 29rpx;
@@ -1230,7 +1211,7 @@ export default {
 }
 .schedule-date {
   font-size: 27rpx;
-  color: #ff7a35;
+  color: var(--t1-accent);
   font-weight: 600;
 }
 .time-range {
@@ -1242,7 +1223,7 @@ export default {
 }
 .time-range text {
   padding: 0 16rpx;
-  color: #70756a;
+  color: var(--t1-muted);
   font-weight: 400;
   font-size: 30rpx;
 }
@@ -1251,18 +1232,18 @@ export default {
   font-size: 31rpx;
 }
 .inline-arrow {
-  color: #a2a49c;
+  color: var(--t1-muted);
   margin-left: 8rpx;
 }
 .booking-window {
   font-size: 22rpx;
   line-height: 1.8;
   margin-top: 20rpx;
-  color: #a2a49c;
+  color: var(--t1-muted);
 }
 .tag.full {
-  background: #30322f;
-  color: #a2a49c;
+  background: var(--t1-inset);
+  color: var(--t1-muted);
 }
 .actions {
   display: flex;
@@ -1277,14 +1258,14 @@ export default {
   align-items: center;
   gap: 12rpx;
   margin-top: 24rpx;
-  color: #a2a49c;
+  color: var(--t1-muted);
   font-size: 25rpx;
 }
 .status-dot {
   width: 10rpx;
   height: 10rpx;
   border-radius: 50%;
-  background: #ff7a35;
+  background: var(--t1-text);
 }
 .empty-action {
   margin: 28rpx auto 0;
@@ -1293,7 +1274,7 @@ export default {
 .batch-toggle {
   margin-top: 40rpx;
   padding: 24rpx 0;
-  border-top: 1rpx solid #30322f;
+  border-top: 1rpx solid var(--t1-border);
 }
 .batch-toggle .section-title {
   font-size: 27rpx;
@@ -1310,14 +1291,14 @@ export default {
 }
 .batch-input,
 .picker-box {
-  background: #111211;
-  border: 1rpx solid #30322f;
+  background: var(--t1-bg);
+  border: 1rpx solid var(--t1-border);
   border-radius: 12rpx;
   box-sizing: border-box;
   min-height: 88rpx;
   padding: 0 20rpx;
   font-size: 26rpx;
-  color: #f6f4ef;
+  color: var(--t1-text);
 }
 .batch-input {
   height: 88rpx;
@@ -1328,12 +1309,12 @@ export default {
   justify-content: space-between;
 }
 .batch-row {
-  border-top: 1rpx solid #30322f;
+  border-top: 1rpx solid var(--t1-border);
   margin-top: 24rpx;
   padding-top: 16rpx;
 }
 .row-del {
-  color: #a2a49c;
+  color: var(--t1-muted);
   font-size: 24rpx;
   padding: 18rpx 0 18rpx 24rpx;
 }
@@ -1355,17 +1336,17 @@ export default {
 .balance-row {
   display: flex;
   gap: 56rpx;
-  border-top: 1rpx solid #30322f;
+  border-top: 1rpx solid var(--t1-border);
   margin: 28rpx 0;
   padding-top: 28rpx;
 }
 .balance {
   font-size: 40rpx;
   font-weight: 700;
-  color: #f6f4ef;
+  color: var(--t1-text);
 }
 .retry {
   margin-top: 16rpx;
-  color: #ff7a35;
+  color: var(--t1-accent);
 }
 </style>

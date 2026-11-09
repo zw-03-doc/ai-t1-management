@@ -1,20 +1,6 @@
 <template>
   <view class="page-wrap with-nav">
-    <view class="eyebrow">T1 / IN THE CLUB</view>
-    <view class="page-title">一起练，更多可能</view>
-    <view class="page-subtitle">发现门店活动，找到下一次出发的理由。</view>
-    <view class="hero">
-      <image
-        src="/static/images/live-2.jpg"
-        class="hero-image"
-        mode="aspectFill"
-      />
-      <view class="hero-shade"></view>
-      <view class="hero-caption"
-        ><text class="hero-kicker">MOVE TOGETHER</text
-        ><text class="hero-title">到店见，训练见。</text></view
-      >
-    </view>
+
     <scroll-view class="scroll" scroll-x :show-scrollbar="false">
       <view
         class="chip"
@@ -88,7 +74,7 @@
         >
       </view>
       <view v-if="!activityList.length" class="empty"
-        ><text class="empty-title">活动还在准备中</text
+        ><text class="empty-title">暂无活动</text
         >试试其他门店，或下次再来看看。</view
       >
     </block>
@@ -192,8 +178,8 @@ export default {
 .page-wrap {
   min-height: 100vh;
   box-sizing: border-box;
-  background: #111211;
-  color: #f6f4ef;
+  background: var(--t1-bg);
+  color: var(--t1-text);
   padding: 32rpx 32rpx calc(48rpx + env(safe-area-inset-bottom));
   max-width: 960px;
   margin: auto;
@@ -201,32 +187,16 @@ export default {
 .with-nav {
   padding-bottom: calc(164rpx + env(safe-area-inset-bottom));
 }
-.eyebrow {
-  font-size: 20rpx;
-  letter-spacing: 4rpx;
-  color: #ff7a35;
-  font-weight: 700;
-}
-.page-title {
-  font-size: 52rpx;
-  line-height: 1.25;
-  font-weight: 700;
-  margin-top: 12rpx;
-  letter-spacing: -1rpx;
-}
 .page-subtitle,
 .muted {
   font-size: 25rpx;
   line-height: 1.7;
-  color: #a2a49c;
-}
-.page-subtitle {
-  margin-top: 14rpx;
+  color: var(--t1-muted);
 }
 .panel,
 .card {
-  background: #1c1d1b;
-  border: 1rpx solid #30322f;
+  background: var(--t1-surface);
+  border: 1rpx solid var(--t1-border);
   border-radius: 20rpx;
   padding: 28rpx;
   margin-top: 24rpx;
@@ -245,8 +215,8 @@ export default {
   font-size: 21rpx;
   line-height: 1.5;
   padding: 8rpx 14rpx;
-  background: #30271f;
-  color: #ff7a35;
+  background: var(--t1-tint);
+  color: var(--t1-accent);
   border-radius: 8rpx;
   white-space: nowrap;
   flex-shrink: 0;
@@ -257,8 +227,8 @@ export default {
   line-height: 88rpx;
   padding: 0 28rpx;
   border-radius: 14rpx;
-  background: #ff7a35;
-  color: #111211;
+  background: var(--t1-text);
+  color: var(--t1-on-dark);
   font-size: 28rpx;
   font-weight: 700;
 }
@@ -267,33 +237,33 @@ export default {
 }
 .btn.ghost {
   background: transparent;
-  border: 1rpx solid #42453f;
-  color: #f6f4ef;
+  border: 1rpx solid var(--t1-border);
+  color: var(--t1-text);
 }
 .btn[disabled] {
-  background: #30322f;
-  color: #85887f;
+  background: var(--t1-inset);
+  color: var(--t1-muted);
   opacity: 0.7;
 }
 .empty {
   padding: 64rpx 28rpx;
   text-align: center;
-  border: 1rpx dashed #30322f;
+  border: 1rpx dashed var(--t1-border);
   border-radius: 20rpx;
   margin-top: 24rpx;
-  color: #a2a49c;
+  color: var(--t1-muted);
   font-size: 26rpx;
   line-height: 1.8;
 }
 .empty-title {
   display: block;
-  color: #f6f4ef;
+  color: var(--t1-text);
   font-size: 32rpx;
   font-weight: 600;
   margin-bottom: 12rpx;
 }
 .error {
-  color: #ffb18c;
+  color: var(--t1-danger);
 }
 .scroll {
   white-space: nowrap;
@@ -308,33 +278,25 @@ export default {
   padding: 0 26rpx;
   margin-right: 12rpx;
   border-radius: 14rpx;
-  border: 1rpx solid #30322f;
-  background: #1c1d1b;
-  color: #a2a49c;
+  border: 1rpx solid var(--t1-border);
+  background: var(--t1-surface);
+  color: var(--t1-muted);
   font-size: 26rpx;
   box-sizing: border-box;
 }
 .chip.active {
-  color: #111211;
-  background: #ff7a35;
-  border-color: #ff7a35;
+  color: var(--t1-on-dark);
+  background: var(--t1-text);
+  border-color: var(--t1-accent);
   font-weight: 700;
 }
 .back-link {
   display: inline-flex;
   align-items: center;
   min-height: 80rpx;
-  color: #a2a49c;
+  color: var(--t1-muted);
   font-size: 26rpx;
   margin: -12rpx 0 12rpx;
-}
-
-.hero {
-  position: relative;
-  height: 300rpx;
-  overflow: hidden;
-  border-radius: 20rpx;
-  margin-top: 32rpx;
 }
 .hero-image,
 .hero-shade {
@@ -343,31 +305,6 @@ export default {
   left: 0;
   width: 100%;
   height: 100%;
-}
-.hero-shade {
-  background: linear-gradient(
-    0deg,
-    rgba(17, 18, 17, 0.85),
-    rgba(17, 18, 17, 0.08)
-  );
-}
-.hero-caption {
-  position: absolute;
-  left: 28rpx;
-  right: 28rpx;
-  bottom: 28rpx;
-  display: flex;
-  flex-direction: column;
-  gap: 12rpx;
-}
-.hero-kicker {
-  font-size: 18rpx;
-  letter-spacing: 4rpx;
-  color: #d6d7d0;
-}
-.hero-title {
-  font-size: 37rpx;
-  font-weight: 700;
 }
 .section-row {
   display: flex;
@@ -390,7 +327,7 @@ export default {
 }
 .activity-store {
   font-size: 23rpx;
-  color: #a2a49c;
+  color: var(--t1-muted);
 }
 .activity-title {
   font-size: 36rpx;
@@ -405,7 +342,7 @@ export default {
 .highlight {
   font-size: 29rpx;
   line-height: 1.6;
-  color: #ff7a35;
+  color: var(--t1-accent);
   margin-top: 22rpx;
 }
 .audience {
@@ -417,14 +354,14 @@ export default {
   justify-content: space-between;
   align-items: center;
   gap: 20rpx;
-  border-top: 1rpx solid #30322f;
+  border-top: 1rpx solid var(--t1-border);
   margin-top: 24rpx;
   padding-top: 24rpx;
   font-size: 23rpx;
-  color: #a2a49c;
+  color: var(--t1-muted);
 }
 .detail-link {
-  color: #ff7a35;
+  color: var(--t1-accent);
   white-space: nowrap;
 }
 </style>

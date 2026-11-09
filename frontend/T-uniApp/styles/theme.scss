@@ -1,13 +1,17 @@
 /* Shared T1 palette. Page components retain their own layout. */
 page {
-  --t1-bg: #111211;
-  --t1-surface: #1c1d1b;
-  --t1-text: #f6f4ef;
-  --t1-muted: #a2a49c;
-  --t1-accent: #ff7a35;
-  --t1-border: #30322f;
-  background: #111211;
-  color: #f6f4ef;
+  --t1-bg: #f7f7f5;
+  --t1-surface: #ffffff;
+  --t1-inset: #efefec;
+  --t1-text: #202222;
+  --t1-muted: #606463;
+  --t1-accent: #994319;
+  --t1-border: #d9dcd8;
+  --t1-danger: #a63332;
+  --t1-tint: #f7ede5;
+  --t1-on-dark: #ffffff;
+  background: var(--t1-bg);
+  color: var(--t1-text);
   font-family:
     -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei",
     sans-serif;
@@ -31,13 +35,13 @@ button::after {
   border: 0;
 }
 button[disabled] {
-  background: #33362e !important;
-  color: #bfc3b7 !important;
+  background: var(--t1-inset) !important;
+  color: var(--t1-muted) !important;
   opacity: 1 !important;
 }
 input,
 textarea {
-  caret-color: #ff7a35;
+  caret-color: var(--t1-accent);
 }
 input {
   line-height: normal;
@@ -51,20 +55,31 @@ input {
   padding: 32rpx 32rpx calc(164rpx + env(safe-area-inset-bottom));
 }
 .t1-label {
-  color: #a2a49c;
+  color: var(--t1-muted);
   font-size: 23rpx;
   letter-spacing: 2rpx;
 }
 .t1-card {
-  background: #1c1d1b;
-  border: 1px solid #30322f;
-  border-radius: 20rpx;
+  background: var(--t1-surface);
+  border: 1px solid var(--t1-border);
+  border-radius: 16rpx;
   padding: 28rpx;
 }
 .t1-primary {
-  background: #ff7a35;
-  color: #17130f;
+  background: var(--t1-text);
+  color: var(--t1-on-dark);
   border-radius: 16rpx;
   min-height: 92rpx;
   font-weight: 700;
 }
+
+.policy-links {
+  display: flex;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 8rpx 24rpx;
+  margin-top: 24rpx;
+  color: var(--t1-muted);
+  font-size: 24rpx;
+}
+.policy-links navigator { padding: 16rpx 4rpx; }

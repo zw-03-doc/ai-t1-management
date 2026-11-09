@@ -1,5 +1,5 @@
 import { request } from '../utils/request'
-import { saveMemberSession } from '../utils/auth'
+import { getMemberSession, saveMemberSession } from '../utils/auth'
 
 // ==================== 会员端 ====================
 export function memberWechatLogin(data) {
@@ -18,9 +18,10 @@ export function memberHomeIndex() {
 }
 
 export async function memberBindPhone(data) {
+    const { policyVersion } = getMemberSession()
     const session = await request({ url: '/fitness/mini/auth/bindPhone', method: 'POST', data, auth: 'member' })
     if (!session?.accessToken || !session?.memberInfo?.memberId) throw new Error('会员身份更新失败，请重新登录')
-    saveMemberSession(session)
+    saveMemberSession({ ...session, policyVersion })
     return session
 }
 

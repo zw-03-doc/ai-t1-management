@@ -4,7 +4,7 @@
       ><view
         ><view class="date-line">{{ dateLabel }}</view
         ><view class="greeting-title"
-          >{{ displayName ? `${displayName}，` : "" }}今天练点什么？</view
+          >今日安排</view
         ></view
       ><view class="avatar" @tap="go('/pages/mine/index')">{{
         (displayName || "T1").slice(0, 2)
@@ -14,17 +14,13 @@
       >{{ error }} · 重新加载 ↗</view
     >
     <view class="training-focus">
-      <image
-        class="training-photo"
-        src="/static/images/live-2.jpg"
-        mode="aspectFill"
-      /><view class="training-shade" />
+
       <view class="focus-content">
         <view class="focus-top"
           ><text class="focus-label">{{
             nextWorkout ? workoutLabel : "我的训练"
           }}</text
-          ><text class="focus-mark">T1 / TRAIN</text></view
+          ></view
         >
         <view class="focus-title">{{
           loading
@@ -35,9 +31,9 @@
                 ? nextWorkout.title
                 : activePlan
                   ? activePlan.name
-                  : "从一份计划开始"
+                  : "暂无训练计划"
         }}</view>
-        <view class="focus-description">{{ trainingDescription }}</view>
+        <view v-if="trainingDescription" class="focus-description">{{ trainingDescription }}</view>
         <view
           v-if="nextWorkout && nextWorkout.status !== 'rest'"
           class="focus-meta"
@@ -52,26 +48,20 @@
       </view>
     </view>
     <view class="quick-grid">
-      <button @tap="go('/pages/course/index')">
-        <text class="quick-number">01</text
-        ><text class="quick-title">预约课程</text
-        ><text class="quick-caption">找到适合的一节课 ↗</text>
+      <button @tap="go('/pages/course/index?tab=schedule')"><text class="quick-title">预约课程</text
+        >
       </button>
-      <button @tap="go('/pages/course/index?tab=reservation')">
-        <text class="quick-number">02</text
-        ><text class="quick-title">到店签到</text
-        ><text class="quick-caption">查看我的预约 ↗</text>
+      <button @tap="go('/pages/course/index?tab=reservation')"><text class="quick-title">签到</text
+        >
       </button>
-      <button @tap="go('/pages/guide/index')">
-        <text class="quick-number">03</text
-        ><text class="quick-title">动作指南</text
-        ><text class="quick-caption">把每一组练扎实 ↗</text>
+      <button @tap="go('/pages/guide/index')"><text class="quick-title">动作指南</text
+        >
       </button>
     </view>
     <view class="section-heading"
       ><view
         ><text class="section-title">我的预约</text
-        ><view class="section-caption">查看上课时间，到店后完成签到</view></view
+        ></view
       ><button @tap="go('/pages/course/index?tab=reservation')">
         全部预约 ↗
       </button></view
@@ -79,7 +69,6 @@
     <view v-if="loading" class="loading-card">正在读取预约…</view>
     <view v-else-if="!homeData && error" class="empty-booking"
       ><view class="empty-title">预约暂时没能加载</view
-      ><view class="section-caption">请检查网络后重试。</view
       ><button @tap="load">重新加载 →</button></view
     >
     <view v-else-if="upcoming.length" class="upcoming-list">
@@ -106,33 +95,14 @@
     </view>
     <view v-else class="empty-booking"
       ><view class="empty-title">暂时没有待上课的预约</view
-      ><view class="section-caption">看看课表，留一段时间给自己。</view
-      ><button @tap="go('/pages/course/index')">去看看课程 →</button></view
+      ><button @tap="go('/pages/course/index?tab=schedule')">去约课</button></view
     >
     <view class="summary-strip"
       ><view v-for="item in stats" :key="item.label"
         ><text class="summary-value">{{ item.value }}</text
         ><text class="summary-label">{{ item.label }}</text></view
       ></view
-    >
-    <view class="section-heading"
-      ><view
-        ><text class="section-title">训练，也有自己的节奏</text
-        ><view class="section-caption"
-          >从三分化或五分化开始，按你的日程调整。</view
-        ></view
-      ></view
-    >
-    <view class="inspiration-card" @tap="go('/pages/guide/index')"
-      ><image src="/static/images/live-1.jpg" mode="aspectFill" /><view
-        class="inspiration-copy"
-        ><text class="small-label">TRAINING NOTES</text
-        ><view class="inspiration-title"
-          ><view>找到适合你的</view><view>下一份训练计划</view></view
-        ><text class="inspiration-link">探索训练灵感 ↗</text></view
-      ></view
-    >
-    <T1Nav role="member" current="home" />
+    ><T1Nav role="member" current="home" />
   </view>
 </template>
 <script>
@@ -189,14 +159,14 @@ export default {
       );
     },
     trainingDescription() {
-      if (this.loading) return "稍等一下，把今天的安排准备好。";
+      if (this.loading) return "";
       if (this.trainingError) return "训练安排暂时未能读取，点下方重新查看。";
       if (this.nextWorkout?.status === "rest")
-        return "这一训练日安排休息，为下次训练留好状态。";
+        return "休息日";
       if (this.nextWorkout)
         return `${this.activePlan.name} · ${this.date(this.nextWorkout.plannedDate)}`;
-      if (this.activePlan) return "这轮日程已完成，打开计划看看你的训练记录。";
-      return "选一份免费模板，安排训练日，再记录每一组。";
+      if (this.activePlan) return "本轮已完成";
+      return "";
     },
   },
   onShow() {
@@ -271,12 +241,12 @@ export default {
   margin-bottom: 30rpx;
 }
 .date-line {
-  color: #a2a49c;
+  color: var(--t1-muted);
   font-size: 23rpx;
   margin-bottom: 12rpx;
 }
 .greeting-title {
-  color: #f6f4ef;
+  color: var(--t1-text);
   font-size: 37rpx;
   font-weight: 700;
   line-height: 1.4;
@@ -286,20 +256,18 @@ export default {
   width: 72rpx;
   height: 72rpx;
   border-radius: 50%;
-  background: #30332c;
-  border: 1px solid #414638;
-  color: #e0e3d7;
+  background: var(--t1-inset);
+  border: 1px solid var(--t1-border);
+  color: var(--t1-muted);
   text-align: center;
   line-height: 72rpx;
   font-size: 24rpx;
 }
 .training-focus {
-  position: relative;
   overflow: hidden;
-  border-radius: 24rpx;
-  min-height: 420rpx;
-  background: #242721;
-  border: 1px solid #373d30;
+  border: 1px solid var(--t1-border);
+  border-radius: 16rpx;
+  background: var(--t1-surface);
 }
 .training-photo,
 .training-shade {
@@ -307,17 +275,6 @@ export default {
   inset: 0;
   width: 100%;
   height: 100%;
-}
-.training-photo {
-  opacity: 0.55;
-}
-.training-shade {
-  background: linear-gradient(
-    90deg,
-    #1c2119 0%,
-    rgba(28, 33, 25, 0.7) 50%,
-    rgba(28, 33, 25, 0.12) 100%
-  );
 }
 .focus-content {
   position: relative;
@@ -330,17 +287,9 @@ export default {
   align-items: center;
 }
 .focus-label {
-  background: #ff7a35;
-  color: #20160f;
-  padding: 6rpx 15rpx;
-  border-radius: 6rpx;
-  font-size: 22rpx;
-  font-weight: 700;
-}
-.focus-mark {
-  font-size: 18rpx;
-  letter-spacing: 4rpx;
-  color: #d1d6c8;
+  color: var(--t1-muted);
+  font-size: 24rpx;
+  font-weight: 500;
 }
 .focus-title {
   font-size: 47rpx;
@@ -349,7 +298,7 @@ export default {
   margin: 28rpx 0 14rpx;
 }
 .focus-description {
-  color: #c6ccbd;
+  color: var(--t1-muted);
   font-size: 24rpx;
   max-width: 92%;
   line-height: 1.7;
@@ -359,7 +308,7 @@ export default {
   gap: 22rpx;
   margin-top: 20rpx;
   font-size: 22rpx;
-  color: #ebeee5;
+  color: var(--t1-text);
 }
 .focus-button {
   display: flex;
@@ -369,8 +318,8 @@ export default {
   min-height: 84rpx;
   padding: 0 24rpx;
   border-radius: 12rpx;
-  color: #191c16;
-  background: #e7eddf;
+  color: var(--t1-on-dark);
+  background: var(--t1-text);
   font-size: 27rpx;
   font-weight: 700;
 }
@@ -384,30 +333,17 @@ export default {
   min-width: 0;
   margin: 0;
   padding: 22rpx 15rpx;
-  background: #1c1d1b;
-  border: 1px solid #30322f;
-  color: #f6f4ef;
-  text-align: left;
-  border-radius: 16rpx;
+  background: var(--t1-surface);
+  border: 1px solid var(--t1-border);
+  color: var(--t1-text);
+  text-align: center;
+  border-radius: 12rpx;
   line-height: 1.5;
-}
-.quick-number {
-  color: #ff7a35;
-  font-size: 20rpx;
-  display: block;
-  margin-bottom: 15rpx;
-  letter-spacing: 2rpx;
 }
 .quick-title {
   font-weight: 600;
   font-size: 26rpx;
   display: block;
-}
-.quick-caption {
-  display: block;
-  font-size: 19rpx;
-  color: #969b8e;
-  margin-top: 6rpx;
 }
 .section-heading {
   margin: 40rpx 0 20rpx;
@@ -420,15 +356,9 @@ export default {
   font-size: 32rpx;
   font-weight: 700;
 }
-.section-caption {
-  font-size: 23rpx;
-  color: #969b8e;
-  line-height: 1.7;
-  margin-top: 8rpx;
-}
 .section-heading button {
   background: transparent;
-  color: #b9bdb1;
+  color: var(--t1-muted);
   white-space: nowrap;
   margin: 0;
   padding: 12rpx 0 12rpx 14rpx;
@@ -439,8 +369,8 @@ export default {
   display: flex;
   align-items: center;
   gap: 24rpx;
-  background: #1c1d1b;
-  border: 1px solid #30322f;
+  background: var(--t1-surface);
+  border: 1px solid var(--t1-border);
   padding: 28rpx 24rpx;
   border-radius: 18rpx;
   margin-bottom: 12rpx;
@@ -448,21 +378,21 @@ export default {
 .booking-clock {
   flex-shrink: 0;
   min-width: 95rpx;
-  color: #ff9c66;
+  color: var(--t1-accent);
   font-size: 32rpx;
   font-weight: 700;
 }
 .booking-date {
   display: block;
   font-size: 20rpx;
-  color: #a2a49c;
+  color: var(--t1-muted);
   font-weight: 400;
   margin-top: 4rpx;
 }
 .booking-main {
   flex: 1;
   min-width: 0;
-  border-left: 1px solid #3b3f35;
+  border-left: 1px solid var(--t1-border);
   padding-left: 24rpx;
 }
 .booking-name {
@@ -471,19 +401,19 @@ export default {
 }
 .booking-caption {
   font-size: 22rpx;
-  color: #a2a49c;
+  color: var(--t1-muted);
   margin-top: 8rpx;
 }
 .arrow {
-  color: #7e8574;
+  color: var(--t1-muted);
   font-size: 30rpx;
 }
 .empty-booking,
 .loading-card {
-  border: 1px solid #30322f;
+  border: 1px solid var(--t1-border);
   border-radius: 18rpx;
   padding: 30rpx;
-  background: #191b17;
+  background: var(--t1-inset);
 }
 .empty-title {
   font-size: 28rpx;
@@ -491,7 +421,7 @@ export default {
 }
 .empty-booking button {
   background: transparent;
-  color: #ff9c66;
+  color: var(--t1-accent);
   padding: 18rpx 0 0;
   margin: 0;
   text-align: left;
@@ -500,15 +430,15 @@ export default {
 }
 .summary-strip {
   display: flex;
-  border-top: 1px solid #30322f;
-  border-bottom: 1px solid #30322f;
+  border-top: 1px solid var(--t1-border);
+  border-bottom: 1px solid var(--t1-border);
   margin-top: 32rpx;
   padding: 24rpx 0;
 }
 .summary-strip > view {
   flex: 1;
   text-align: center;
-  border-right: 1px solid #30322f;
+  border-right: 1px solid var(--t1-border);
 }
 .summary-strip > view:last-child {
   border-right: 0;
@@ -519,47 +449,12 @@ export default {
   display: block;
 }
 .summary-label {
-  color: #969b8e;
+  color: var(--t1-muted);
   font-size: 22rpx;
-}
-.inspiration-card {
-  position: relative;
-  border: 1px solid #33382d;
-  border-radius: 20rpx;
-  overflow: hidden;
-  min-height: 270rpx;
-  background: #242820;
-}
-.inspiration-card image {
-  position: absolute;
-  width: 48%;
-  right: 0;
-  height: 100%;
-  opacity: 0.65;
-}
-.inspiration-copy {
-  position: relative;
-  padding: 28rpx;
-  background: linear-gradient(90deg, #23271e 45%, transparent);
-}
-.small-label {
-  font-size: 17rpx;
-  color: #b0bba2;
-  letter-spacing: 3rpx;
-}
-.inspiration-title {
-  font-size: 32rpx;
-  font-weight: 700;
-  margin: 14rpx 0 24rpx;
-  line-height: 1.4;
-}
-.inspiration-link {
-  font-size: 22rpx;
-  color: #e0e7d5;
 }
 .error-card {
-  color: #ffc59d;
-  background: #33271d;
+  color: var(--t1-danger);
+  background: var(--t1-tint);
   border-radius: 14rpx;
   padding: 20rpx;
   font-size: 25rpx;

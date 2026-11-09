@@ -44,7 +44,8 @@ public class FitnessAccountWebConfig implements WebMvcConfigurer {
                 if (request.getAttribute(LOCK) instanceof RLock lock) lock.unlock();
             }
         }).addPathPatterns("/fitness/**")
-          .excludePathPatterns("/fitness/mini/portal/slogans", "/fitness/mini/auth/wechatLogin", "/fitness/mini/auth/webLogin", "/fitness/coachApp/auth/login",
+          .excludePathPatterns("/fitness/mini/portal/slogans", "/fitness/mini/portal/venue", "/fitness/mini/portal/venue/images/**",
+              "/fitness/mini/auth/wechatLogin", "/fitness/mini/auth/webLogin", "/fitness/coachApp/auth/login",
               "/fitness/coachApp/auth/wechatLogin", "/fitness/coachApp/auth/wechatActivate")
           .order(10);
     }

@@ -1,9 +1,5 @@
 <template>
   <view class="mine-page">
-    <view class="page-head"
-      ><text class="eyebrow">个人中心</text
-      ><view class="page-title">教练账户</view></view
-    >
     <view class="profile-card"
       ><image
         class="brand-avatar"
@@ -22,7 +18,7 @@
     >
     <view v-if="loading" class="state-card"
       ><text class="state-title">正在加载账户资料</text
-      ><text class="muted">请稍候</text></view
+      ></view
     >
     <view v-else-if="errorText" class="state-card"
       ><text class="state-title">账户资料加载失败</text
@@ -37,7 +33,7 @@
         >
           <view
             ><text class="section-title">个人资料</text
-            ><text class="section-desc">姓名、联系方式与擅长方向</text></view
+            ></view
           ><text class="toggle-arrow">{{
             openSection === "profile" ? "−" : "+"
           }}</text>
@@ -106,7 +102,7 @@
         >
           <view
             ><text class="section-title">登录密码</text
-            ><text class="section-desc">管理浏览器登录密码</text></view
+            ></view
           ><text class="toggle-arrow">{{
             openSection === "password" ? "−" : "+"
           }}</text>
@@ -169,6 +165,10 @@
     <button class="logout-btn" :disabled="loggingOut" @tap="logout">
       {{ loggingOut ? "退出中…" : "退出登录" }}
     </button>
+    <view class="policy-links">
+      <navigator url="/pages/legal/index?doc=terms">用户服务协议</navigator>
+      <navigator url="/pages/legal/index?doc=privacy">隐私政策</navigator>
+    </view>
     <T1Nav role="coach" current="mine" />
   </view>
 </template>
@@ -403,8 +403,8 @@ export default {
   margin: 0 auto;
   min-height: 100vh;
   padding: 32rpx 32rpx calc(160rpx + env(safe-area-inset-bottom));
-  background: #111211;
-  color: #f6f4ef;
+  background: var(--t1-bg);
+  color: var(--t1-text);
 }
 button {
   padding: 0;
@@ -421,25 +421,13 @@ button::after {
 button[disabled] {
   opacity: 0.5;
 }
-.page-head {
-  padding: 8rpx 0 26rpx;
-}
-.eyebrow {
-  color: #ff7a35;
-  font-size: 22rpx;
-}
-.page-title {
-  font-size: 46rpx;
-  font-weight: 700;
-  margin-top: 12rpx;
-}
 .profile-card {
   display: flex;
   gap: 24rpx;
   align-items: center;
   padding: 28rpx;
-  background: #1c1d1b;
-  border: 1rpx solid #30322f;
+  background: var(--t1-surface);
+  border: 1rpx solid var(--t1-border);
   border-radius: 20rpx;
 }
 .brand-avatar {
@@ -461,7 +449,7 @@ button[disabled] {
   display: block;
   font-size: 24rpx;
   line-height: 1.7;
-  color: #a2a49c;
+  color: var(--t1-muted);
   margin-top: 10rpx;
 }
 .account-row {
@@ -470,19 +458,19 @@ button[disabled] {
   justify-content: space-between;
   min-height: 100rpx;
   font-size: 25rpx;
-  color: #a2a49c;
+  color: var(--t1-muted);
 }
 .login-chip {
   font-size: 22rpx;
   padding: 8rpx 14rpx;
-  border: 1rpx solid #30322f;
+  border: 1rpx solid var(--t1-border);
   border-radius: 8rpx;
-  color: #c4c6bd;
+  color: var(--t1-muted);
 }
 .form-card,
 .message-card {
-  background: #1c1d1b;
-  border: 1rpx solid #30322f;
+  background: var(--t1-surface);
+  border: 1rpx solid var(--t1-border);
   border-radius: 20rpx;
   margin-bottom: 20rpx;
   overflow: hidden;
@@ -502,14 +490,8 @@ button[disabled] {
   font-size: 30rpx;
   font-weight: 650;
 }
-.section-desc {
-  display: block;
-  font-size: 23rpx;
-  color: #a2a49c;
-  margin-top: 8rpx;
-}
 .toggle-arrow {
-  color: #ff7a35;
+  color: var(--t1-accent);
   font-size: 36rpx;
   flex-shrink: 0;
   margin-left: 18rpx;
@@ -522,19 +504,19 @@ button[disabled] {
   align-items: center;
   gap: 20rpx;
   min-height: 104rpx;
-  border-top: 1rpx solid #30322f;
+  border-top: 1rpx solid var(--t1-border);
 }
 .label {
   width: 130rpx;
   flex-shrink: 0;
   font-size: 25rpx;
-  color: #c4c6bd;
+  color: var(--t1-muted);
 }
 .input {
   flex: 1;
   min-width: 0;
   height: 96rpx;
-  color: #f6f4ef;
+  color: var(--t1-text);
   font-size: 26rpx;
 }
 .textarea-row {
@@ -552,13 +534,13 @@ button[disabled] {
   font-size: 26rpx;
   line-height: 1.7;
   padding-top: 18rpx;
-  color: #f6f4ef;
+  color: var(--t1-text);
   box-sizing: border-box;
 }
 .word-count {
   display: block;
   text-align: right;
-  color: #a2a49c;
+  color: var(--t1-muted);
   font-size: 21rpx;
   padding: 8rpx 0;
 }
@@ -577,17 +559,17 @@ button[disabled] {
   margin-top: 24rpx;
 }
 .primary-btn {
-  background: #ff7a35;
-  color: #111211;
+  background: var(--t1-text);
+  color: var(--t1-on-dark);
 }
 .secondary-btn {
-  background: #30322f;
+  background: var(--t1-inset);
 }
 .logout-btn {
   width: 100%;
-  border: 1rpx solid #30322f;
-  color: #a2a49c;
-  background: #1c1d1b;
+  border: 1rpx solid var(--t1-border);
+  color: var(--t1-danger);
+  background: var(--t1-surface);
 }
 .message-card {
   padding: 28rpx;
@@ -599,18 +581,18 @@ button[disabled] {
   align-items: center;
 }
 .small-label {
-  color: #a2a49c;
+  color: var(--t1-muted);
   font-size: 22rpx;
 }
 .message-empty {
   padding: 32rpx 0 12rpx;
-  color: #a2a49c;
+  color: var(--t1-muted);
   font-size: 24rpx;
   text-align: center;
 }
 .message-item {
   padding: 24rpx 0;
-  border-bottom: 1rpx solid #30322f;
+  border-bottom: 1rpx solid var(--t1-border);
 }
 .message-item:last-child {
   border: 0;
@@ -626,19 +608,19 @@ button[disabled] {
   font-size: 24rpx;
   line-height: 1.7;
   margin-top: 10rpx;
-  color: #a2a49c;
+  color: var(--t1-muted);
 }
 .message-time {
   display: block;
   margin-top: 12rpx;
-  color: #a2a49c;
+  color: var(--t1-muted);
   font-size: 21rpx;
 }
 .state-card {
   padding: 44rpx 28rpx;
   text-align: center;
-  background: #1c1d1b;
-  border: 1rpx solid #30322f;
+  background: var(--t1-surface);
+  border: 1rpx solid var(--t1-border);
   border-radius: 20rpx;
   margin-bottom: 20rpx;
 }
@@ -650,7 +632,7 @@ button[disabled] {
 .muted {
   display: block;
   font-size: 24rpx;
-  color: #a2a49c;
+  color: var(--t1-muted);
   line-height: 1.7;
   margin-top: 12rpx;
 }

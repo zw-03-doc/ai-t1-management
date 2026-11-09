@@ -5,13 +5,13 @@
         v-for="item in items"
         :key="item.key"
         :class="['t1-nav-item', { selected: current === item.key }]"
+        :aria-label="current === item.key ? item.label + '，当前页面' : item.label"
         @tap="open(item)"
       >
         <view :class="['nav-symbol', item.icon]"
           ><view class="symbol-detail"
         /></view>
         <text>{{ item.label }}</text>
-        <view v-if="current === item.key" class="nav-dot" />
       </button>
     </view>
   </view>
@@ -93,8 +93,8 @@ export default {
   right: 0;
   bottom: 0;
   padding-bottom: env(safe-area-inset-bottom);
-  background: #171816;
-  border-top: 1px solid #30322f;
+  background: var(--t1-surface);
+  border-top: 1px solid var(--t1-border);
 }
 .t1-nav {
   max-width: 760px;
@@ -111,7 +111,7 @@ export default {
   margin: 0;
   background: none;
   border-radius: 0;
-  color: #92968e;
+  color: var(--t1-muted);
   font-size: 21rpx;
   line-height: 1.4;
   display: flex;
@@ -123,16 +123,9 @@ export default {
   border: 0;
 }
 .t1-nav-item.selected {
-  color: #ff7a35;
+  color: var(--t1-accent);
 }
-.nav-dot {
-  width: 8rpx;
-  height: 4rpx;
-  border-radius: 2rpx;
-  background: currentColor;
-  position: absolute;
-  bottom: 1rpx;
-}
+
 .nav-symbol {
   position: relative;
   width: 38rpx;

@@ -2,7 +2,7 @@
   <div class="fitness-report p-2" v-loading="loading">
     <el-row :gutter="16" class="mb-4">
       <el-col v-for="card in summaryCards" :key="card.label" :xs="24" :sm="12" :xl="6">
-        <el-card shadow="hover" class="summary-card">
+        <el-card shadow="never" class="summary-card">
           <div class="summary-card__label">{{ card.label }}</div>
           <div class="summary-card__value">
             {{ card.value }}
@@ -15,7 +15,7 @@
 
     <el-row :gutter="16" class="mb-4">
       <el-col :xs="24" :xl="14">
-        <el-card shadow="hover" class="panel-card">
+        <el-card shadow="never" class="panel-card">
           <template #header>
             <div class="panel-title">经营概览</div>
           </template>
@@ -31,7 +31,7 @@
         </el-card>
       </el-col>
       <el-col :xs="24" :xl="10">
-        <el-card shadow="hover" class="panel-card">
+        <el-card shadow="never" class="panel-card">
           <template #header>
             <div class="panel-title">风险提醒</div>
           </template>
@@ -47,7 +47,7 @@
 
     <el-row :gutter="16">
       <el-col :xs="24">
-        <el-card shadow="hover" class="panel-card">
+        <el-card shadow="never" class="panel-card">
           <template #header>
             <div class="panel-title">本月经营指标</div>
           </template>
@@ -215,7 +215,7 @@ onMounted(() => {
 .overview-item {
   padding: 14px 16px;
   border-radius: 12px;
-  background: linear-gradient(180deg, var(--el-fill-color-light) 0%, #fff 100%);
+  background: var(--el-bg-color);
   border: 1px solid var(--el-border-color-lighter);
 }
 

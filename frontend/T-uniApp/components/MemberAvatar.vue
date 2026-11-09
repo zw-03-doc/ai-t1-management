@@ -52,8 +52,8 @@ export default {
   height: 108rpx;
   border-radius: 24rpx;
   overflow: hidden;
-  background: #30271f;
-  color: #ff7a35;
+  background: var(--t1-tint);
+  color: var(--t1-accent);
   display: flex;
   align-items: center;
   justify-content: center;

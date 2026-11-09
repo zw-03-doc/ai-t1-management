@@ -13,7 +13,7 @@
         mode="aspectFill"
         class="cover"
       />
-      <view class="eyebrow">T1 / {{ typeText(course.courseType) }}</view>
+      <view class="eyebrow">{{ typeText(course.courseType) }}</view>
       <view class="page-title">{{ course.courseName }}</view>
       <view class="page-subtitle">{{ course.storeName || "门店待定" }}</view>
       <view class="facts">
@@ -21,13 +21,13 @@
           ><text class="fact-value"
             >{{ course.durationMinutes == null ? "—" : course.durationMinutes
             }}<text class="unit">分钟</text></text
-          ><text class="muted">单节时长</text></view
+          ><text class="muted">时长</text></view
         >
         <view class="fact"
           ><text class="fact-value"
             >{{ course.capacity == null ? "—" : course.capacity
             }}<text class="unit">人</text></text
-          ><text class="muted">每节人数上限</text></view
+          ><text class="muted">人数上限</text></view
         >
         <view class="fact"
           ><text class="fact-price">{{ priceText(course.displayPrice) }}</text
@@ -35,7 +35,7 @@
         >
       </view>
       <view class="panel">
-        <view class="section-title">这节课，适合怎样的你</view>
+        <view class="section-title">课程介绍</view>
         <view class="description">{{
           course.description || "课程内容和训练安排，请与负责教练沟通。"
         }}</view>
@@ -47,12 +47,8 @@
             ><view class="coach-name">{{
               course.coachName || "教练待安排"
             }}</view></view
-          ><text class="coach-mark">T1</text></view
-        >
-        <view class="muted coach-note"
-          >对强度、上课方式或价格有疑问，先与教练聊聊。</view
-        >
-        <view v-if="course.coachContactWechat" class="contact-account"
+          ></view
+        ><view v-if="course.coachContactWechat" class="contact-account"
           >微信 · {{ course.coachContactWechat }}</view
         >
         <button class="btn ghost" @tap="contact">
@@ -103,6 +99,13 @@
 </template>
 <script>
 import { request } from "../../utils/request";
+import { getMemberSession } from "../../utils/auth";
+
+function interestPreferenceKey() {
+  const member = getMemberSession().memberInfo;
+  return member?.memberId ? "T1_INTEREST_CONSENT:" + member.tenantId + ":" + member.memberId : "";
+}
+
 export default {
   data() {
     return {
@@ -110,6 +113,7 @@ export default {
       course: null,
       error: "",
       tracking: false,
+      trackingKey: "",
       sessionId: "",
       timer: null,
       lastTick: 0,
@@ -118,11 +122,12 @@ export default {
   },
   onLoad(options) {
     this.courseId = options.id;
-    this.tracking = uni.getStorageSync("T1_INTEREST_CONSENT") === true;
     this.sessionId = `${Date.now()}-${Math.random().toString(36).slice(2)}`;
     this.load();
   },
   onShow() {
+    this.trackingKey = interestPreferenceKey();
+    this.tracking = !!this.trackingKey && uni.getStorageSync(this.trackingKey) === true;
     this.visible = true;
     this.startTimer();
   },
@@ -180,9 +185,10 @@ export default {
       }
     },
     setTracking(e) {
+      if (!this.trackingKey || this.trackingKey !== interestPreferenceKey()) return;
       this.stopTimer();
       this.tracking = e.detail.value;
-      uni.setStorageSync("T1_INTEREST_CONSENT", this.tracking);
+      uni.setStorageSync(this.trackingKey, this.tracking);
       this.startTimer();
     },
     startTimer() {
@@ -201,7 +207,7 @@ export default {
       const now = Date.now();
       const seconds = Math.floor((now - this.lastTick) / 1000);
       this.lastTick = now;
-      if (!this.tracking || !this.visible || !this.course || seconds < 1)
+      if (!this.tracking || this.trackingKey !== interestPreferenceKey() || !this.visible || !this.course || seconds < 1)
         return;
       let source = "mini";
       // #ifdef H5
@@ -247,8 +253,8 @@ export default {
 .page-wrap {
   min-height: 100vh;
   box-sizing: border-box;
-  background: #111211;
-  color: #f6f4ef;
+  background: var(--t1-bg);
+  color: var(--t1-text);
   padding: 32rpx 32rpx calc(48rpx + env(safe-area-inset-bottom));
   max-width: 960px;
   margin: auto;
@@ -259,11 +265,11 @@ export default {
 .eyebrow {
   font-size: 20rpx;
   letter-spacing: 4rpx;
-  color: #ff7a35;
+  color: var(--t1-accent);
   font-weight: 700;
 }
 .page-title {
-  font-size: 52rpx;
+  font-size: 48rpx;
   line-height: 1.25;
   font-weight: 700;
   margin-top: 12rpx;
@@ -273,15 +279,15 @@ export default {
 .muted {
   font-size: 25rpx;
   line-height: 1.7;
-  color: #a2a49c;
+  color: var(--t1-muted);
 }
 .page-subtitle {
   margin-top: 14rpx;
 }
 .panel,
 .card {
-  background: #1c1d1b;
-  border: 1rpx solid #30322f;
+  background: var(--t1-surface);
+  border: 1rpx solid var(--t1-border);
   border-radius: 20rpx;
   padding: 28rpx;
   margin-top: 24rpx;
@@ -300,8 +306,8 @@ export default {
   font-size: 21rpx;
   line-height: 1.5;
   padding: 8rpx 14rpx;
-  background: #30271f;
-  color: #ff7a35;
+  background: var(--t1-tint);
+  color: var(--t1-accent);
   border-radius: 8rpx;
   white-space: nowrap;
   flex-shrink: 0;
@@ -312,8 +318,8 @@ export default {
   line-height: 88rpx;
   padding: 0 28rpx;
   border-radius: 14rpx;
-  background: #ff7a35;
-  color: #111211;
+  background: var(--t1-text);
+  color: var(--t1-on-dark);
   font-size: 28rpx;
   font-weight: 700;
 }
@@ -322,33 +328,33 @@ export default {
 }
 .btn.ghost {
   background: transparent;
-  border: 1rpx solid #42453f;
-  color: #f6f4ef;
+  border: 1rpx solid var(--t1-border);
+  color: var(--t1-text);
 }
 .btn[disabled] {
-  background: #30322f;
-  color: #85887f;
+  background: var(--t1-inset);
+  color: var(--t1-muted);
   opacity: 0.7;
 }
 .empty {
   padding: 64rpx 28rpx;
   text-align: center;
-  border: 1rpx dashed #30322f;
+  border: 1rpx dashed var(--t1-border);
   border-radius: 20rpx;
   margin-top: 24rpx;
-  color: #a2a49c;
+  color: var(--t1-muted);
   font-size: 26rpx;
   line-height: 1.8;
 }
 .empty-title {
   display: block;
-  color: #f6f4ef;
+  color: var(--t1-text);
   font-size: 32rpx;
   font-weight: 600;
   margin-bottom: 12rpx;
 }
 .error {
-  color: #ffb18c;
+  color: var(--t1-danger);
 }
 .scroll {
   white-space: nowrap;
@@ -363,23 +369,23 @@ export default {
   padding: 0 26rpx;
   margin-right: 12rpx;
   border-radius: 14rpx;
-  border: 1rpx solid #30322f;
-  background: #1c1d1b;
-  color: #a2a49c;
+  border: 1rpx solid var(--t1-border);
+  background: var(--t1-surface);
+  color: var(--t1-muted);
   font-size: 26rpx;
   box-sizing: border-box;
 }
 .chip.active {
-  color: #111211;
-  background: #ff7a35;
-  border-color: #ff7a35;
+  color: var(--t1-on-dark);
+  background: var(--t1-text);
+  border-color: var(--t1-accent);
   font-weight: 700;
 }
 .back-link {
   display: inline-flex;
   align-items: center;
   min-height: 80rpx;
-  color: #a2a49c;
+  color: var(--t1-muted);
   font-size: 26rpx;
   margin: -12rpx 0 12rpx;
 }
@@ -396,8 +402,8 @@ export default {
   align-items: stretch;
   margin-top: 32rpx;
   padding: 28rpx 0;
-  border-top: 1rpx solid #30322f;
-  border-bottom: 1rpx solid #30322f;
+  border-top: 1rpx solid var(--t1-border);
+  border-bottom: 1rpx solid var(--t1-border);
 }
 .fact {
   flex: 1;
@@ -406,7 +412,7 @@ export default {
   gap: 12rpx;
   min-width: 0;
   padding: 0 16rpx;
-  border-right: 1rpx solid #30322f;
+  border-right: 1rpx solid var(--t1-border);
 }
 .fact:first-child {
   padding-left: 0;
@@ -423,14 +429,14 @@ export default {
   font-size: 21rpx;
   margin-left: 8rpx;
   font-weight: 400;
-  color: #a2a49c;
+  color: var(--t1-muted);
 }
 .fact .muted {
   font-size: 21rpx;
 }
 .fact-price {
   font-size: 31rpx;
-  color: #ff7a35;
+  color: var(--t1-accent);
   font-weight: 700;
   line-height: 1.6;
   word-break: break-all;
@@ -440,11 +446,11 @@ export default {
   margin-top: 24rpx;
   font-size: 28rpx;
   line-height: 1.9;
-  color: #d6d7d0;
+  color: var(--t1-muted);
 }
 .label {
   font-size: 23rpx;
-  color: #a2a49c;
+  color: var(--t1-muted);
 }
 .coach-name {
   font-size: 36rpx;
@@ -457,18 +463,15 @@ export default {
   justify-content: center;
   width: 88rpx;
   height: 88rpx;
-  border: 1rpx solid #494438;
+  border: 1rpx solid var(--t1-border);
   border-radius: 16rpx;
   font-size: 30rpx;
   font-weight: 700;
-  color: #ff7a35;
-}
-.coach-note {
-  margin: 24rpx 0;
+  color: var(--t1-accent);
 }
 .contact-account {
   font-size: 26rpx;
-  color: #f6f4ef;
+  color: var(--t1-text);
   margin-bottom: 20rpx;
   word-break: break-all;
 }
@@ -481,12 +484,12 @@ export default {
   justify-content: space-between;
   gap: 24rpx;
   padding: 24rpx 0;
-  border-bottom: 1rpx solid #30322f;
-  color: #a2a49c;
+  border-bottom: 1rpx solid var(--t1-border);
+  color: var(--t1-muted);
   font-size: 24rpx;
 }
 .rule-row text:last-child {
-  color: #f6f4ef;
+  color: var(--t1-text);
   text-align: right;
 }
 .rule-note {
@@ -513,7 +516,7 @@ export default {
   transform-origin: right center;
 }
 .consent-state {
-  color: #a2a49c;
+  color: var(--t1-muted);
   font-size: 21rpx;
   margin-top: 14rpx;
 }

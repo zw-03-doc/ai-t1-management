@@ -1,11 +1,9 @@
 <template>
   <view class="page-wrap">
     <view class="back-link" @tap="goBack">‹ 返回活动详情</view>
-    <view class="eyebrow">T1 / MEMBERSHIP</view>
-    <view class="page-title">找到适合你的方案</view>
     <view class="page-subtitle"
       >{{ detail.title || "门店会员卡"
-      }}<view>了解权益，再与教练线下确认。</view></view
+      }}</view
     >
     <scroll-view class="scroll" scroll-x :show-scrollbar="false">
       <view
@@ -187,8 +185,8 @@ export default {
 .page-wrap {
   min-height: 100vh;
   box-sizing: border-box;
-  background: #111211;
-  color: #f6f4ef;
+  background: var(--t1-bg);
+  color: var(--t1-text);
   padding: 32rpx 32rpx calc(48rpx + env(safe-area-inset-bottom));
   max-width: 960px;
   margin: auto;
@@ -199,29 +197,22 @@ export default {
 .eyebrow {
   font-size: 20rpx;
   letter-spacing: 4rpx;
-  color: #ff7a35;
+  color: var(--t1-accent);
   font-weight: 700;
-}
-.page-title {
-  font-size: 52rpx;
-  line-height: 1.25;
-  font-weight: 700;
-  margin-top: 12rpx;
-  letter-spacing: -1rpx;
 }
 .page-subtitle,
 .muted {
   font-size: 25rpx;
   line-height: 1.7;
-  color: #a2a49c;
+  color: var(--t1-muted);
 }
 .page-subtitle {
   margin-top: 14rpx;
 }
 .panel,
 .card {
-  background: #1c1d1b;
-  border: 1rpx solid #30322f;
+  background: var(--t1-surface);
+  border: 1rpx solid var(--t1-border);
   border-radius: 20rpx;
   padding: 28rpx;
   margin-top: 24rpx;
@@ -240,8 +231,8 @@ export default {
   font-size: 21rpx;
   line-height: 1.5;
   padding: 8rpx 14rpx;
-  background: #30271f;
-  color: #ff7a35;
+  background: var(--t1-tint);
+  color: var(--t1-accent);
   border-radius: 8rpx;
   white-space: nowrap;
   flex-shrink: 0;
@@ -252,8 +243,8 @@ export default {
   line-height: 88rpx;
   padding: 0 28rpx;
   border-radius: 14rpx;
-  background: #ff7a35;
-  color: #111211;
+  background: var(--t1-text);
+  color: var(--t1-on-dark);
   font-size: 28rpx;
   font-weight: 700;
 }
@@ -262,33 +253,33 @@ export default {
 }
 .btn.ghost {
   background: transparent;
-  border: 1rpx solid #42453f;
-  color: #f6f4ef;
+  border: 1rpx solid var(--t1-border);
+  color: var(--t1-text);
 }
 .btn[disabled] {
-  background: #30322f;
-  color: #85887f;
+  background: var(--t1-inset);
+  color: var(--t1-muted);
   opacity: 0.7;
 }
 .empty {
   padding: 64rpx 28rpx;
   text-align: center;
-  border: 1rpx dashed #30322f;
+  border: 1rpx dashed var(--t1-border);
   border-radius: 20rpx;
   margin-top: 24rpx;
-  color: #a2a49c;
+  color: var(--t1-muted);
   font-size: 26rpx;
   line-height: 1.8;
 }
 .empty-title {
   display: block;
-  color: #f6f4ef;
+  color: var(--t1-text);
   font-size: 32rpx;
   font-weight: 600;
   margin-bottom: 12rpx;
 }
 .error {
-  color: #ffb18c;
+  color: var(--t1-danger);
 }
 .scroll {
   white-space: nowrap;
@@ -303,23 +294,23 @@ export default {
   padding: 0 26rpx;
   margin-right: 12rpx;
   border-radius: 14rpx;
-  border: 1rpx solid #30322f;
-  background: #1c1d1b;
-  color: #a2a49c;
+  border: 1rpx solid var(--t1-border);
+  background: var(--t1-surface);
+  color: var(--t1-muted);
   font-size: 26rpx;
   box-sizing: border-box;
 }
 .chip.active {
-  color: #111211;
-  background: #ff7a35;
-  border-color: #ff7a35;
+  color: var(--t1-on-dark);
+  background: var(--t1-text);
+  border-color: var(--t1-accent);
   font-weight: 700;
 }
 .back-link {
   display: inline-flex;
   align-items: center;
   min-height: 80rpx;
-  color: #a2a49c;
+  color: var(--t1-muted);
   font-size: 26rpx;
   margin: -12rpx 0 12rpx;
 }
@@ -340,23 +331,23 @@ export default {
 .sale-price {
   font-size: 48rpx;
   font-weight: 700;
-  color: #ff7a35;
+  color: var(--t1-accent);
 }
 .origin-price {
   font-size: 25rpx;
-  color: #85887f;
+  color: var(--t1-muted);
   text-decoration: line-through;
 }
 .price-note {
   font-size: 22rpx;
-  color: #a2a49c;
+  color: var(--t1-muted);
   margin-top: 12rpx;
 }
 .benefits {
   display: flex;
   gap: 28rpx;
   flex-wrap: wrap;
-  border-top: 1rpx solid #30322f;
+  border-top: 1rpx solid var(--t1-border);
   margin-top: 28rpx;
   padding-top: 24rpx;
 }
@@ -373,7 +364,7 @@ export default {
 .benefit-number text {
   font-size: 21rpx;
   font-weight: 400;
-  color: #a2a49c;
+  color: var(--t1-muted);
   margin-left: 8rpx;
 }
 .benefit .muted {
@@ -382,7 +373,7 @@ export default {
 .rule-note {
   font-size: 24rpx;
   line-height: 1.8;
-  color: #a2a49c;
+  color: var(--t1-muted);
   margin: 24rpx 0;
 }
 .plan-card .btn {

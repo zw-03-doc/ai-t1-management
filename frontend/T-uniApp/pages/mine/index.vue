@@ -1,10 +1,10 @@
 <template>
   <view class="page-wrap with-nav">
-    <view class="eyebrow">T1 / MY SPACE</view>
+
     <view class="profile" @tap="handleMenu({ path: '/pages/mine/profile' })">
       <view class="profile-main"
         ><view class="profile-name">{{ displayName }}</view
-        ><view class="page-subtitle">把每一次坚持，留给自己。</view></view
+        ></view
       >
       <MemberAvatar :source="summary.avatarUrl || ''" />
     </view>
@@ -22,18 +22,16 @@
       ><text class="empty-title">暂时没能读取你的信息</text>{{ summaryError
       }}<view>轻点重试</view></view
     >
-    <view class="section-heading">我的训练生活</view>
+    <view class="section-heading">会员服务</view>
     <view class="menu-list">
       <view
         class="menu-row"
         v-for="item in menuList"
         :key="item.title"
         @tap="handleMenu(item)"
-      >
-        <text class="menu-marker">{{ item.marker }}</text
-        ><view class="menu-main"
+      ><view class="menu-main"
           ><view class="menu-title">{{ item.title }}</view
-          ><view class="menu-desc">{{ item.desc }}</view></view
+          ></view
         ><text class="menu-arrow">›</text>
       </view>
     </view>
@@ -42,7 +40,7 @@
       @tap="accountToolsVisible = !accountToolsVisible"
       ><view
         ><view class="menu-title">账号与登录</view
-        ><view class="menu-desc">手机号、在网页上继续训练</view></view
+        ></view
       ><text class="menu-arrow">{{
         accountToolsVisible ? "−" : "+"
       }}</text></view
@@ -86,7 +84,11 @@
       >
       <button class="btn ghost" @tap="createWebCode">生成网页登录码</button>
     </view>
-    <view class="footer-mark">T1 FITNESS CLUB</view>
+
+    <view class="policy-links">
+      <navigator url="/pages/legal/index?doc=terms">用户服务协议</navigator>
+      <navigator url="/pages/legal/index?doc=privacy">隐私政策</navigator>
+    </view>
     <T1Nav role="member" current="mine" />
   </view>
 </template>
@@ -112,26 +114,18 @@ export default {
       menuList: [
         {
           title: "我的预约",
-          desc: "查看时段，到场签到",
-          marker: "01",
           path: "/pages/course/index?tab=reservation",
         },
         {
           title: "我的会员卡",
-          desc: "剩余次数、有效期与余额",
-          marker: "02",
           path: "/pages/course/index?tab=card",
         },
         {
           title: "训练计划",
-          desc: "安排每一天，记录每一组",
-          marker: "03",
           path: "/pages/training/index",
         },
         {
           title: "个人资料",
-          desc: "昵称、姓名与训练偏好",
-          marker: "04",
           path: "/pages/mine/profile",
         },
       ],
@@ -139,7 +133,7 @@ export default {
   },
   computed: {
     displayName() {
-      return this.summary.realName || this.summary.nickname || "我的训练空间";
+      return this.summary.realName || this.summary.nickname || "会员";
     },
     stats() {
       return [
@@ -275,8 +269,8 @@ export default {
 .page-wrap {
   min-height: 100vh;
   box-sizing: border-box;
-  background: #111211;
-  color: #f6f4ef;
+  background: var(--t1-bg);
+  color: var(--t1-text);
   padding: 32rpx 32rpx calc(48rpx + env(safe-area-inset-bottom));
   max-width: 960px;
   margin: auto;
@@ -284,14 +278,8 @@ export default {
 .with-nav {
   padding-bottom: calc(164rpx + env(safe-area-inset-bottom));
 }
-.eyebrow {
-  font-size: 20rpx;
-  letter-spacing: 4rpx;
-  color: #ff7a35;
-  font-weight: 700;
-}
 .page-title {
-  font-size: 52rpx;
+  font-size: 48rpx;
   line-height: 1.25;
   font-weight: 700;
   margin-top: 12rpx;
@@ -301,15 +289,12 @@ export default {
 .muted {
   font-size: 25rpx;
   line-height: 1.7;
-  color: #a2a49c;
-}
-.page-subtitle {
-  margin-top: 14rpx;
+  color: var(--t1-muted);
 }
 .panel,
 .card {
-  background: #1c1d1b;
-  border: 1rpx solid #30322f;
+  background: var(--t1-surface);
+  border: 1rpx solid var(--t1-border);
   border-radius: 20rpx;
   padding: 28rpx;
   margin-top: 24rpx;
@@ -328,8 +313,8 @@ export default {
   font-size: 21rpx;
   line-height: 1.5;
   padding: 8rpx 14rpx;
-  background: #30271f;
-  color: #ff7a35;
+  background: var(--t1-tint);
+  color: var(--t1-accent);
   border-radius: 8rpx;
   white-space: nowrap;
   flex-shrink: 0;
@@ -340,8 +325,8 @@ export default {
   line-height: 88rpx;
   padding: 0 28rpx;
   border-radius: 14rpx;
-  background: #ff7a35;
-  color: #111211;
+  background: var(--t1-text);
+  color: var(--t1-on-dark);
   font-size: 28rpx;
   font-weight: 700;
 }
@@ -350,33 +335,33 @@ export default {
 }
 .btn.ghost {
   background: transparent;
-  border: 1rpx solid #42453f;
-  color: #f6f4ef;
+  border: 1rpx solid var(--t1-border);
+  color: var(--t1-text);
 }
 .btn[disabled] {
-  background: #30322f;
-  color: #85887f;
+  background: var(--t1-inset);
+  color: var(--t1-muted);
   opacity: 0.7;
 }
 .empty {
   padding: 64rpx 28rpx;
   text-align: center;
-  border: 1rpx dashed #30322f;
+  border: 1rpx dashed var(--t1-border);
   border-radius: 20rpx;
   margin-top: 24rpx;
-  color: #a2a49c;
+  color: var(--t1-muted);
   font-size: 26rpx;
   line-height: 1.8;
 }
 .empty-title {
   display: block;
-  color: #f6f4ef;
+  color: var(--t1-text);
   font-size: 32rpx;
   font-weight: 600;
   margin-bottom: 12rpx;
 }
 .error {
-  color: #ffb18c;
+  color: var(--t1-danger);
 }
 .scroll {
   white-space: nowrap;
@@ -391,23 +376,23 @@ export default {
   padding: 0 26rpx;
   margin-right: 12rpx;
   border-radius: 14rpx;
-  border: 1rpx solid #30322f;
-  background: #1c1d1b;
-  color: #a2a49c;
+  border: 1rpx solid var(--t1-border);
+  background: var(--t1-surface);
+  color: var(--t1-muted);
   font-size: 26rpx;
   box-sizing: border-box;
 }
 .chip.active {
-  color: #111211;
-  background: #ff7a35;
-  border-color: #ff7a35;
+  color: var(--t1-on-dark);
+  background: var(--t1-text);
+  border-color: var(--t1-accent);
   font-weight: 700;
 }
 .back-link {
   display: inline-flex;
   align-items: center;
   min-height: 80rpx;
-  color: #a2a49c;
+  color: var(--t1-muted);
   font-size: 26rpx;
   margin: -12rpx 0 12rpx;
 }
@@ -429,21 +414,17 @@ export default {
   font-weight: 700;
   word-break: break-all;
 }
-.profile .page-subtitle {
-  font-size: 24rpx;
-  margin-top: 14rpx;
-}
 .stats-grid {
   display: flex;
-  background: #1c1d1b;
-  border: 1rpx solid #30322f;
+  background: var(--t1-surface);
+  border: 1rpx solid var(--t1-border);
   border-radius: 20rpx;
   padding: 30rpx 0;
 }
 .stats-item {
   flex: 1;
   text-align: center;
-  border-right: 1rpx solid #30322f;
+  border-right: 1rpx solid var(--t1-border);
   min-width: 0;
 }
 .stats-item:last-child {
@@ -453,24 +434,24 @@ export default {
   display: block;
   font-size: 44rpx;
   font-weight: 700;
-  color: #f6f4ef;
+  color: var(--t1-text);
 }
 .stats-label {
   display: block;
   font-size: 22rpx;
   margin-top: 12rpx;
-  color: #a2a49c;
+  color: var(--t1-muted);
 }
 .section-heading {
   font-size: 25rpx;
   font-weight: 600;
-  color: #a2a49c;
+  color: var(--t1-muted);
   margin: 40rpx 0 20rpx;
 }
 .menu-list {
-  border: 1rpx solid #30322f;
+  border: 1rpx solid var(--t1-border);
   border-radius: 20rpx;
-  background: #1c1d1b;
+  background: var(--t1-surface);
   padding: 0 26rpx;
 }
 .menu-row {
@@ -478,23 +459,10 @@ export default {
   gap: 22rpx;
   align-items: center;
   padding: 30rpx 0;
-  border-bottom: 1rpx solid #30322f;
+  border-bottom: 1rpx solid var(--t1-border);
 }
 .menu-row:last-child {
   border: 0;
-}
-.menu-marker {
-  font-size: 21rpx;
-  font-weight: 700;
-  color: #ff7a35;
-  background: #30271f;
-  width: 58rpx;
-  height: 58rpx;
-  border-radius: 12rpx;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
 }
 .menu-main {
   flex: 1;
@@ -508,11 +476,11 @@ export default {
   font-size: 23rpx;
   line-height: 1.7;
   margin-top: 10rpx;
-  color: #a2a49c;
+  color: var(--t1-muted);
 }
 .menu-arrow {
   font-size: 38rpx;
-  color: #85887f;
+  color: var(--t1-muted);
   flex-shrink: 0;
 }
 .account-toggle {
@@ -530,14 +498,7 @@ export default {
 }
 .account-divider {
   height: 1rpx;
-  background: #30322f;
+  background: var(--t1-inset);
   margin: 32rpx 0;
-}
-.footer-mark {
-  text-align: center;
-  font-size: 18rpx;
-  letter-spacing: 5rpx;
-  color: #74786e;
-  padding-top: 46rpx;
 }
 </style>

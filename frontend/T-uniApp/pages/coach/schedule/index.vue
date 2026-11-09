@@ -1,10 +1,5 @@
 <template>
   <view class="schedule-page">
-    <view class="page-head"
-      ><text class="eyebrow">教学安排</text
-      ><view class="page-title">我的排课</view
-      ><view class="page-desc">查看授课时间与预约情况</view></view
-    >
     <view class="filter-row"
       ><button
         v-for="item in tabs"
@@ -22,7 +17,7 @@
     >
     <view v-if="loading" class="state-card"
       ><text class="state-title">正在加载排课</text
-      ><text class="muted">请稍候</text></view
+      ></view
     >
     <view v-else-if="errorText && !list.length" class="state-card"
       ><text class="state-title">排课加载失败</text
@@ -33,7 +28,7 @@
       <view v-if="!list.length" class="state-card"
         ><text class="empty-mark">—</text
         ><text class="state-title">{{ activeLabel }}暂无排课</text
-        ><text class="muted">可切换日期查看其他授课安排。</text></view
+        ></view
       >
       <view v-for="item in list" :key="item.scheduleId" class="schedule-card">
         <view class="date-line"
@@ -89,7 +84,7 @@
       >
         {{ loadingMore ? "加载中…" : "加载更多课程" }}
       </button>
-      <text v-else-if="list.length" class="end-label">已显示全部课程</text>
+
     </block>
     <T1Nav role="coach" current="schedule" />
   </view>
@@ -219,8 +214,8 @@ export default {
   margin: 0 auto;
   min-height: 100vh;
   padding: 32rpx 32rpx calc(160rpx + env(safe-area-inset-bottom));
-  background: #111211;
-  color: #f6f4ef;
+  background: var(--t1-bg);
+  color: var(--t1-text);
 }
 button {
   margin: 0;
@@ -234,27 +229,11 @@ button {
 button::after {
   border: 0;
 }
-.page-head {
-  padding: 8rpx 0 32rpx;
-}
-.eyebrow {
-  font-size: 22rpx;
-  color: #ff7a35;
-}
-.page-title {
-  font-size: 46rpx;
-  font-weight: 700;
-  margin: 12rpx 0;
-}
-.page-desc {
-  font-size: 26rpx;
-  color: #a2a49c;
-}
 .filter-row {
   display: flex;
   padding: 6rpx;
-  background: #1c1d1b;
-  border: 1rpx solid #30322f;
+  background: var(--t1-surface);
+  border: 1rpx solid var(--t1-border);
   border-radius: 16rpx;
   gap: 6rpx;
 }
@@ -265,12 +244,12 @@ button::after {
   align-items: center;
   justify-content: center;
   font-size: 26rpx;
-  color: #a2a49c;
+  color: var(--t1-muted);
   border-radius: 12rpx;
 }
 .filter-chip.active {
-  background: #ff7a35;
-  color: #111211;
+  background: var(--t1-text);
+  color: var(--t1-on-dark);
   font-weight: 650;
 }
 .list-head {
@@ -280,14 +259,14 @@ button::after {
   font-size: 27rpx;
 }
 .muted {
-  color: #a2a49c;
+  color: var(--t1-muted);
   font-size: 24rpx;
   line-height: 1.7;
 }
 .schedule-card {
   padding: 24rpx;
-  background: #1c1d1b;
-  border: 1rpx solid #30322f;
+  background: var(--t1-surface);
+  border: 1rpx solid var(--t1-border);
   border-radius: 20rpx;
   margin-bottom: 20rpx;
 }
@@ -295,16 +274,16 @@ button::after {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  color: #a2a49c;
+  color: var(--t1-muted);
   font-size: 24rpx;
   gap: 16rpx;
 }
 .status-tag {
   padding: 6rpx 12rpx;
-  border: 1rpx solid #30322f;
+  border: 1rpx solid var(--t1-border);
   border-radius: 8rpx;
   font-size: 21rpx;
-  color: #ff7a35;
+  color: var(--t1-accent);
 }
 .lesson-main {
   display: flex;
@@ -315,7 +294,7 @@ button::after {
 .time-block {
   flex-shrink: 0;
   min-width: 120rpx;
-  border-right: 1rpx solid #30322f;
+  border-right: 1rpx solid var(--t1-border);
   padding-right: 24rpx;
 }
 .start-time {
@@ -327,7 +306,7 @@ button::after {
   display: block;
   margin-top: 8rpx;
   font-size: 23rpx;
-  color: #a2a49c;
+  color: var(--t1-muted);
 }
 .course-main {
   flex: 1;
@@ -339,15 +318,15 @@ button::after {
   line-height: 1.5;
 }
 .card-meta {
-  color: #a2a49c;
+  color: var(--t1-muted);
   font-size: 24rpx;
   margin: 8rpx 0 14rpx;
 }
 .type-tag {
-  color: #c4c6bd;
+  color: var(--t1-muted);
   font-size: 21rpx;
   padding: 4rpx 10rpx;
-  background: #282a26;
+  background: var(--t1-inset);
   border-radius: 6rpx;
 }
 .attendance {
@@ -356,7 +335,7 @@ button::after {
   justify-content: space-between;
   gap: 12rpx;
   padding-top: 22rpx;
-  border-top: 1rpx solid #30322f;
+  border-top: 1rpx solid var(--t1-border);
 }
 .count {
   display: block;
@@ -365,29 +344,29 @@ button::after {
 }
 .capacity {
   font-size: 24rpx;
-  color: #a2a49c;
+  color: var(--t1-muted);
   font-weight: 400;
 }
 .count-label {
   display: block;
   font-size: 21rpx;
-  color: #a2a49c;
+  color: var(--t1-muted);
   margin-top: 4rpx;
 }
 .checkin-link {
   min-height: 88rpx;
   display: flex;
   align-items: center;
-  color: #ff7a35;
+  color: var(--t1-accent);
   font-size: 24rpx;
   flex-shrink: 0;
 }
 .state-card {
   padding: 54rpx 28rpx;
   text-align: center;
-  border: 1rpx solid #30322f;
+  border: 1rpx solid var(--t1-border);
   border-radius: 20rpx;
-  background: #1c1d1b;
+  background: var(--t1-surface);
 }
 .state-card .muted {
   display: block;
@@ -400,14 +379,14 @@ button::after {
 }
 .empty-mark {
   display: block;
-  color: #ff7a35;
+  color: var(--t1-accent);
   font-size: 50rpx;
   margin-bottom: 14rpx;
 }
 .secondary-btn {
   min-height: 88rpx;
   line-height: 88rpx;
-  background: #30322f;
+  background: var(--t1-inset);
   border-radius: 12rpx;
   font-size: 26rpx;
   padding: 0 28rpx;
@@ -419,15 +398,8 @@ button::after {
 .inline-error {
   display: block;
   text-align: center;
-  color: #ff7a35;
+  color: var(--t1-danger);
   font-size: 24rpx;
   padding: 12rpx;
-}
-.end-label {
-  display: block;
-  text-align: center;
-  color: #a2a49c;
-  font-size: 22rpx;
-  padding: 20rpx 0;
 }
 </style>

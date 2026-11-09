@@ -22,6 +22,8 @@ public final class FitnessCoachAppBo {
     @Data
     @EqualsAndHashCode(callSuper = true)
     public static class LoginBo extends BaseEntity {
+        private String consentVersion;
+
 
         @NotBlank(message = "用户名不能为空")
         private String username;
@@ -33,6 +35,8 @@ public final class FitnessCoachAppBo {
     @Data
     @EqualsAndHashCode(callSuper = true)
     public static class WechatLoginBo extends BaseEntity {
+        private String consentVersion;
+
 
         /**
          * 小程序 wx.login() 返回的 code
@@ -48,6 +52,8 @@ public final class FitnessCoachAppBo {
     @Data
     @EqualsAndHashCode(callSuper = true)
     public static class WechatActivateBo extends BaseEntity {
+        private String consentVersion;
+
 
         /**
          * 小程序 wx.login() 返回的 code

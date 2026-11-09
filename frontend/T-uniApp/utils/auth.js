@@ -1,8 +1,10 @@
 const MEMBER_SESSION_KEY = 'T1_MEMBER_SESSION'
 const COACH_SESSION_KEY = 'T1_COACH_SESSION'
+export const POLICY_VERSION = '2026-11-09'
 
 function readSession(key) {
-	return uni.getStorageSync(key) || {}
+	const session = uni.getStorageSync(key)
+	return session?.policyVersion === POLICY_VERSION ? session : {}
 }
 
 function writeSession(key, value) {
@@ -15,6 +17,7 @@ export function getMemberSession() {
 
 export function saveMemberSession(loginVo) {
 	writeSession(MEMBER_SESSION_KEY, {
+		policyVersion: loginVo?.policyVersion,
 		accessToken: (loginVo && loginVo.accessToken) || '',
 		clientId: (loginVo && loginVo.clientId) || '',
 		openid: (loginVo && loginVo.openid) || '',
@@ -37,6 +40,7 @@ export function getCoachSession() {
 
 export function saveCoachSession(loginVo) {
 	writeSession(COACH_SESSION_KEY, {
+		policyVersion: loginVo?.policyVersion,
 		accessToken: (loginVo && loginVo.accessToken) || '',
 		clientId: (loginVo && loginVo.clientId) || '',
 		openid: (loginVo && loginVo.openid) || '',

@@ -1,14 +1,9 @@
 <template>
   <view class="coach-page">
     <view class="hero">
-      <image
-        class="hero-image"
-        src="/static/images/live-2.jpg"
-        mode="aspectFill"
-      />
-      <view class="hero-shade"></view>
+
       <view class="hero-content">
-        <text class="eyebrow">T1 FITNESS / 教练工作台</text>
+
         <view class="hero-title">今日教学安排</view>
         <view class="hero-sub"
           >{{ coachName }} · {{ coachProfile.storeName || "门店待分配" }}</view
@@ -30,7 +25,7 @@
 
     <view v-if="loading" class="state-card"
       ><text class="state-title">正在整理今日工作</text
-      ><text class="muted">请稍候</text></view
+      ></view
     >
     <view v-else-if="errorText" class="state-card"
       ><text class="state-title">暂时无法加载</text
@@ -47,7 +42,7 @@
       <view class="panel">
         <view v-if="!scheduleList.length" class="empty"
           ><text class="state-title">今天暂无课程</text
-          ><text class="muted">下一次授课安排可在排课中查看。</text></view
+          ></view
         >
         <button
           v-for="item in scheduleList"
@@ -80,7 +75,7 @@
       <view class="panel">
         <view v-if="!pendingList.length" class="empty"
           ><text class="state-title">当前没有待处理签到</text
-          ><text class="muted">新的到课记录会显示在这里。</text></view
+          ></view
         >
         <button
           v-for="item in pendingList"
@@ -102,19 +97,12 @@
       </view>
     </block>
 
-    <view class="section-head"
-      ><text class="section-title">学员与服务</text></view
-    >
     <view class="entry-grid">
-      <button class="entry-card" @tap="goPage('/pages/coach/student/index')">
-        <text class="entry-kicker">学员管理</text
-        ><text class="entry-title">我的学员 <text class="arrow">›</text></text
-        ><text class="muted">到课记录与训练计划</text>
+      <button class="entry-card" @tap="goPage('/pages/coach/student/index')"><text class="entry-title">我的学员 <text class="arrow">›</text></text
+        >
       </button>
-      <button class="entry-card" @tap="goPage('/pages/coach/interest/index')">
-        <text class="entry-kicker">课程沟通</text
-        ><text class="entry-title">课程兴趣 <text class="arrow">›</text></text
-        ><text class="muted">了解会员关注的课程</text>
+      <button class="entry-card" @tap="goPage('/pages/coach/interest/index')"><text class="entry-title">课程兴趣 <text class="arrow">›</text></text
+        >
       </button>
     </view>
     <view
@@ -247,8 +235,8 @@ export default {
   max-width: 760px;
   margin: 0 auto;
   min-height: 100vh;
-  background: #111211;
-  color: #f6f4ef;
+  background: var(--t1-bg);
+  color: var(--t1-text);
   padding: 32rpx 32rpx calc(160rpx + env(safe-area-inset-bottom));
 }
 button {
@@ -265,11 +253,7 @@ button::after {
   border: 0;
 }
 .hero {
-  position: relative;
-  height: 300rpx;
-  border-radius: 20rpx;
-  overflow: hidden;
-  background: #1c1d1b;
+  margin-bottom: 28rpx;
 }
 .hero-image,
 .hero-shade {
@@ -279,41 +263,27 @@ button::after {
   left: 0;
   top: 0;
 }
-.hero-shade {
-  background:
-    linear-gradient(90deg, rgba(17, 18, 17, 0.89), rgba(17, 18, 17, 0.25)),
-    linear-gradient(0deg, rgba(17, 18, 17, 0.6), transparent);
-}
 .hero-content {
-  position: relative;
-  padding: 32rpx;
   display: flex;
-  height: 100%;
-  box-sizing: border-box;
   flex-direction: column;
-  justify-content: flex-end;
-}
-.eyebrow {
-  font-size: 20rpx;
-  letter-spacing: 2rpx;
-  color: #ff7a35;
+  align-items: flex-start;
 }
 .hero-title {
-  font-size: 40rpx;
+  font-size: 46rpx;
   font-weight: 700;
-  line-height: 1.45;
-  margin: 18rpx 0 12rpx;
+  line-height: 1.3;
+  margin-bottom: 10rpx;
 }
 .hero-sub {
   font-size: 25rpx;
-  color: #d8d9d2;
+  color: var(--t1-muted);
 }
 .stats-grid {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
   margin: 20rpx 0 32rpx;
-  border: 1rpx solid #30322f;
-  background: #1c1d1b;
+  border: 1rpx solid var(--t1-border);
+  background: var(--t1-surface);
   border-radius: 20rpx;
 }
 .stat {
@@ -321,17 +291,17 @@ button::after {
   text-align: center;
 }
 .stat + .stat {
-  border-left: 1rpx solid #30322f;
+  border-left: 1rpx solid var(--t1-border);
 }
 .stat-number {
   display: block;
   font-size: 44rpx;
   font-weight: 700;
-  color: #ff7a35;
+  color: var(--t1-accent);
 }
 .stat-label {
   display: block;
-  color: #a2a49c;
+  color: var(--t1-muted);
   font-size: 23rpx;
   margin-top: 4rpx;
 }
@@ -347,7 +317,7 @@ button::after {
   font-weight: 650;
 }
 .text-btn {
-  color: #a2a49c;
+  color: var(--t1-muted);
   font-size: 24rpx;
   min-height: 88rpx;
   display: flex;
@@ -355,8 +325,8 @@ button::after {
   flex-shrink: 0;
 }
 .panel {
-  border: 1rpx solid #30322f;
-  background: #1c1d1b;
+  border: 1rpx solid var(--t1-border);
+  background: var(--t1-surface);
   border-radius: 20rpx;
   overflow: hidden;
   margin-bottom: 20rpx;
@@ -373,7 +343,7 @@ button::after {
 .lesson-row + .lesson-row,
 .pending-row + .pending-row,
 .notice + .notice {
-  border-top: 1rpx solid #30322f;
+  border-top: 1rpx solid var(--t1-border);
 }
 .time-column {
   flex-shrink: 0;
@@ -399,23 +369,23 @@ button::after {
   display: block;
   font-size: 24rpx;
   line-height: 1.65;
-  color: #a2a49c;
+  color: var(--t1-muted);
   margin-top: 8rpx;
 }
 .lesson-count {
   display: block;
   font-size: 22rpx;
   margin-top: 12rpx;
-  color: #c4c6bd;
+  color: var(--t1-muted);
 }
 .arrow {
-  color: #ff7a35;
+  color: var(--t1-accent);
   font-size: 36rpx;
   font-weight: 400;
 }
 .status-chip {
-  background: #30251d;
-  color: #ff7a35;
+  background: var(--t1-tint);
+  color: var(--t1-accent);
   border-radius: 8rpx;
   padding: 8rpx 14rpx;
   font-size: 22rpx;
@@ -427,9 +397,9 @@ button::after {
   text-align: center;
 }
 .state-card {
-  border: 1rpx solid #30322f;
+  border: 1rpx solid var(--t1-border);
   border-radius: 20rpx;
-  background: #1c1d1b;
+  background: var(--t1-surface);
   margin: 24rpx 0;
 }
 .state-title {
@@ -442,7 +412,7 @@ button::after {
   padding: 18rpx 32rpx;
   min-height: 88rpx;
   width: 260rpx;
-  background: #30322f;
+  background: var(--t1-inset);
   border-radius: 12rpx;
   font-size: 26rpx;
   text-align: center;
@@ -455,15 +425,9 @@ button::after {
 }
 .entry-card {
   padding: 26rpx 24rpx;
-  background: #1c1d1b;
-  border: 1rpx solid #30322f;
+  background: var(--t1-surface);
+  border: 1rpx solid var(--t1-border);
   border-radius: 20rpx;
-}
-.entry-kicker {
-  display: block;
-  color: #ff7a35;
-  font-size: 21rpx;
-  margin-bottom: 18rpx;
 }
 .entry-title {
   display: flex;
@@ -481,7 +445,7 @@ button::after {
 .notice-time {
   display: block;
   font-size: 21rpx;
-  color: #a2a49c;
+  color: var(--t1-muted);
   margin-top: 12rpx;
 }
 </style>

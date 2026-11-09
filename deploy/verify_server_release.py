@@ -31,9 +31,9 @@ def main():
     assert env.get('WECHAT_MINI_SECRET')==Path('/etc/t1-management/secrets/wechat_mini_secret').read_text().strip()
     with urllib.request.urlopen('https://t1.wedodiary.top/prod-api/auth/code',timeout=30) as response:
         assert response.status==200 and json.load(response)['code']==200
-    with urllib.request.urlopen('https://t1.wedodiary.top/prod-api/fitness/mini/portal/slogans',timeout=30) as response:
-        slogans=json.load(response)
-        assert slogans.get('code')==200 and set(slogans['data'])=={'eyebrow','titleLead','titleAccent','titleSecondLine','subtitle','galleryCaption','footerCaption'}
+    with urllib.request.urlopen('https://t1.wedodiary.top/prod-api/fitness/mini/portal/venue',timeout=30) as response:
+        venue=json.load(response)
+        assert venue.get('code')==200 and isinstance(venue['data']['photos'],list)
     request=urllib.request.Request('https://t1.wedodiary.top/prod-api/fitness/member/list',headers={'clientid':'e5cd7e4891bf95d1d19206ce24a7b32e'})
     try:
         response=urllib.request.urlopen(request,timeout=30)
@@ -49,17 +49,19 @@ def main():
           OR (table_name='fit_member' AND column_name IN ('contact_mobile','profile_setup_status')));
         SELECT COUNT(*) FROM fit_store WHERE store_code LIKE 'QA_FLOW_1104_%';
         SELECT COUNT(*) FROM sys_menu c JOIN sys_menu p ON p.menu_id=c.parent_id
-          WHERE c.component='fitness/portal/index' AND c.perms='fitness:portal:query' AND c.menu_name='励志标语'
+          WHERE c.component='fitness/venue/index' AND c.menu_name='场馆图片' AND c.visible='0' AND c.status='0'
             AND p.menu_type='M' AND p.visible='0' AND p.status='0';
         SELECT COUNT(*) FROM sys_menu c LEFT JOIN sys_menu p ON c.parent_id=p.menu_id
-          WHERE c.component LIKE 'fitness/%' AND c.menu_type='C' AND p.menu_id IS NULL;"""
+          WHERE c.component LIKE 'fitness/%' AND c.menu_type='C' AND p.menu_id IS NULL;
+        SELECT COUNT(*) FROM information_schema.tables WHERE table_schema='t1_fitness'
+          AND table_name IN ('fit_policy_consent','fit_venue_gallery','fit_venue_photo');"""
     result=subprocess.run(['docker','exec','-i','t1-management-mysql-1','sh','-c',
         'MYSQL_PWD="$(cat /run/secrets/database_root_password)" exec mysql -uroot --default-character-set=utf8mb4 -N -B t1_fitness'],
         input=statement.encode(),stdout=subprocess.PIPE,stderr=subprocess.PIPE,check=True).stdout.decode().split()
-    assert result==['4','0','1','0'], 'Schema, visible menu hierarchy, or isolated-fixture boundary mismatch'
+    assert result==['4','0','1','0','3'], 'Schema, visible menu hierarchy, or isolated-fixture boundary mismatch'
     receipt={'passed':True,'release':args.release,'runningArtifactsMatch':True,'wechatConfigured':True,
              'authEndpointHealthy':True,'anonymousMemberAccessDenied':True,
-             'incrementalColumnsPresent':True,'candidateStoreFixturesAbsent':True,'publicSlogansAndAdminMenuPresent':True,'uploadLimitsApplied':True,
+             'incrementalColumnsPresent':True,'candidateStoreFixturesAbsent':True,'publicGalleryAndAdminMenuPresent':True,'uploadLimitsApplied':True,
              'scope':'Read-only production smoke; authenticated member/coach/admin business flows were tested in the isolated candidate.'}
     (current/'production-verification.json').write_text(json.dumps(receipt,indent=2))
     print(json.dumps(receipt))

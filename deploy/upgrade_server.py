@@ -11,6 +11,8 @@ EXPECTED_MIGRATIONS = (
     'V1.3.3__member_optional_profile.sql',
     'V1.3.4__portal_slogans.sql',
     'V1.3.5__fitness_navigation.sql',
+    'V1.3.6__venue_gallery.sql',
+    'V1.3.7__login_policy_consent.sql',
 )
 
 def release_file(release, name):
@@ -77,7 +79,7 @@ def switch(compose):
     run(['docker', 'compose', '-p', 't1-management', '-f', str(compose), 'up', '--no-deps', '--no-build', '--pull', 'never', '-d', 'api', 'web'])
 
 def verify_static(manifest):
-    for url, target, prefix in [('https://t1.wedodiary.top/', 'admin/index.html', 'admin/'), ('https://t1.wedodiary.top/app/', 'h5/index.html', 'h5/')]:
+    for url, target, prefix in [('https://t1.wedodiary.top/', 'admin/site/index.html', 'admin/'), ('https://t1.wedodiary.top/index.html', 'admin/index.html', 'admin/'), ('https://t1.wedodiary.top/app/', 'h5/index.html', 'h5/')]:
         status, body = http(url)
         if status != 200 or hashlib.sha256(body).hexdigest() != manifest['sha256'][target]:
             raise RuntimeError('Published homepage does not match release')

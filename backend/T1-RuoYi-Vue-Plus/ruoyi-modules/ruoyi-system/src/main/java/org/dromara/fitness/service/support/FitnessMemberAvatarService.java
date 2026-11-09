@@ -19,8 +19,6 @@ import org.springframework.transaction.support.TransactionSynchronizationManager
 import org.springframework.web.multipart.MultipartFile;
 
 import javax.imageio.ImageIO;
-import javax.imageio.stream.MemoryCacheImageInputStream;
-import java.awt.Color;
 import java.awt.image.BufferedImage;
 import java.io.IOException;
 import java.io.InputStream;
@@ -58,7 +56,7 @@ public class FitnessMemberAvatarService {
         String name = UUID.randomUUID() + ".jpg";
         Path target = dir.resolve(name);
         try (InputStream bytes = file.getInputStream()) {
-            BufferedImage clean = thumbnail(bytes);
+            BufferedImage clean = FitnessImageDecoder.decode(bytes, MAX_SIDE);
             Files.createDirectories(dir);
             try (var output = Files.newOutputStream(target)) {
                 if (!ImageIO.write(clean, "JPEG", output)) throw new IOException("JPEG writer unavailable");
@@ -75,40 +73,6 @@ public class FitnessMemberAvatarService {
         } catch (IOException exception) {
             remove(target);
             throw new ServiceException("头像文件无法读取或保存，请更换图片后重试");
-        }
-    }
-
-    private static BufferedImage thumbnail(InputStream bytes) throws IOException {
-        try (var stream = new MemoryCacheImageInputStream(bytes)) {
-            var readers = ImageIO.getImageReaders(stream);
-            if (!readers.hasNext()) throw new ServiceException("请选择有效的 JPEG 或 PNG 图片");
-            var reader = readers.next();
-            try {
-                String format = reader.getFormatName();
-                if (!"JPEG".equalsIgnoreCase(format) && !"PNG".equalsIgnoreCase(format)) {
-                    throw new ServiceException("仅支持 JPEG 和 PNG 图片");
-                }
-                reader.setInput(stream, true, true);
-                int width = reader.getWidth(0);
-                int height = reader.getHeight(0);
-                if (width < 1 || height < 1 || width > 16384 || height > 16384 || (long) width * height > 32_000_000L) {
-                    throw new ServiceException("图片尺寸过大，请压缩后重试");
-                }
-                int stride = (Math.max(width, height) + MAX_SIDE - 1) / MAX_SIDE;
-                var options = reader.getDefaultReadParam();
-                options.setSourceSubsampling(stride, stride, 0, 0);
-                BufferedImage image = reader.read(0, options);
-                BufferedImage clean = new BufferedImage(image.getWidth(), image.getHeight(), BufferedImage.TYPE_INT_RGB);
-                var graphics = clean.createGraphics();
-                try {
-                    graphics.drawImage(image, 0, 0, Color.WHITE, null);
-                } finally {
-                    graphics.dispose();
-                }
-                return clean;
-            } finally {
-                reader.dispose();
-            }
         }
     }
 

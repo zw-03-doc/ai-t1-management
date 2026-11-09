@@ -1,6 +1,5 @@
 <template>
   <div>
-  <el-alert type="info" :closable="false" class="mb-3" title="录单只记录线下办理。先选择会员、门店和卡项，确认线下收款后才发卡；私教卡须选择绑定教练。" />
   <FitnessCrudPage v-bind="pageConfig as any">
     <template #row-actions="{ row, refresh }">
       <el-tooltip v-if="row.orderStatus === 'pending'" content="确认线下收款" placement="top">

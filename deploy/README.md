@@ -2,7 +2,7 @@
 
 部署目标：阿里云实例 `i-7xvbo7bswbug7bn1m8gt`，公网地址 `8.148.222.89`，域名 `t1.wedodiary.top`。
 
-管理端位于 `/`，会员与教练 H5 位于 `/app/`，两端使用 `/prod-api/`。微信小程序请求地址也为 `https://t1.wedodiary.top/prod-api`，需要在小程序管理平台配置合法请求与上传域名。
+域名首页和 `/site/` 提供公开官网。门店管理从 `/login` 或 `/index` 进入，会员与教练网页位于 `/app/`。各端共用 `/prod-api/`。微信小程序请求地址为 `https://t1.wedodiary.top/prod-api`，需在小程序管理平台配置合法请求与上传域名。
 
 ## 资源隔离
 

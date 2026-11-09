@@ -3,7 +3,6 @@
     <view class="page-content">
       <view class="page-heading"
         ><view
-          ><text class="eyebrow">T1 · TRAINING</text
           ><view class="page-title">{{
             editor ? "定制训练" : role === "coach" ? "学员训练" : "我的训练"
           }}</view></view
@@ -21,16 +20,12 @@
       <view v-if="role === 'coach' && memberId" class="member-context card">
         <text class="eyebrow accent">当前学员</text>
         <view class="name">{{ memberContext ? memberContext.displayName : '正在确认学员…' }}</view>
-        <view class="hint">以下计划、日程和记录均属于这位学员；仅有效绑定教练可编辑。</view>
+        <view class="hint">仅绑定教练可编辑。</view>
       </view>
       <view v-if="!authenticated" class="card empty-card"
-        ><view class="section-title">把每一次进步留下来</view
-        ><view class="muted space-top"
-          >登录后制定计划、记录每组重量，让下一次训练有据可依。</view
-        ><button class="primary space-top" @tap="goLogin">登录并开始训练</button
-        ><button class="secondary space-top" @tap="openLibrary(false)">
-          先看看动作库
-        </button></view
+        ><view class="section-title">我的训练</view
+        ><button class="primary space-top" @tap="goLogin">会员登录</button
+        ><button class="secondary space-top" @tap="openLibrary(false)">动作库</button></view
       >
       <view v-else-if="role === 'coach' && !memberId" class="card empty-card"
         ><view class="section-title">先选一位学员</view
@@ -47,21 +42,7 @@
         <view v-if="loading && !editor" class="loading-state"
           >正在整理训练安排…</view
         >
-        <view v-if="!selected && !editor && !loading">
-          <view class="photo-hero"
-            ><image
-              src="/static/images/live-2.jpg"
-              mode="aspectFill"
-              class="hero-photo"
-            /><view class="hero-shade" /><view class="hero-copy"
-              ><text class="hero-date">{{ todayLabel }}</text
-              ><view class="hero-title">从这一组开始</view
-              ><text class="hero-caption"
-                >按自己的节奏，练出真实的进步。</text
-              ></view
-            ></view
-          >
-          <view class="card focus-card"
+        <view v-if="!selected && !editor && !loading"><view class="card focus-card"
             ><view class="section-head"
               ><text class="eyebrow accent">{{ focusLabel }}</text
               ><text v-if="focusWorkout" class="muted">{{
@@ -73,7 +54,7 @@
                 >{{ featuredPlan.name }} ·
                 {{
                   focusWorkout.status === "rest"
-                    ? "让恢复成为计划的一部分"
+                    ? "休息日"
                     : exerciseSummary(focusWorkout)
                 }}</view
               ><button
@@ -91,12 +72,12 @@
               </button></view
             ><view v-else
               ><view class="focus-title">{{
-                featuredPlan ? "安排下一次训练" : "第一份计划，从这里开始"
+                featuredPlan ? "安排下一次训练" : "暂无训练计划"
               }}</view
               ><view class="muted">{{
                 featuredPlan
-                  ? "打开计划，查看日程或开启新的循环安排。"
-                  : "使用免费的三分化、五分化计划，也可以自己定制。"
+                  ? "可查看日程或续排循环。"
+                  : "可新建或从下方模板开始。"
               }}</view
               ><button
                 class="primary space-top"
@@ -116,9 +97,8 @@
             </button></view
           >
           <view v-if="!plans.length" class="card empty-card"
-            ><view class="empty-mark">＋</view
             ><view class="name">还没有训练计划</view
-            ><view class="muted">挑一个模板，调整成适合自己的节奏。</view></view
+            ></view
           >
           <view
             v-for="plan in plans"
@@ -143,15 +123,12 @@
           >
           <view class="section-head section-space"
             ><text class="section-title">免费计划库</text
-            ><text class="hint">找到你的训练节奏</text></view
+            ></view
           >
           <view
-            v-for="(item, index) in templates"
+            v-for="item in templates"
             :key="item.templateId || item.planId"
             class="card template-card"
-            ><view class="section-head"
-              ><text class="template-number">{{ pad(index + 1) }}</text
-              ><text class="badge">免费使用</text></view
             ><view class="template-title">{{ item.name }}</view
             ><view class="muted"
               >{{ item.cycleDays }} 天循环<text v-if="trainingDays(item)">
@@ -176,8 +153,8 @@
           >
           <view class="library-banner" @tap="openLibrary(false)"
             ><view
-              ><view class="name">动作不熟悉？先看要领</view
-              ><view class="muted">按肌群和器械，找到适合的动作</view></view
+              ><view class="name">动作指南</view
+              ><view class="muted">按肌群或器械筛选</view></view
             ><text class="accent library-arrow">↗</text></view
           >
         </view>
@@ -215,7 +192,7 @@
             >
             <view v-if="selected.status === 'draft'" class="start-form"
               ><view class="form-row"
-                ><text>从哪天开始</text
+                ><text>开始日期</text
                 ><picker
                   mode="date"
                   :value="startDate"
@@ -224,7 +201,7 @@
                 ></view
               ><view class="form-row"
                 ><view
-                  ><text>重复几个循环</text
+                  ><text>循环次数</text
                   ><view class="hint"
                     >共 {{ startTotalDays }} 天，日期按北京时间</view
                   ></view
@@ -268,7 +245,6 @@
           >
           <view v-if="detailTab === 'schedule'">
             <view v-if="!workouts.length" class="card empty-card"
-              ><view class="empty-mark">↗</view
               ><view class="name">开启后，训练会排进日历</view
               ><view class="muted"
                 >上方选择开始日期和循环次数，就能生成每天的安排。</view
@@ -389,7 +365,7 @@
             </view>
           </view>
           <view v-if="detailTab === 'progress'" class="card"
-            ><view class="section-title">重量，记录你的进步</view
+            ><view class="section-title">训练重量</view
             ><view class="muted space-top"
               >按每次正式组的最大重量查看。统一换算为 kg，热身组单独计数。</view
             ><picker
@@ -402,8 +378,7 @@
                 >{{ chartExercises[chartIndex].name }} <text>⌄</text></view
               ></picker
             ><view v-if="!chartPoints.length" class="empty-card"
-              ><view class="empty-mark">↗</view
-              ><view class="name">进步，从第一份记录开始</view
+              ><view class="name">暂无训练记录</view
               ><view class="muted">保存实际训练后，这里会出现重量变化。</view
               ><button
                 class="secondary space-top"
@@ -443,13 +418,13 @@
               :key="day.dayNumber"
               class="card"
               ><view class="section-head"
-                ><text class="eyebrow accent">DAY {{ pad(day.dayNumber) }}</text
+                ><text class="eyebrow accent">第 {{ day.dayNumber }} 天</text
                 ><text class="badge">{{
                   day.restDay ? "休息日" : day.exercises.length + " 个动作"
                 }}</text></view
               ><view class="name space-top">{{ day.title }}</view
               ><view v-if="day.restDay" class="muted space-top"
-                >休息、恢复，准备下一次训练。</view
+                >休息日</view
               ><view
                 v-for="exercise in day.exercises"
                 :key="exercise.key"
@@ -466,16 +441,9 @@
           >
         </view>
         <view v-if="editor" class="editor-content">
-          <view class="editor-lead"
-            ><text class="badge badge-accent">{{
-              editor.planId ? "调整计划" : "新计划"
-            }}</text
-            ><view class="muted space-top"
-              >先安排训练日，再为每个动作定下目标。</view
-            ></view
-          >
+
           <view class="card"
-            ><text class="field-label">给计划起个名字</text
+            ><text class="field-label">计划名称</text
             ><input
               v-model="editor.name"
               maxlength="100"
@@ -546,22 +514,19 @@
                 placeholder-class="input-placeholder" /><view class="form-row"
                 ><view
                   ><text>安排为休息日</text
-                  ><view class="hint">让训练和恢复都有节奏。</view></view
+                  ></view
                 ><switch
                   color="#ff7a35"
                   :checked="currentDay.restDay"
                   @change="toggleRest" /></view></view
             ><view v-if="currentDay.restDay" class="card rest-card"
               ><view class="rest-symbol">○</view
-              ><view class="name">今天，把恢复排进计划</view
-              ><view class="muted"
-                >睡好、吃好，给下一次训练留足状态。</view
+              ><view class="name">休息日</view
               ></view
             >
             <view v-else
               ><view v-if="!currentDay.exercises.length" class="card empty-card"
-                ><view class="empty-mark">＋</view
-                ><view class="name">今天准备练什么？</view
+                ><view class="name">训练动作</view
                 ><view class="muted"
                   >从动作库选一个，或添加自己的动作。</view
                 ></view
@@ -572,7 +537,7 @@
                 class="card edit-exercise"
                 ><view class="section-head"
                   ><text class="eyebrow accent"
-                    >动作 {{ pad(exerciseIndex + 1) }}</text
+                    >动作 {{ exerciseIndex + 1 }}</text
                   ><button
                     class="text-button danger"
                     @tap="removeExercise(exerciseIndex)"
@@ -679,7 +644,6 @@
                 >
                 <view class="media-section"
                   ><view class="name">动作素材</view
-                  ><view class="hint">用图片标出动作位置，用视频示范节奏。</view
                   ><view v-if="exercise.imageUrls.length" class="media-grid"
                     ><view
                       v-for="(url, imageIndex) in exercise.imageUrls"
@@ -788,7 +752,6 @@
       ><view class="sheet library-sheet"
         ><view class="sheet-header"
           ><view
-            ><text class="eyebrow accent">T1 · EXERCISE LIBRARY</text
             ><view class="section-title">{{
               libraryPicking ? "为今天添加动作" : "找到你的训练动作"
             }}</view></view
@@ -971,7 +934,7 @@
                   沿用上次
                 </button></view
               ><view v-else class="hint"
-                >还没有这个动作的历史记录，今天就是起点。</view
+                >暂无历史记录</view
               ><view
                 v-if="
                   exercise.instructions ||
@@ -2274,14 +2237,14 @@ export default {
 <style scoped>
 .shift-sheet { height: 85vh; }
 .shift-controls { padding-top: 24rpx; padding-bottom: 24rpx; flex-shrink: 0; }
-.shift-change { border-bottom: 1px solid #30322f; padding: 20rpx 0; }
+.shift-change { border-bottom: 1px solid var(--t1-border); padding: 20rpx 0; }
 .member-context .name { margin: 12rpx 0; }
 .lifecycle-actions { flex-wrap: wrap; }
-.cycle-warning { border-color: #9c653d; }
+.cycle-warning { border-color: var(--t1-accent); }
 .training-page {
   min-height: 100vh;
-  background: #111211;
-  color: #f6f4ef;
+  background: var(--t1-bg);
+  color: var(--t1-text);
   padding-bottom: calc(160rpx + env(safe-area-inset-bottom));
   font-size: 28rpx;
   box-sizing: border-box;
@@ -2318,10 +2281,10 @@ export default {
   font-size: 20rpx;
   font-weight: 700;
   letter-spacing: 3rpx;
-  color: #a2a49c;
+  color: var(--t1-muted);
 }
 .accent {
-  color: #ff7a35 !important;
+  color: var(--t1-accent) !important;
 }
 .page-title {
   font-size: 48rpx;
@@ -2342,12 +2305,12 @@ export default {
 }
 .muted {
   font-size: 25rpx;
-  color: #a2a49c;
+  color: var(--t1-muted);
   line-height: 1.7;
 }
 .hint {
   font-size: 22rpx;
-  color: #a2a49c;
+  color: var(--t1-muted);
   line-height: 1.6;
 }
 .space-top {
@@ -2361,19 +2324,12 @@ export default {
   min-width: 0;
 }
 .card {
-  background: #1c1d1b;
-  border: 1px solid #30322f;
+  background: var(--t1-surface);
+  border: 1px solid var(--t1-border);
   border-radius: 20rpx;
   padding: 28rpx;
   margin-bottom: 24rpx;
   box-sizing: border-box;
-}
-.photo-hero {
-  height: 330rpx;
-  border-radius: 20rpx;
-  position: relative;
-  overflow: hidden;
-  margin-bottom: 24rpx;
 }
 .hero-photo,
 .hero-shade {
@@ -2385,31 +2341,8 @@ export default {
   width: 100%;
   height: 100%;
 }
-.hero-shade {
-  background: linear-gradient(0deg, rgba(7, 9, 7, 0.94), rgba(7, 9, 7, 0.13));
-}
-.hero-copy {
-  position: absolute;
-  bottom: 32rpx;
-  left: 32rpx;
-  right: 28rpx;
-}
-.hero-date {
-  color: #e4e2dc;
-  font-size: 23rpx;
-}
-.hero-title {
-  font-size: 46rpx;
-  font-weight: 750;
-  margin: 8rpx 0 10rpx;
-  letter-spacing: 1rpx;
-}
-.hero-caption {
-  font-size: 25rpx;
-  color: #dddcd5;
-}
 .focus-card {
-  border-top: 4rpx solid #ff7a35;
+  border-top: 4rpx solid var(--t1-accent);
 }
 .focus-title {
   font-size: 38rpx;
@@ -2421,11 +2354,11 @@ export default {
   width: 92rpx;
   height: 92rpx;
   border-radius: 16rpx;
-  background: #292b26;
+  background: var(--t1-inset);
   display: flex;
   justify-content: center;
   align-items: center;
-  color: #ff7a35;
+  color: var(--t1-accent);
   font-size: 34rpx;
   flex-shrink: 0;
   font-weight: 750;
@@ -2446,14 +2379,14 @@ export default {
 }
 .arrow {
   font-size: 30rpx;
-  color: #a2a49c;
+  color: var(--t1-muted);
 }
 .badge {
   display: inline-block;
   padding: 7rpx 13rpx;
-  border: 1px solid #3c3f37;
-  background: #262823;
-  color: #c8cbc1;
+  border: 1px solid var(--t1-border);
+  background: var(--t1-inset);
+  color: var(--t1-muted);
   border-radius: 8rpx;
   font-size: 20rpx;
   white-space: nowrap;
@@ -2461,18 +2394,12 @@ export default {
   line-height: 1.4;
 }
 .badge-accent {
-  background: #38281e;
-  color: #ffae7d;
-  border-color: #684129;
+  background: var(--t1-tint);
+  color: var(--t1-accent);
+  border-color: var(--t1-accent);
 }
 .template-card {
   padding: 28rpx 32rpx;
-}
-.template-number {
-  font-size: 56rpx;
-  color: #62665d;
-  font-weight: 750;
-  line-height: 1;
 }
 .template-title {
   font-size: 36rpx;
@@ -2481,7 +2408,7 @@ export default {
 }
 .template-description {
   font-size: 24rpx;
-  color: #c2c4ba;
+  color: var(--t1-muted);
   line-height: 1.7;
   margin-top: 18rpx;
 }
@@ -2499,20 +2426,8 @@ export default {
 .empty-card .muted {
   margin-top: 10rpx;
 }
-.empty-mark {
-  width: 72rpx;
-  height: 72rpx;
-  border: 1px solid #41443b;
-  border-radius: 50%;
-  font-size: 42rpx;
-  color: #ff7a35;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  margin: 0 auto 22rpx;
-}
 .back-link {
-  color: #a2a49c !important;
+  color: var(--t1-muted) !important;
   background: transparent !important;
   justify-content: flex-start !important;
   text-align: left !important;
@@ -2531,7 +2446,7 @@ export default {
   justify-content: space-between;
   margin-top: 32rpx;
   padding-top: 28rpx;
-  border-top: 1px solid #30322f;
+  border-top: 1px solid var(--t1-border);
 }
 .metrics > view {
   display: flex;
@@ -2546,18 +2461,18 @@ export default {
 .metric-unit {
   font-size: 22rpx;
   font-weight: 400;
-  color: #a2a49c;
+  color: var(--t1-muted);
   margin-left: 7rpx;
 }
 .metric-label {
   font-size: 22rpx;
-  color: #a2a49c;
+  color: var(--t1-muted);
   margin-top: 8rpx;
 }
 .start-form {
   margin-top: 30rpx;
   padding-top: 14rpx;
-  border-top: 1px solid #30322f;
+  border-top: 1px solid var(--t1-border);
 }
 .form-row {
   padding: 18rpx 0;
@@ -2570,8 +2485,8 @@ export default {
 .segmented {
   display: flex;
   padding: 7rpx;
-  background: #1c1d1b;
-  border: 1px solid #30322f;
+  background: var(--t1-surface);
+  border: 1px solid var(--t1-border);
   border-radius: 16rpx;
   margin: 28rpx 0;
 }
@@ -2580,12 +2495,12 @@ export default {
   text-align: center;
   padding: 22rpx 4rpx;
   font-size: 26rpx;
-  color: #a2a49c;
+  color: var(--t1-muted);
   border-radius: 12rpx;
 }
 .segment.active {
-  background: #35352c;
-  color: #f6f4ef;
+  background: var(--t1-inset);
+  color: var(--t1-text);
   font-weight: 650;
 }
 .filter-row {
@@ -2594,16 +2509,16 @@ export default {
   margin: 24rpx 0;
 }
 .filter-chip {
-  border: 1px solid #30322f;
+  border: 1px solid var(--t1-border);
   border-radius: 12rpx;
-  color: #a2a49c;
+  color: var(--t1-muted);
   padding: 17rpx 24rpx;
   font-size: 24rpx;
 }
 .filter-chip.active {
-  border-color: #a8663e;
-  background: #35261c;
-  color: #ffac79;
+  border-color: var(--t1-accent);
+  background: var(--t1-tint);
+  color: var(--t1-accent);
 }
 .schedule-tip {
   margin-bottom: 24rpx;
@@ -2628,17 +2543,17 @@ export default {
 }
 .date-month {
   font-size: 21rpx;
-  color: #a2a49c;
+  color: var(--t1-muted);
   margin-top: 7rpx;
 }
 .workout-today {
-  border-color: #99603e;
+  border-color: var(--t1-accent);
 }
 .workout-today .date-day {
-  color: #ff7a35;
+  color: var(--t1-accent);
 }
 .workout-rest {
-  background: #181a16;
+  background: var(--t1-inset);
 }
 .rest-shift {
   padding: 8rpx 0 !important;
@@ -2660,23 +2575,23 @@ export default {
 }
 .chart-entry {
   padding: 24rpx 0;
-  border-bottom: 1px solid #30322f;
+  border-bottom: 1px solid var(--t1-border);
 }
 .chart-weight {
   font-size: 34rpx;
   font-weight: 700;
-  color: #ffab79;
+  color: var(--t1-accent);
 }
 .bar-track {
   height: 12rpx;
-  background: #34372e;
+  background: var(--t1-inset);
   border-radius: 8rpx;
   overflow: hidden;
   margin: 18rpx 0;
 }
 .bar {
   height: 100%;
-  background: #ff7a35;
+  background: var(--t1-text);
   border-radius: 8rpx;
   transition: width 0.25s;
 }
@@ -2686,16 +2601,16 @@ export default {
   justify-content: space-between;
   gap: 8rpx;
   font-size: 21rpx;
-  color: #a2a49c;
+  color: var(--t1-muted);
 }
 .outline-exercise {
   padding-top: 24rpx;
   margin-top: 24rpx;
-  border-top: 1px solid #30322f;
+  border-top: 1px solid var(--t1-border);
 }
 .guide-copy {
   font-size: 25rpx;
-  color: #c2c5b9;
+  color: var(--t1-muted);
   line-height: 1.8;
   white-space: pre-line;
   margin-top: 16rpx;
@@ -2705,7 +2620,7 @@ export default {
 }
 .field-label {
   display: block;
-  color: #c6c8bf;
+  color: var(--t1-muted);
   font-size: 25rpx;
   margin: 18rpx 0 14rpx;
 }
@@ -2730,26 +2645,26 @@ export default {
   max-width: 200rpx;
   box-sizing: border-box;
   padding: 20rpx;
-  border: 1px solid #30322f;
+  border: 1px solid var(--t1-border);
   border-radius: 14rpx;
-  background: #1c1d1b;
+  background: var(--t1-surface);
   font-size: 25rpx;
   gap: 8rpx;
 }
 .day-caption {
   font-size: 20rpx;
-  color: #a2a49c;
+  color: var(--t1-muted);
   max-width: 160rpx;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 .day-tab.active {
-  background: #37271c;
-  border-color: #b16c43;
-  color: #ffb17e;
+  background: var(--t1-tint);
+  border-color: var(--t1-accent);
+  color: var(--t1-accent);
 }
 .day-tab.active .day-caption {
-  color: #e5b99a;
+  color: var(--t1-muted);
 }
 .rest-card {
   text-align: center;
@@ -2757,7 +2672,7 @@ export default {
 }
 .rest-symbol {
   font-size: 70rpx;
-  color: #ff7a35;
+  color: var(--t1-accent);
   margin-bottom: 16rpx;
 }
 .set-section-heading {
@@ -2768,21 +2683,21 @@ export default {
 }
 .target-set {
   padding: 12rpx 18rpx 20rpx;
-  background: #171914;
-  border: 1px solid #35382f;
+  background: var(--t1-inset);
+  border: 1px solid var(--t1-border);
   border-radius: 14rpx;
   margin-top: 14rpx;
 }
 .target-set.warmup-set {
-  border-left: 4rpx solid #929b79;
+  border-left: 4rpx solid var(--t1-border);
 }
 .set-type {
   padding: 12rpx 0;
-  color: #ffae7d;
+  color: var(--t1-accent);
   font-size: 23rpx;
 }
 .set-type.warmup {
-  color: #c2cea6;
+  color: var(--t1-muted);
 }
 .set-inputs {
   gap: 12rpx;
@@ -2800,7 +2715,7 @@ export default {
 .input-caption {
   display: block;
   font-size: 20rpx;
-  color: #a2a49c;
+  color: var(--t1-muted);
   margin-bottom: 8rpx;
   white-space: nowrap;
 }
@@ -2812,8 +2727,8 @@ export default {
   height: 80rpx;
   line-height: 80rpx;
   text-align: center;
-  background: #252820;
-  border: 1px solid #3a3e32;
+  background: var(--t1-inset);
+  border: 1px solid var(--t1-border);
   border-radius: 12rpx;
   font-size: 24rpx;
   box-sizing: border-box;
@@ -2825,7 +2740,7 @@ export default {
   margin-top: 16rpx;
 }
 .media-section {
-  border-top: 1px solid #30322f;
+  border-top: 1px solid var(--t1-border);
   margin-top: 30rpx;
   padding-top: 24rpx;
 }
@@ -2840,7 +2755,7 @@ export default {
   width: calc(33.333% - 10rpx);
   height: 150rpx;
   border-radius: 12rpx;
-  background: #292c23;
+  background: var(--t1-inset);
   overflow: hidden;
 }
 .media-tile image {
@@ -2854,11 +2769,11 @@ export default {
   align-items: center;
   justify-content: center;
   font-size: 21rpx;
-  color: #a2a49c;
+  color: var(--t1-muted);
   line-height: 1.6;
 }
 .media-remove {
-  position: absolute !important;
+position: absolute !important;
   right: 0;
   top: 0;
   width: 52rpx !important;
@@ -2866,8 +2781,8 @@ export default {
   height: 52rpx !important;
   line-height: 1 !important;
   font-size: 30rpx !important;
-  background: rgba(0, 0, 0, 0.8) !important;
-  color: #f6f4ef !important;
+  background: rgba(0, 0, 0, 0.72) !important;
+  color: var(--t1-on-dark) !important;
   border-radius: 0 0 0 12rpx !important;
   padding: 0 !important;
 }
@@ -2877,7 +2792,7 @@ export default {
   margin-top: 18rpx;
   border-radius: 12rpx;
   overflow: hidden;
-  background: #111211;
+  background: var(--t1-bg);
 }
 .editor-bottom {
   position: sticky;
@@ -2885,10 +2800,10 @@ export default {
   z-index: 3;
   display: flex;
   gap: 20rpx;
-  background: rgba(17, 18, 17, 0.97);
+  background: var(--t1-surface);
   padding: 24rpx 0 calc(24rpx + env(safe-area-inset-bottom));
   margin-top: 24rpx;
-  border-top: 1px solid #30322f;
+  border-top: 1px solid var(--t1-border);
 }
 .editor-bottom button:first-child {
   flex: 1;
@@ -2899,29 +2814,29 @@ export default {
 .loading-state {
   padding: 64rpx 20rpx;
   text-align: center;
-  color: #a2a49c;
+  color: var(--t1-muted);
   font-size: 26rpx;
 }
 .error-box {
-  border: 1px solid #824b3d;
-  background: #34251f;
+  border: 1px solid var(--t1-danger);
+  background: var(--t1-tint);
   padding: 24rpx;
   border-radius: 14rpx;
-  color: #efc2ad;
+  color: var(--t1-danger);
   font-size: 25rpx;
   line-height: 1.6;
   margin-bottom: 24rpx;
 }
 .danger {
-  color: #e4a391 !important;
+  color: var(--t1-danger) !important;
 }
 input,
 textarea {
   box-sizing: border-box;
-  background: #141611;
-  border: 1px solid #3a3d34;
+  background: var(--t1-inset);
+  border: 1px solid var(--t1-border);
   border-radius: 12rpx;
-  color: #f6f4ef;
+  color: var(--t1-text);
   font-size: 27rpx;
   min-width: 0;
   width: 100%;
@@ -2937,7 +2852,7 @@ textarea {
   margin-bottom: 16rpx;
 }
 .input-placeholder {
-  color: #8a9081;
+  color: var(--t1-muted);
   font-size: 25rpx;
 }
 .number-input {
@@ -2949,8 +2864,8 @@ textarea {
   min-height: 78rpx;
   box-sizing: border-box;
   padding: 20rpx;
-  background: #252820;
-  border: 1px solid #3a3e32;
+  background: var(--t1-inset);
+  border: 1px solid var(--t1-border);
   border-radius: 12rpx;
   font-size: 24rpx;
   line-height: 1.5;
@@ -2978,21 +2893,21 @@ button {
   font-size: 27rpx;
   font-weight: 600;
   line-height: 1.45;
-  background: #292c24;
-  color: #f6f4ef;
+  background: var(--t1-inset);
+  color: var(--t1-text);
   white-space: normal;
 }
 button::after {
   border: 0;
 }
 .primary {
-  background: #ff7a35;
-  color: #181710;
+  background: var(--t1-text);
+  color: var(--t1-on-dark);
 }
 .secondary {
-  background: #272a22;
-  color: #e6e7df;
-  border: 1px solid #3e4235;
+  background: var(--t1-inset);
+  color: var(--t1-text);
+  border: 1px solid var(--t1-border);
 }
 .compact {
   min-height: 76rpx;
@@ -3003,7 +2918,7 @@ button::after {
   background: transparent;
   min-height: 72rpx;
   font-size: 24rpx;
-  color: #c1c4b8;
+  color: var(--t1-muted);
   padding: 10rpx 4rpx;
   flex-shrink: 0;
 }
@@ -3013,13 +2928,13 @@ button::after {
   min-height: 64rpx;
   font-size: 32rpx;
   padding: 0;
-  color: #aeb1a7;
+  color: var(--t1-danger);
 }
 .close-button {
   width: 76rpx;
   min-height: 76rpx;
   padding: 0;
-  background: #2a2d24;
+  background: var(--t1-inset);
   border-radius: 50%;
   font-size: 40rpx;
   font-weight: 400;
@@ -3041,8 +2956,8 @@ button::after {
   width: 100%;
   max-width: 960px;
   height: 94vh;
-  background: #171915;
-  border: 1px solid #3c4035;
+  background: var(--t1-inset);
+  border: 1px solid var(--t1-border);
   border-radius: 28rpx 28rpx 0 0;
   box-sizing: border-box;
   display: flex;
@@ -3051,7 +2966,7 @@ button::after {
 }
 .sheet-header {
   padding: 28rpx 32rpx 22rpx;
-  border-bottom: 1px solid #30322f;
+  border-bottom: 1px solid var(--t1-border);
   flex-shrink: 0;
 }
 .sheet-header .section-title {
@@ -3081,7 +2996,7 @@ button::after {
 }
 .library-exercise {
   padding: 28rpx 0;
-  border-bottom: 1px solid #30322f;
+  border-bottom: 1px solid var(--t1-border);
 }
 .library-exercise:last-of-type {
   border-bottom: 0;
@@ -3090,28 +3005,28 @@ button::after {
   width: 76rpx;
   min-height: 76rpx;
   padding: 0;
-  background: #ff7a35;
-  color: #181710;
+  background: var(--t1-text);
+  color: var(--t1-on-dark);
   font-size: 36rpx;
 }
 .guide-step {
   display: flex;
   gap: 16rpx;
   font-size: 24rpx;
-  color: #d2d5c9;
+  color: var(--t1-muted);
   line-height: 1.75;
   margin-top: 16rpx;
 }
 .step-number {
   flex: 0 0 32rpx;
-  color: #ff9c64;
+  color: var(--t1-accent);
   font-size: 22rpx;
 }
 .exercise-cues {
   font-size: 21rpx;
-  color: #a3ac95;
+  color: var(--t1-muted);
   padding: 18rpx;
-  background: #25291f;
+  background: var(--t1-inset);
   border-radius: 10rpx;
   line-height: 1.7;
   margin-top: 20rpx;
@@ -3125,19 +3040,19 @@ button::after {
 }
 .rest-timer {
   padding: 22rpx 32rpx;
-  background: #22251d;
-  border-bottom: 1px solid #3a3e32;
+  background: var(--t1-inset);
+  border-bottom: 1px solid var(--t1-border);
   flex-shrink: 0;
 }
 .timer-label {
   font-size: 22rpx;
-  color: #b5bca9;
+  color: var(--t1-muted);
 }
 .timer-time {
   font-size: 60rpx;
   font-weight: 700;
   line-height: 1.2;
-  color: #ff9d66;
+  color: var(--t1-accent);
   font-variant-numeric: tabular-nums;
   letter-spacing: 2rpx;
 }
@@ -3152,14 +3067,14 @@ button::after {
 .timer-preset {
   font-size: 21rpx;
   padding: 12rpx 14rpx;
-  border: 1px solid #4a503f;
+  border: 1px solid var(--t1-border);
   border-radius: 8rpx;
-  color: #b6bda9;
+  color: var(--t1-muted);
 }
 .timer-preset.active {
-  border-color: #a16b43;
-  color: #ffd0ae;
-  background: #3d2e20;
+  border-color: var(--t1-accent);
+  color: var(--t1-muted);
+  background: var(--t1-tint);
 }
 .timer-buttons {
   gap: 40rpx;
@@ -3169,17 +3084,17 @@ button::after {
 }
 .timer-hint {
   font-size: 20rpx;
-  color: #a4ad96;
+  color: var(--t1-muted);
   margin-top: 12rpx;
   line-height: 1.5;
 }
 .log-progress {
   padding: 24rpx 0;
-  border-top: 1px solid #30322f;
+  border-top: 1px solid var(--t1-border);
 }
 .log-exercise {
   padding: 32rpx 0;
-  border-top: 1px solid #30322f;
+  border-top: 1px solid var(--t1-border);
 }
 .log-exercise-name {
   font-size: 36rpx;
@@ -3188,14 +3103,14 @@ button::after {
 }
 .previous-result {
   padding: 20rpx;
-  background: #292e21;
+  background: var(--t1-inset);
   border-radius: 14rpx;
   margin-bottom: 16rpx;
   align-items: flex-start;
 }
 .previous-weight {
   font-size: 24rpx;
-  color: #dee2d1;
+  color: var(--t1-muted);
   margin-top: 8rpx;
   line-height: 1.6;
 }
@@ -3204,7 +3119,7 @@ button::after {
   justify-content: space-between;
   padding: 24rpx 0;
   font-size: 24rpx;
-  color: #c2c6b5;
+  color: var(--t1-muted);
   min-height: 72rpx;
   box-sizing: border-box;
 }
@@ -3219,18 +3134,18 @@ button::after {
   font-size: 20rpx;
 }
 .warmup-label {
-  color: #bdcea1;
+  color: var(--t1-muted);
 }
 .actual-set {
-  background: #1f221b;
-  border: 1px solid #3b4032;
+  background: var(--t1-inset);
+  border: 1px solid var(--t1-border);
   border-radius: 14rpx;
   padding: 0 18rpx 20rpx;
   margin-bottom: 14rpx;
 }
 .actual-set.set-complete {
-  border-color: #a26a40;
-  background: #2d281d;
+  border-color: var(--t1-accent);
+  background: var(--t1-inset);
 }
 .actual-set-head {
   height: 58rpx;
@@ -3244,16 +3159,16 @@ button::after {
   min-height: 80rpx;
   height: 80rpx;
   padding: 0;
-  background: #32372b;
-  border: 1px solid #4b5340;
-  color: #c4ceaf;
+  background: var(--t1-inset);
+  border: 1px solid var(--t1-border);
+  color: var(--t1-muted);
   font-size: 36rpx;
   flex-shrink: 0;
 }
 .complete-set-button.checked {
-  background: #ff7a35;
-  color: #1e1d14;
-  border-color: #ff7a35;
+  background: var(--t1-text);
+  color: var(--t1-on-dark);
+  border-color: var(--t1-accent);
 }
 .set-extra {
   margin-top: 18rpx;
@@ -3276,9 +3191,9 @@ button::after {
 .add-set-button {
   width: 100%;
   min-height: 74rpx;
-  border: 1px dashed #505641;
+  border: 1px dashed var(--t1-border);
   background: transparent;
-  color: #c1c9ae;
+  color: var(--t1-muted);
   font-size: 24rpx;
 }
 .log-footer {
@@ -3286,8 +3201,8 @@ button::after {
   gap: 18rpx;
   flex-shrink: 0;
   padding: 22rpx 32rpx calc(22rpx + env(safe-area-inset-bottom));
-  border-top: 1px solid #3b4032;
-  background: #1c1f18;
+  border-top: 1px solid var(--t1-border);
+  background: var(--t1-inset);
 }
 .log-footer button:first-child {
   flex: 1;
@@ -3306,18 +3221,6 @@ button::after {
 @media (min-width: 768px) {
   .page-content {
     padding: 40px 32px;
-  }
-  .photo-hero {
-    height: 360px;
-  }
-  .hero-title {
-    font-size: 42px;
-  }
-  .hero-caption {
-    font-size: 18px;
-  }
-  .hero-date {
-    font-size: 16px;
   }
   .card {
     padding: 28px;

@@ -1,13 +1,9 @@
 <template>
   <div class="p-2">
-    <el-alert v-if="hasContext" class="mb-[10px]" type="info" :closable="false" show-icon>
-      <template #title>已带入当前门店或会员，筛选条件与新增表单会自动填写。
-        <el-button link type="primary" @click="clearContext">查看全部</el-button>
-      </template>
-    </el-alert>
+    <el-button v-if="hasContext" class="mb-[10px]" link type="primary" @click="clearContext">清除筛选并查看全部</el-button>
     <transition :enter-active-class="proxy?.animate.searchAnimate.enter" :leave-active-class="proxy?.animate.searchAnimate.leave">
       <div v-show="showSearch" class="mb-[10px]">
-        <el-card shadow="hover">
+        <el-card shadow="never">
           <el-form ref="queryFormRef" :model="queryParams" :inline="true">
             <el-form-item v-for="field in queryFields" :key="field.prop" :label="field.label" :prop="field.prop">
               <el-input
@@ -36,7 +32,7 @@
                 :loading="getRemoteLoading('query', field.prop)"
                 :placeholder="field.placeholder || `请输入${field.label}`"
                 :remote-method="(keyword) => handleRemoteSearch(field, 'query', keyword)"
-                no-data-text="暂无匹配结果，请输入姓名、编号或手机号搜索"
+                no-data-text="暂无匹配结果"
                 @visible-change="(visible) => handleRemoteVisibleChange(field, 'query', visible)"
               >
                 <el-option
@@ -76,7 +72,7 @@
       </div>
     </transition>
 
-    <el-card shadow="hover">
+    <el-card shadow="never">
       <template #header>
         <el-row :gutter="10" class="mb8">
           <el-col v-if="allowCreate" :span="1.5">
@@ -177,7 +173,7 @@
                 :loading="getRemoteLoading('form', field.prop)"
                 :placeholder="field.placeholder || `请输入${field.label}`"
                 :remote-method="(keyword) => handleRemoteSearch(field, 'form', keyword)"
-                no-data-text="暂无匹配结果，请输入姓名、编号或手机号搜索"
+                no-data-text="暂无匹配结果"
                 @visible-change="(visible) => handleRemoteVisibleChange(field, 'form', visible)"
               >
                 <el-option v-for="option in getFieldOptions(field, 'form')" :key="String(option.value)" :label="option.label" :value="option.value" />

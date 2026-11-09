@@ -1,13 +1,14 @@
 <template>
   <view class="gallery">
-    <swiper class="gallery-swiper" :current="current" @change="current = $event.detail.current">
-      <swiper-item v-for="(src, index) in photos" :key="src">
-        <view v-if="failed[index]" class="photo-error">这张照片暂时无法显示</view>
-        <image v-else class="gallery-photo" :src="src" mode="aspectFit"
-          :aria-label="'场馆环境照片 ' + (index + 1)" @error="failed[index] = true" />
+    <view v-if="!photos.length" class="photo-error">暂无场馆照片</view>
+    <swiper v-else class="gallery-swiper" :current="current" @change="current = $event.detail.current">
+      <swiper-item v-for="(photo, index) in photos" :key="photo.id">
+        <view v-if="failed[photo.id]" class="photo-error">这张照片暂时无法显示</view>
+        <image v-else class="gallery-photo" :src="photo.src" mode="aspectFit"
+          :aria-label="'场馆环境照片 ' + (index + 1)" @error="failed[photo.id] = true" />
       </swiper-item>
     </swiper>
-    <view class="gallery-controls">
+    <view v-if="photos.length" class="gallery-controls">
       <button class="gallery-prev" :disabled="current === 0" @tap="current--">上一张</button>
       <text class="gallery-counter">{{ current + 1 }} / {{ photos.length }}</text>
       <button class="gallery-next" :disabled="current === photos.length - 1" @tap="current++">下一张</button>
@@ -16,15 +17,24 @@
 </template>
 
 <script>
-import { venuePhotos } from '../../utils/venue-photos'
+import { readVenuePhotos, refreshVenuePhotos } from '../../utils/venue-photos'
 
 export default {
   data() {
-    return { photos: venuePhotos, current: 0, failed: {} }
+    return { photos: readVenuePhotos(), current: 0, failed: {} }
   },
   onLoad(options) {
     const index = Number(options?.index)
-    if (Number.isInteger(index) && index >= 0 && index < this.photos.length) this.current = index
+    const byId = this.photos.findIndex(photo => photo.id === options?.id)
+    if (byId >= 0) this.current = byId
+    else if (Number.isInteger(index) && index >= 0 && index < this.photos.length) this.current = index
+    const initial = this.current
+    refreshVenuePhotos().then(photos => {
+      const id = this.current === initial && options?.id ? options.id : this.photos[this.current]?.id
+      const selected = photos.findIndex(photo => photo.id === id)
+      this.current = selected >= 0 ? selected : Math.max(0, Math.min(this.current, photos.length - 1))
+      this.photos = photos
+    })
   }
 }
 </script>

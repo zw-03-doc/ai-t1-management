@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="description" content="T1 健身空间官方网站，查看场馆实景、预约课程和管理训练计划。">
+  <title>T1 健身空间</title>
+  <link rel="stylesheet" href="/site/site.css">
+  <script src="/site/site.js" defer></script>
+</head>
+<body>
+  <header>
+    <a class="brand" href="/site/" aria-label="T1 健身空间首页"><img src="/app/static/images/brand-icon.jpg" alt="">T1 FITNESS</a>
+    <nav aria-label="主导航"><a href="/app/#/pages/portal/gallery">查看场馆</a><a class="member" href="/app/#/pages/portal/index">会员入口</a></nav>
+  </header>
+  <main>
+    <div class="intro">
+      <h1>T1 <span>健身空间</span></h1>
+      <div class="services">
+        <a href="/app/#/pages/portal/index?target=%2Fpages%2Fcourse%2Findex%3Ftab%3Dschedule">预约课程 <span aria-hidden="true">↗</span></a>
+        <a href="/app/#/pages/portal/index?target=%2Fpages%2Fcourse%2Findex%3Ftab%3Dreservation">我的预约与签到 <span aria-hidden="true">↗</span></a>
+        <a href="/app/#/pages/guide/index">训练计划 <span aria-hidden="true">↗</span></a>
+      </div>
+    </div>
+    <a class="venue" href="/app/#/pages/portal/gallery" aria-label="查看场馆相册" hidden>
+      <img id="venue-photo" alt="T1 场馆实景">
+      <span>查看场馆 <b aria-hidden="true">↗</b></span>
+    </a>
+  </main>
+  <footer><span>荆州市沙市区梯壹休闲健身工作室</span><nav aria-label="更多">
+    <a href="/app/#/pages/legal/index?doc=terms">用户服务协议</a>
+    <a href="/app/#/pages/legal/index?doc=privacy">隐私政策</a>
+    <a href="/login">管理后台</a>
+  </nav></footer>
+</body>
+</html>

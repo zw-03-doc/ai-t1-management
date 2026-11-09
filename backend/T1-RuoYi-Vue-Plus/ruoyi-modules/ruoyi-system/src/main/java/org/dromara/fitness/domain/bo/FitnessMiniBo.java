@@ -25,6 +25,8 @@ public final class FitnessMiniBo {
     @Data
     @JsonIgnoreProperties(ignoreUnknown = true)
     public static class WechatLoginBo {
+        private String consentVersion;
+
 
         /**
          * 小程序 wx.login() 返回的 code

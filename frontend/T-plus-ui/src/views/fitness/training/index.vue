@@ -1,12 +1,9 @@
 <template>
   <div class="training-archive p-4">
-    <el-alert title="训练档案查看" type="info" :closable="false" show-icon>
-      管理员在此查看本租户会员的计划、逐组记录和操作历史。计划调整由会员本人，或该会员当前有效绑定的教练完成。
-    </el-alert>
     <el-card class="mt-4">
       <template #header>
         <div class="toolbar">
-          <el-select v-model="memberId" clearable filterable remote :remote-method="searchMembers" :loading="searching" placeholder="搜索会员姓名、手机号或编号" style="width: 320px" @change="load">
+          <el-select v-model="memberId" clearable filterable remote :remote-method="searchMembers" :loading="searching" placeholder="搜索会员姓名、手机号或编号" aria-label="搜索会员" style="width: min(320px,100%)" @change="load">
             <el-option v-for="member in members" :key="String(member.value)" :label="member.label" :value="member.value" />
           </el-select>
           <el-button :disabled="!memberId" :loading="loading" @click="load">刷新档案</el-button>

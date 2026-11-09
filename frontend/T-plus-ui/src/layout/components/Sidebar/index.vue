@@ -14,7 +14,11 @@
           :popper-offset="12"
           mode="vertical"
         >
-          <sidebar-item v-for="(r, index) in sidebarRouters" :key="r.path + index" :item="r" :base-path="r.path" />
+          <sidebar-item v-for="r in gymRoutes" :key="r.path" :item="r" :base-path="r.path" />
+          <el-sub-menu v-if="otherRoutes.length" index="system-tools">
+            <template #title><svg-icon icon-class="system" /><span>系统与工具</span></template>
+            <sidebar-item v-for="r in otherRoutes" :key="r.path" :item="r" :base-path="r.path" />
+          </el-sub-menu>
         </el-menu>
       </transition>
     </el-scrollbar>
@@ -37,6 +41,9 @@ const appStore = useAppStore();
 const settingsStore = useSettingsStore();
 const permissionStore = usePermissionStore();
 const sidebarRouters = computed<RouteRecordRaw[]>(() => permissionStore.getSidebarRoutes());
+const isGymRoute = (r: RouteRecordRaw) => !r.path || r.path === '/' || r.path.startsWith('/fitness') || r.children?.some(child => child.path === '/index');
+const gymRoutes = computed(() => sidebarRouters.value.filter(isGymRoute));
+const otherRoutes = computed(() => sidebarRouters.value.filter(r => !r.hidden && !isGymRoute(r)));
 const showLogo = computed(() => settingsStore.sidebarLogo);
 const sideTheme = computed(() => settingsStore.sideTheme);
 const theme = computed(() => settingsStore.theme);

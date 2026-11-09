@@ -1,169 +1,36 @@
 <template>
-  <div class="app-container workbench-page" v-loading="loading">
-    <section class="hero-card">
-      <div class="hero-card__content">
-        <div class="hero-card__main">
-          <div class="hero-card__eyebrow">门店工作台</div>
-          <h2 class="hero-card__title">{{ greeting }}，{{ displayName }}</h2>
-          <p class="hero-card__desc">
-            查看今日课程与到店情况，及时处理预约、签到和线下收款。
-          </p>
-          <div class="hero-card__meta">
-            <span>日期：{{ currentDateText }}</span>
-          </div>
-          <div class="hero-card__tags">
-            <el-tag v-for="role in displayRoles" :key="role" round effect="light">{{ role }}</el-tag>
-          </div>
-        </div>
-        <div class="hero-card__side">
-          <div class="focus-panel">
-            <div class="focus-panel__title">今日关注</div>
-            <div v-for="item in focusItems" :key="item.label" class="focus-panel__item">
-              <div>
-                <div class="focus-panel__label">{{ item.label }}</div>
-                <div class="focus-panel__hint">{{ item.hint }}</div>
-              </div>
-              <div class="focus-panel__value">{{ item.value }}</div>
-            </div>
-          </div>
-        </div>
-      </div>
-    </section>
-
-    <el-row :gutter="16" class="stats-row">
-      <el-col v-for="card in topCards" :key="card.label" :xs="24" :sm="12" :lg="12" :xl="6">
-        <div class="metric-card" :class="`metric-card--${card.tone}`">
-          <div class="metric-card__badge">{{ card.badge }}</div>
-          <div class="metric-card__value">
-            {{ card.value }}
-            <span v-if="card.unit" class="metric-card__unit">{{ card.unit }}</span>
-          </div>
-          <div class="metric-card__label">{{ card.label }}</div>
-          <div class="metric-card__foot">{{ card.note }}</div>
-        </div>
-      </el-col>
-    </el-row>
-
-    <el-row :gutter="16" class="panel-row">
-      <el-col :xs="24" :xl="14">
-        <el-card class="panel-card" shadow="never">
-          <template #header>
-            <div class="panel-card__header">
-              <div>
-                <div class="panel-card__title">快捷入口</div>
-                <div class="panel-card__subtitle">从这里进入常用业务</div>
-              </div>
-            </div>
-          </template>
-          <div class="quick-grid">
-            <button
-              v-for="action in shortcutList"
-              :key="action.shortcutCode"
-              v-hasPermi="[action.permission]"
-              class="quick-card"
-              type="button"
-              @click="openRoute(action.route, action.shortcutName)"
-            >
-              <div class="quick-card__code">{{ action.shortcutName?.slice(0, 2) || '业务' }}</div>
-              <div class="quick-card__title">{{ action.shortcutName }}</div>
-              <div class="quick-card__desc">{{ shortcutDescription(action.route) }}</div>
-            </button>
-          </div>
-        </el-card>
-      </el-col>
-
-      <el-col :xs="24" :xl="10">
-        <el-card class="panel-card" shadow="never">
-          <template #header>
-            <div class="panel-card__header">
-              <div>
-                <div class="panel-card__title">待办中心</div>
-                <div class="panel-card__subtitle">待签到、待处理预约、待收款与权益到期提醒</div>
-              </div>
-            </div>
-          </template>
-          <div class="todo-list">
-            <button
-              v-for="todo in todoList"
-              :key="todo.todoCode"
-              class="todo-item"
-              type="button"
-              @click="openRoute(todo.route, todo.todoName)"
-            >
-              <div class="todo-item__left">
-                <div class="todo-item__title">{{ todo.todoName }}</div>
-                <div class="todo-item__desc">{{ todo.desc }}</div>
-              </div>
-              <el-tag :type="todo.type" effect="light">{{ todo.tag }}</el-tag>
-            </button>
-          </div>
-        </el-card>
-      </el-col>
-    </el-row>
-
-    <el-row :gutter="16" class="panel-row">
-      <el-col :xs="24">
-        <el-card class="panel-card" shadow="never">
-          <template #header>
-            <div class="panel-card__header">
-              <div>
-                <div class="panel-card__title">今日课程与现场节奏</div>
-                <div class="panel-card__subtitle">查看课程时间、负责教练与预约人数</div>
-              </div>
-            </div>
-          </template>
-          <div v-if="scheduleItems.length" class="schedule-list">
-            <button
-              v-for="item in scheduleItems"
-              :key="`${item.scheduleId}-${item.time}`"
-              class="schedule-item"
-              type="button"
-              @click="openRoute('/fitness-course/schedule', '排课管理')"
-            >
-              <div class="schedule-item__time">{{ item.time }}</div>
-              <div class="schedule-item__main">
-                <div class="schedule-item__title">{{ item.course }}</div>
-                <div class="schedule-item__meta">{{ item.store }} · {{ item.coach }} · {{ item.progress }}</div>
-              </div>
-              <el-tag :type="item.type" effect="light">{{ item.status }}</el-tag>
-            </button>
-          </div>
-          <el-empty v-else description="今天暂无课程安排" :image-size="92" />
-        </el-card>
-      </el-col>
-    </el-row>
-  </div>
+  <main v-loading="loading" class="app-container workbench">
+    <header><h1>门店工作台</h1><time>{{ currentDateText }}</time></header>
+    <nav aria-label="快捷操作">
+      <button v-for="action in shortcutList" :key="action.shortcutCode" v-hasPermi="[action.permission]"
+        type="button" @click="openRoute(action.route, action.shortcutName)">{{ action.shortcutName }}</button>
+    </nav>
+    <dl class="metrics">
+      <div v-for="card in topCards" :key="card.label"><dt>{{ card.label }}</dt><dd>{{ card.value }}<small>{{ card.unit }}</small></dd></div>
+    </dl>
+    <div class="columns">
+      <section><h2>今日排课</h2>
+        <button v-for="item in scheduleItems" :key="item.scheduleId" class="entry" type="button"
+          @click="openRoute('/fitness-course/schedule', '排课管理')">
+          <time>{{ item.time }}</time><span class="course"><strong>{{ item.course }}</strong><small>{{ item.store }} · {{ item.coach }} · {{ item.progress }}</small></span>
+          <el-tag :type="item.type" effect="plain">{{ item.status }}</el-tag>
+        </button>
+        <p v-if="!scheduleItems.length && !loading">今天暂无排课</p>
+      </section>
+      <section><h2>待办事项</h2>
+        <button v-for="todo in overview.todoList" :key="todo.todoCode" class="entry" type="button" @click="openRoute(todo.route, todo.todoName)">
+          <span>{{ todo.todoName }}</span><strong>{{ todo.todoCount ?? 0 }}</strong>
+        </button>
+        <p v-if="!overview.todoList?.length && !loading">暂无待办</p>
+      </section>
+    </div>
+  </main>
 </template>
 
 <script setup name="Index" lang="ts">
 import { computed, getCurrentInstance, onMounted, ref, type ComponentInternalInstance } from 'vue';
-import { useUserStore } from '@/store/modules/user';
 import { getHomeOverview } from '@/api/fitness/home';
-import type { FitnessHomeOverviewVO, FitnessHomeScheduleVO, FitnessHomeShortcutVO, FitnessHomeTodoVO } from '@/api/fitness/home/types';
-
-function shortcutDescription(path: string) {
-  if (path?.includes('checkin')) return '查看到场情况，确认核销与处理异常';
-  if (path?.includes('reservation')) return '办理预约，处理取消、请假与缺席';
-  if (path?.includes('order')) return '办理课包与登记线下收款';
-  if (path?.includes('schedule')) return '安排门店、教练、日期与学员';
-  if (path?.includes('member')) return '查看会员档案、权益与训练记录';
-  return '查看并办理相关业务';
-}
-
-interface MetricCard {
-  badge: string;
-  label: string;
-  value: string;
-  unit?: string;
-  note: string;
-  tone: 'primary' | 'success' | 'warning' | 'brand';
-}
-
-interface TodoCard extends FitnessHomeTodoVO {
-  desc: string;
-  tag: string;
-  type: 'success' | 'warning' | 'info' | 'danger';
-}
+import type { FitnessHomeOverviewVO, FitnessHomeScheduleVO, FitnessHomeShortcutVO } from '@/api/fitness/home/types';
 
 interface ScheduleCard {
   scheduleId?: number;
@@ -177,43 +44,16 @@ interface ScheduleCard {
 }
 
 const { proxy } = getCurrentInstance() as ComponentInternalInstance;
-const userStore = useUserStore();
 const loading = ref(false);
 const overview = ref<FitnessHomeOverviewVO>({});
 
-const roleLabelMap: Record<string, string> = {
-  super_admin: '平台管理员',
-  tenant_admin: '商户管理员',
-  store_manager: '门店店长',
-  front_desk: '前台/会籍',
-  coach_user: '教练账号',
-  finance_viewer: '财务/运营',
-  ROLE_DEFAULT: '当前账号'
-};
-
 const now = new Date();
-const hour = now.getHours();
-
-const greeting = computed(() => {
-  if (hour < 6) return '夜深了';
-  if (hour < 12) return '早上好';
-  if (hour < 18) return '下午好';
-  return '晚上好';
-});
-
-const displayName = computed(() => userStore.nickname || '伙伴');
-
 const currentDateText = new Intl.DateTimeFormat('zh-CN', {
   year: 'numeric',
   month: 'long',
   day: 'numeric',
   weekday: 'long'
 }).format(now);
-
-const displayRoles = computed(() => {
-  const roleList = userStore.roles.length ? userStore.roles : ['ROLE_DEFAULT'];
-  return [...new Set(roleList.map((role) => roleLabelMap[role] || role))].slice(0, 4);
-});
 
 const stats = computed(() => overview.value.stats || {});
 
@@ -233,17 +73,11 @@ const formatTime = (value?: string) => {
   }).format(new Date(value));
 };
 
-const topCards = computed<MetricCard[]>(() => [
-  { badge: '到店', label: '今日到店人数', value: String(stats.value.todayArrivalCount || 0), unit: '人', note: '按签到会员去重', tone: 'primary' },
-  { badge: '新增', label: '今日新增会员', value: String(stats.value.todayNewMemberCount || 0), unit: '人', note: '当天新增入会人数', tone: 'success' },
-  { badge: '销售', label: '今日销售额', value: moneyText(stats.value.todaySalesAmount), unit: '元', note: '仅统计已支付订单', tone: 'brand' },
-  {
-    badge: '进度',
-    label: '今日预约 / 签到',
-    value: `${stats.value.todayReservationCount || 0} / ${stats.value.todayCheckinCount || 0}`,
-    note: '预约与到店核销实时进度',
-    tone: 'warning'
-  }
+const topCards = computed(() => [
+  { label: '今日到店', value: stats.value.todayArrivalCount ?? 0, unit: '人' },
+  { label: '新增会员', value: stats.value.todayNewMemberCount ?? 0, unit: '人' },
+  { label: '已支付销售额', value: moneyText(stats.value.todaySalesAmount), unit: '元' },
+  { label: '预约 / 签到', value: (stats.value.todayReservationCount ?? 0) + ' / ' + (stats.value.todayCheckinCount ?? 0), unit: '' }
 ]);
 
 const defaultShortcutList: FitnessHomeShortcutVO[] = [
@@ -260,41 +94,6 @@ const shortcutList = computed(() => {
     route: item.route || '/fitness-home',
     permission: item.permission || 'fitness:home:view'
   }));
-});
-
-const todoList = computed<TodoCard[]>(() => {
-  const metaMap: Record<string, (count: number) => Omit<TodoCard, 'todoCode' | 'todoName' | 'todoCount' | 'route'>> = {
-    pendingCheckin: (count) => ({
-      desc: count > 0 ? `今天还有 ${count} 节课程未完成签到核销` : '今天待签到课程已全部处理完成',
-      tag: count > 0 ? '紧急' : '已清空',
-      type: count > 0 ? 'danger' : 'success'
-    }),
-    pendingReservation: (count) => ({
-      desc: count > 0 ? `${count} 条预约需要人工确认门店与排课安排` : '当前没有待人工处理的预约记录',
-      tag: `${count} 条`,
-      type: 'warning'
-    }),
-    pendingOrder: (count) => ({
-      desc: count > 0 ? `${count} 笔线下订单已录入，等待确认收款` : '当前没有待确认收款的订单',
-      tag: `${count} 单`,
-      type: 'info'
-    }),
-    expiringCard: (count) => ({
-      desc: count > 0 ? `${count} 张卡将在 7 天内到期，建议安排续费触达` : '最近 7 天暂无即将到期卡项',
-      tag: `${count} 张`,
-      type: 'success'
-    })
-  };
-
-  return (overview.value.todoList || []).map((item) => {
-    const count = Number(item.todoCount || 0);
-    const meta = (metaMap[item.todoCode || ''] || metaMap.pendingCheckin)(count);
-    return {
-      ...item,
-      route: item.route || '/fitness-home',
-      ...meta
-    };
-  });
 });
 
 const scheduleItems = computed<ScheduleCard[]>(() => {
@@ -340,12 +139,6 @@ const scheduleItems = computed<ScheduleCard[]>(() => {
   });
 });
 
-const focusItems = computed(() => [
-  { label: '待签到课程', value: `${stats.value.pendingCheckinCount || 0} 节`, hint: '建议优先处理现场到店与核销动作' },
-  { label: '待支付订单', value: `${stats.value.pendingOrderCount || 0} 单`, hint: '线下录单后需尽快确认收款' },
-  { label: '近 7 天到期卡项', value: `${stats.value.expiringCardCount || 0} 张`, hint: '适合安排续费提醒与会员触达' }
-]);
-
 const loadOverview = async () => {
   loading.value = true;
   try {
@@ -366,384 +159,23 @@ onMounted(() => {
 });
 </script>
 
-<style lang="scss" scoped>
-.workbench-page {
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
-  color: #1f2937;
-}
-
-.hero-card {
-  overflow: hidden;
-  border-radius: 24px;
-  background: linear-gradient(135deg, #111827 0%, #1d4ed8 55%, #7c3aed 100%);
-  color: #fff;
-  box-shadow: 0 18px 45px rgb(37 99 235 / 18%);
-
-  &__content {
-    display: flex;
-    gap: 24px;
-    justify-content: space-between;
-    padding: 28px;
-  }
-
-  &__main {
-    flex: 1;
-    min-width: 0;
-  }
-
-  &__eyebrow {
-    display: inline-flex;
-    padding: 6px 12px;
-    border-radius: 999px;
-    background: rgb(255 255 255 / 14%);
-    font-size: 12px;
-    letter-spacing: 0.08em;
-  }
-
-  &__title {
-    margin: 16px 0 12px;
-    font-size: 30px;
-    line-height: 1.2;
-    font-weight: 700;
-  }
-
-  &__desc {
-    max-width: 760px;
-    margin: 0;
-    font-size: 14px;
-    line-height: 1.8;
-    color: rgb(255 255 255 / 82%);
-  }
-
-  &__meta {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 12px;
-    margin-top: 18px;
-    font-size: 13px;
-    color: rgb(255 255 255 / 72%);
-  }
-
-  &__tags {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 10px;
-    margin-top: 18px;
-  }
-
-  &__side {
-    width: 320px;
-    flex-shrink: 0;
-  }
-}
-
-.focus-panel {
-  padding: 20px;
-  border: 1px solid rgb(255 255 255 / 14%);
-  border-radius: 20px;
-  background: rgb(255 255 255 / 10%);
-  backdrop-filter: blur(12px);
-
-  &__title {
-    margin-bottom: 16px;
-    font-size: 15px;
-    font-weight: 600;
-  }
-
-  &__item {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 12px;
-    padding: 12px 0;
-    border-top: 1px solid rgb(255 255 255 / 10%);
-
-    &:first-of-type {
-      border-top: none;
-      padding-top: 0;
-    }
-  }
-
-  &__label {
-    font-size: 13px;
-    color: rgb(255 255 255 / 70%);
-  }
-
-  &__hint {
-    margin-top: 4px;
-    font-size: 12px;
-    color: rgb(255 255 255 / 56%);
-  }
-
-  &__value {
-    font-size: 22px;
-    font-weight: 700;
-  }
-}
-
-.stats-row,
-.panel-row {
-  margin-top: 0;
-}
-
-.metric-card {
-  position: relative;
-  margin-bottom: 16px;
-  padding: 20px;
-  border: 1px solid #edf2f7;
-  border-radius: 20px;
-  background: #fff;
-  box-shadow: 0 10px 28px rgb(15 23 42 / 4%);
-
-  &__badge {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    min-width: 52px;
-    height: 28px;
-    padding: 0 10px;
-    border-radius: 999px;
-    background: #eef2ff;
-    font-size: 12px;
-    font-weight: 600;
-  }
-
-  &__value {
-    margin-top: 18px;
-    font-size: 30px;
-    line-height: 1;
-    font-weight: 700;
-    color: #111827;
-  }
-
-  &__unit {
-    margin-left: 4px;
-    font-size: 13px;
-    font-weight: 500;
-    color: #6b7280;
-  }
-
-  &__label {
-    margin-top: 10px;
-    font-size: 14px;
-    color: #374151;
-  }
-
-  &__foot {
-    margin-top: 18px;
-    font-size: 12px;
-    color: #6b7280;
-  }
-
-  &--primary .metric-card__badge {
-    background: #dbeafe;
-    color: #2563eb;
-  }
-
-  &--success .metric-card__badge {
-    background: #dcfce7;
-    color: #16a34a;
-  }
-
-  &--warning .metric-card__badge {
-    background: #fef3c7;
-    color: #d97706;
-  }
-
-  &--brand .metric-card__badge {
-    background: #ede9fe;
-    color: #7c3aed;
-  }
-}
-
-.panel-card {
-  height: 100%;
-  border: none;
-  border-radius: 22px;
-  box-shadow: 0 10px 28px rgb(15 23 42 / 4%);
-
-  :deep(.el-card__body) {
-    padding-top: 10px;
-  }
-
-  &__header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 12px;
-  }
-
-  &__title {
-    font-size: 16px;
-    font-weight: 700;
-    color: #111827;
-  }
-
-  &__subtitle {
-    margin-top: 6px;
-    font-size: 12px;
-    color: #6b7280;
-  }
-}
-
-.quick-grid {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 14px;
-}
-
-.quick-card {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-  padding: 18px;
-  border: 1px solid #e5e7eb;
-  border-radius: 18px;
-  background: linear-gradient(180deg, #fff 0%, #f8fafc 100%);
-  text-align: left;
-  cursor: pointer;
-  transition: all 0.2s ease;
-
-  &:hover {
-    border-color: #c7d2fe;
-    box-shadow: 0 10px 20px rgb(99 102 241 / 10%);
-    transform: translateY(-2px);
-  }
-
-  &__code {
-    display: inline-flex;
-    width: fit-content;
-    padding: 4px 10px;
-    border-radius: 999px;
-    background: #eef2ff;
-    color: #4f46e5;
-    font-size: 12px;
-    font-weight: 600;
-  }
-
-  &__title {
-    font-size: 16px;
-    font-weight: 700;
-    color: #111827;
-  }
-
-  &__desc {
-    font-size: 13px;
-    line-height: 1.7;
-    color: #6b7280;
-  }
-}
-
-.todo-list,
-.schedule-list {
-  display: flex;
-  flex-direction: column;
-  gap: 14px;
-}
-
-.todo-item,
-.schedule-item {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 14px;
-  padding: 14px 0;
-  border: none;
-  border-bottom: 1px solid #f1f5f9;
-  background: transparent;
-  text-align: left;
-  cursor: pointer;
-
-  &:last-child {
-    border-bottom: none;
-    padding-bottom: 0;
-  }
-}
-
-.todo-item {
-  &__left {
-    min-width: 0;
-  }
-
-  &__title {
-    font-size: 14px;
-    font-weight: 600;
-    color: #111827;
-  }
-
-  &__desc {
-    margin-top: 6px;
-    font-size: 12px;
-    line-height: 1.6;
-    color: #6b7280;
-  }
-}
-
-.schedule-item {
-  &__time {
-    width: 72px;
-    flex-shrink: 0;
-    font-size: 15px;
-    font-weight: 700;
-    color: #1d4ed8;
-  }
-
-  &__main {
-    min-width: 0;
-    flex: 1;
-  }
-
-  &__title {
-    font-size: 14px;
-    font-weight: 600;
-    color: #111827;
-  }
-
-  &__meta {
-    margin-top: 6px;
-    font-size: 12px;
-    color: #6b7280;
-  }
-}
-
-@media (max-width: 1200px) {
-  .hero-card {
-    &__content {
-      flex-direction: column;
-    }
-
-    &__side {
-      width: 100%;
-    }
-  }
-}
-
-@media (max-width: 768px) {
-  .hero-card {
-    border-radius: 20px;
-
-    &__content {
-      padding: 20px;
-    }
-
-    &__title {
-      font-size: 24px;
-    }
-  }
-
-  .quick-grid {
-    grid-template-columns: 1fr;
-  }
-
-  .schedule-item {
-    align-items: flex-start;
-    flex-wrap: wrap;
-
-    &__time {
-      width: auto;
-    }
-  }
-}
+<style scoped>
+.workbench { max-width: 1340px; margin: auto; color: var(--el-text-color-primary); }
+header,nav,.entry { display: flex; align-items: center; gap: 12px; }
+header { justify-content: space-between; flex-wrap: wrap; }
+h1 { margin: 8px 0; font-size: clamp(25px, 3vw, 38px); letter-spacing: -.05em; }
+h2 { font-size: 18px; margin: 0 0 14px; }
+time,small,p,dt { color: var(--el-text-color-secondary); }
+nav { flex-wrap: wrap; padding: 20px 0; }
+button { font: inherit; color: inherit; cursor: pointer; background: var(--el-bg-color); border: 1px solid var(--el-border-color); border-radius: 7px; }
+nav button { padding: 9px 15px; }
+button:hover { background: var(--el-fill-color-light); }
+button:focus-visible { outline: 2px solid var(--el-color-primary); outline-offset: 2px; }
+.metrics { display: grid; grid-template-columns: repeat(4,1fr); gap: 20px; margin: 0 0 32px; padding: 20px 0 26px; border-block: 1px solid var(--el-border-color); }
+dd { margin: 8px 0 0; font-size: clamp(22px,3vw,36px); font-variant-numeric: tabular-nums; }
+dd small { font-size: 13px; margin-left: 5px; }
+.columns { display: grid; grid-template-columns: 3fr 2fr; gap: 32px; }
+.entry { width: 100%; justify-content: space-between; text-align: left; padding: 14px 4px; background: transparent; border: 0; border-bottom: 1px solid var(--el-border-color-lighter); border-radius: 0; }
+.course { display: grid; gap: 4px; flex: 1; }
+@media(max-width:760px){.columns { grid-template-columns: 1fr; } .metrics { grid-template-columns: 1fr 1fr; }}
 </style>

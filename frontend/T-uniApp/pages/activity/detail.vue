@@ -14,7 +14,6 @@
         mode="aspectFill"
       />
       <view class="row"
-        ><text class="eyebrow">T1 / CLUB EVENT</text
         ><text class="tag" v-if="detail.weeklyFeatured === '1'"
           >本周推荐</text
         ></view
@@ -68,11 +67,7 @@
         mode="widthFix"
       />
       <view class="consult">
-        <view class="section-title">感兴趣？到店聊聊。</view>
-        <view class="muted"
-          >参与方式和会员卡权益，请与门店或负责教练确认。</view
-        >
-        <button class="btn" @tap="handlePrimaryAction">
+        <view class="section-title">咨询门店</view><button class="btn" @tap="handlePrimaryAction">
           {{ primaryActionText }}
         </button>
         <button
@@ -200,8 +195,8 @@ export default {
 .page-wrap {
   min-height: 100vh;
   box-sizing: border-box;
-  background: #111211;
-  color: #f6f4ef;
+  background: var(--t1-bg);
+  color: var(--t1-text);
   padding: 32rpx 32rpx calc(48rpx + env(safe-area-inset-bottom));
   max-width: 960px;
   margin: auto;
@@ -209,14 +204,8 @@ export default {
 .with-nav {
   padding-bottom: calc(164rpx + env(safe-area-inset-bottom));
 }
-.eyebrow {
-  font-size: 20rpx;
-  letter-spacing: 4rpx;
-  color: #ff7a35;
-  font-weight: 700;
-}
 .page-title {
-  font-size: 52rpx;
+  font-size: 48rpx;
   line-height: 1.25;
   font-weight: 700;
   margin-top: 12rpx;
@@ -226,15 +215,15 @@ export default {
 .muted {
   font-size: 25rpx;
   line-height: 1.7;
-  color: #a2a49c;
+  color: var(--t1-muted);
 }
 .page-subtitle {
   margin-top: 14rpx;
 }
 .panel,
 .card {
-  background: #1c1d1b;
-  border: 1rpx solid #30322f;
+  background: var(--t1-surface);
+  border: 1rpx solid var(--t1-border);
   border-radius: 20rpx;
   padding: 28rpx;
   margin-top: 24rpx;
@@ -253,8 +242,8 @@ export default {
   font-size: 21rpx;
   line-height: 1.5;
   padding: 8rpx 14rpx;
-  background: #30271f;
-  color: #ff7a35;
+  background: var(--t1-tint);
+  color: var(--t1-accent);
   border-radius: 8rpx;
   white-space: nowrap;
   flex-shrink: 0;
@@ -265,8 +254,8 @@ export default {
   line-height: 88rpx;
   padding: 0 28rpx;
   border-radius: 14rpx;
-  background: #ff7a35;
-  color: #111211;
+  background: var(--t1-text);
+  color: var(--t1-on-dark);
   font-size: 28rpx;
   font-weight: 700;
 }
@@ -275,33 +264,33 @@ export default {
 }
 .btn.ghost {
   background: transparent;
-  border: 1rpx solid #42453f;
-  color: #f6f4ef;
+  border: 1rpx solid var(--t1-border);
+  color: var(--t1-text);
 }
 .btn[disabled] {
-  background: #30322f;
-  color: #85887f;
+  background: var(--t1-inset);
+  color: var(--t1-muted);
   opacity: 0.7;
 }
 .empty {
   padding: 64rpx 28rpx;
   text-align: center;
-  border: 1rpx dashed #30322f;
+  border: 1rpx dashed var(--t1-border);
   border-radius: 20rpx;
   margin-top: 24rpx;
-  color: #a2a49c;
+  color: var(--t1-muted);
   font-size: 26rpx;
   line-height: 1.8;
 }
 .empty-title {
   display: block;
-  color: #f6f4ef;
+  color: var(--t1-text);
   font-size: 32rpx;
   font-weight: 600;
   margin-bottom: 12rpx;
 }
 .error {
-  color: #ffb18c;
+  color: var(--t1-danger);
 }
 .scroll {
   white-space: nowrap;
@@ -316,23 +305,23 @@ export default {
   padding: 0 26rpx;
   margin-right: 12rpx;
   border-radius: 14rpx;
-  border: 1rpx solid #30322f;
-  background: #1c1d1b;
-  color: #a2a49c;
+  border: 1rpx solid var(--t1-border);
+  background: var(--t1-surface);
+  color: var(--t1-muted);
   font-size: 26rpx;
   box-sizing: border-box;
 }
 .chip.active {
-  color: #111211;
-  background: #ff7a35;
-  border-color: #ff7a35;
+  color: var(--t1-on-dark);
+  background: var(--t1-text);
+  border-color: var(--t1-accent);
   font-weight: 700;
 }
 .back-link {
   display: inline-flex;
   align-items: center;
   min-height: 80rpx;
-  color: #a2a49c;
+  color: var(--t1-muted);
   font-size: 26rpx;
   margin: -12rpx 0 12rpx;
 }
@@ -347,15 +336,15 @@ export default {
 .highlight {
   font-size: 35rpx;
   font-weight: 600;
-  color: #ff7a35;
+  color: var(--t1-accent);
   line-height: 1.6;
   margin-top: 28rpx;
 }
 .event-meta {
   padding: 16rpx 0 24rpx;
   margin-top: 20rpx;
-  border-top: 1rpx solid #30322f;
-  border-bottom: 1rpx solid #30322f;
+  border-top: 1rpx solid var(--t1-border);
+  border-bottom: 1rpx solid var(--t1-border);
 }
 .event-meta-row {
   display: flex;
@@ -368,7 +357,7 @@ export default {
 .meta-label {
   flex-shrink: 0;
   width: 64rpx;
-  color: #a2a49c;
+  color: var(--t1-muted);
 }
 .date-lines {
   display: flex;
@@ -377,8 +366,8 @@ export default {
 }
 .countdown {
   display: inline-block;
-  background: #30271f;
-  color: #ff7a35;
+  background: var(--t1-tint);
+  color: var(--t1-accent);
   font-size: 23rpx;
   padding: 12rpx 20rpx;
   border-radius: 8rpx;
@@ -389,7 +378,7 @@ export default {
   white-space: pre-wrap;
   font-size: 27rpx;
   line-height: 1.9;
-  color: #d6d7d0;
+  color: var(--t1-muted);
 }
 .detail-image {
   display: block;

@@ -1,10 +1,5 @@
 <template>
   <view class="checkin-page">
-    <view class="page-head"
-      ><text class="eyebrow">到课管理</text
-      ><view class="page-title">签到与核销</view
-      ><view class="page-desc">确认会员到场，完成本次课程</view></view
-    >
     <view class="stats-grid"
       ><view class="stat"
         ><text class="stat-value">{{ loaded ? pendingCount : "—" }}</text
@@ -30,7 +25,7 @@
     >
     <view v-if="loading" class="state-card"
       ><text class="state-title">正在加载签到记录</text
-      ><text class="muted">请稍候</text></view
+      ></view
     >
     <view v-else-if="errorText" class="state-card"
       ><text class="state-title">签到记录加载失败</text
@@ -39,9 +34,8 @@
     >
     <block v-else>
       <view v-if="!displayList.length" class="state-card"
-        ><text class="empty-mark">—</text
         ><text class="state-title">暂无{{ tabLabel(activeTab) }}记录</text
-        ><text class="muted">会员预约和签到后，可在这里处理。</text></view
+        ></view
       >
       <view
         v-for="item in displayList"
@@ -498,8 +492,8 @@ export default {
   margin: 0 auto;
   min-height: 100vh;
   padding: 32rpx 32rpx calc(160rpx + env(safe-area-inset-bottom));
-  background: #111211;
-  color: #f6f4ef;
+  background: var(--t1-bg);
+  color: var(--t1-text);
 }
 button {
   padding: 0;
@@ -516,27 +510,11 @@ button::after {
 button[disabled] {
   opacity: 0.45;
 }
-.page-head {
-  padding: 8rpx 0 32rpx;
-}
-.eyebrow {
-  color: #ff7a35;
-  font-size: 22rpx;
-}
-.page-title {
-  font-size: 46rpx;
-  font-weight: 700;
-  margin: 12rpx 0;
-}
-.page-desc {
-  color: #a2a49c;
-  font-size: 26rpx;
-}
 .stats-grid {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
-  border: 1rpx solid #30322f;
-  background: #1c1d1b;
+  border: 1rpx solid var(--t1-border);
+  background: var(--t1-surface);
   border-radius: 20rpx;
   margin-bottom: 24rpx;
 }
@@ -545,26 +523,26 @@ button[disabled] {
   text-align: center;
 }
 .stat + .stat {
-  border-left: 1rpx solid #30322f;
+  border-left: 1rpx solid var(--t1-border);
 }
 .stat-value {
   display: block;
-  color: #ff7a35;
+  color: var(--t1-accent);
   font-size: 40rpx;
   font-weight: 650;
 }
 .stat-label {
   display: block;
   font-size: 23rpx;
-  color: #a2a49c;
+  color: var(--t1-muted);
   margin-top: 4rpx;
 }
 .filter-row {
   display: flex;
   padding: 6rpx;
   border-radius: 16rpx;
-  background: #1c1d1b;
-  border: 1rpx solid #30322f;
+  background: var(--t1-surface);
+  border: 1rpx solid var(--t1-border);
   gap: 6rpx;
   margin-bottom: 24rpx;
 }
@@ -575,18 +553,18 @@ button[disabled] {
   align-items: center;
   justify-content: center;
   font-size: 26rpx;
-  color: #a2a49c;
+  color: var(--t1-muted);
   border-radius: 12rpx;
 }
 .filter-chip.active {
-  background: #ff7a35;
-  color: #111211;
+  background: var(--t1-text);
+  color: var(--t1-on-dark);
   font-weight: 650;
 }
 .checkin-card {
   padding: 28rpx;
-  border: 1rpx solid #30322f;
-  background: #1c1d1b;
+  border: 1rpx solid var(--t1-border);
+  background: var(--t1-surface);
   border-radius: 20rpx;
   margin-bottom: 20rpx;
 }
@@ -603,17 +581,17 @@ button[disabled] {
 .status-tag {
   padding: 8rpx 12rpx;
   border-radius: 8rpx;
-  background: #282a26;
+  background: var(--t1-inset);
   font-size: 21rpx;
-  color: #c4c6bd;
+  color: var(--t1-muted);
   flex-shrink: 0;
 }
 .status-tag.pending {
-  color: #ff7a35;
-  background: #30251d;
+  color: var(--t1-accent);
+  background: var(--t1-tint);
 }
 .status-tag.exception {
-  color: #f0a48f;
+  color: var(--t1-danger);
 }
 .course-name {
   margin-top: 24rpx;
@@ -622,11 +600,11 @@ button[disabled] {
 }
 .course-meta {
   font-size: 23rpx;
-  color: #a2a49c;
+  color: var(--t1-muted);
   margin-top: 8rpx;
 }
 .details {
-  border-top: 1rpx solid #30322f;
+  border-top: 1rpx solid var(--t1-border);
   margin-top: 24rpx;
   padding-top: 12rpx;
 }
@@ -639,7 +617,7 @@ button[disabled] {
   line-height: 1.65;
 }
 .label {
-  color: #a2a49c;
+  color: var(--t1-muted);
   flex-shrink: 0;
   width: 120rpx;
 }
@@ -667,33 +645,33 @@ button[disabled] {
   font-weight: 600;
 }
 .primary-btn {
-  color: #111211;
-  background: #ff7a35;
+  color: var(--t1-on-dark);
+  background: var(--t1-text);
 }
 .secondary-btn {
-  color: #f6f4ef;
-  background: #30322f;
+  color: var(--t1-text);
+  background: var(--t1-inset);
 }
 .action-hint {
   display: block;
   font-size: 22rpx;
-  color: #a2a49c;
+  color: var(--t1-muted);
   margin-top: 14rpx;
   line-height: 1.6;
 }
 .consume-note {
-  color: #ff7a35;
+  color: var(--t1-accent);
   font-size: 25rpx;
-  border-top: 1rpx solid #30322f;
+  border-top: 1rpx solid var(--t1-border);
   padding-top: 20rpx;
   margin-top: 16rpx;
 }
 .state-card {
   padding: 48rpx 28rpx;
   text-align: center;
-  border: 1rpx solid #30322f;
+  border: 1rpx solid var(--t1-border);
   border-radius: 20rpx;
-  background: #1c1d1b;
+  background: var(--t1-surface);
 }
 .state-title {
   display: block;
@@ -703,18 +681,12 @@ button[disabled] {
 .muted {
   display: block;
   font-size: 24rpx;
-  color: #a2a49c;
+  color: var(--t1-muted);
   margin-top: 12rpx;
   line-height: 1.7;
 }
 .state-card .secondary-btn {
   margin-top: 24rpx;
-}
-.empty-mark {
-  display: block;
-  font-size: 50rpx;
-  color: #ff7a35;
-  margin-bottom: 14rpx;
 }
 .load-more {
   width: 100%;

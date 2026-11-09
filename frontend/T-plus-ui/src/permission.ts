@@ -56,7 +56,11 @@ router.beforeEach(async (to, from, next) => {
     }
   } else {
     // 没有token
-    if (isWhiteList(to.path)) {
+    if (to.path === '/' || to.redirectedFrom?.path === '/') {
+      NProgress.done();
+      next(false);
+      window.location.replace('/site/');
+    } else if (isWhiteList(to.path)) {
       // 在免登录白名单，直接进入
       next();
     } else {

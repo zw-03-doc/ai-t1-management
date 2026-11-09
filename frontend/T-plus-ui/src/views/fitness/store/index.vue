@@ -13,7 +13,6 @@
         <el-descriptions-item label="联系电话">{{ selectedStore.contactPhone || '未设置' }}</el-descriptions-item>
         <el-descriptions-item label="地址" :span="2">{{ selectedStore.address || '未设置' }}</el-descriptions-item>
       </el-descriptions>
-      <el-alert class="mt-[12px]" type="info" :closable="false" title="从这里进入管理，会自动带入当前门店。会员按归属门店统计，课程模板与实际排课分别管理。" />
       <el-space wrap class="my-[16px]">
         <el-button v-hasPermi="['fitness:coach:list']" @click="manage('coach')">教练管理</el-button>
         <el-button v-hasPermi="['fitness:member:list']" @click="manage('member')">会员管理</el-button>

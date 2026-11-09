@@ -7,6 +7,10 @@
       }
     },
     {
+      "path": "pages/legal/index",
+      "style": { "navigationBarTitleText": "服务与隐私" }
+    },
+    {
       "path": "pages/portal/gallery",
       "style": {
         "navigationBarTitleText": "场馆环境",
@@ -28,7 +32,7 @@
     {
       "path": "pages/activity/index",
       "style": {
-        "navigationBarTitleText": "活动"
+        "navigationBarTitleText": "门店活动"
       }
     },
     {
@@ -40,7 +44,7 @@
     {
       "path": "pages/activity/plan",
       "style": {
-        "navigationBarTitleText": "活动卡项"
+        "navigationBarTitleText": "会员卡方案"
       }
     },
     {
@@ -82,7 +86,7 @@
     {
       "path": "pages/coach/mine/index",
       "style": {
-        "navigationBarTitleText": "教练我的"
+        "navigationBarTitleText": "教练账户"
       }
     },
     {
@@ -106,15 +110,15 @@
     {
       "path": "pages/guide/index",
       "style": {
-        "navigationBarTitleText": "训练灵感"
+        "navigationBarTitleText": "训练指南"
       }
     }
   ],
   "globalStyle": {
-    "navigationBarTextStyle": "white",
+    "navigationBarTextStyle": "black",
     "navigationBarTitleText": "T1健身",
-    "navigationBarBackgroundColor": "#111211",
-    "backgroundColor": "#111211"
+    "navigationBarBackgroundColor": "#f7f7f5",
+    "backgroundColor": "#f7f7f5"
   },
   "uniIdRouter": {}
 }

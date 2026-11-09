@@ -1,12 +1,6 @@
 <template>
   <view class="portal-page">
     <view class="portal-hero">
-      <image
-        class="portal-bg"
-        src="/static/images/portal.jpg"
-        mode="aspectFill"
-      />
-      <view class="portal-shade" />
       <view
         class="brand-bar"
         :style="{
@@ -19,21 +13,9 @@
           src="/static/images/brand-icon.jpg"
           mode="aspectFill"
         />
-        <view
-          ><view class="brand-name">T1 FITNESS</view
-          ><text class="brand-caption">健身空间</text></view
-        >
+        <text class="brand-name">T1 FITNESS</text>
       </view>
-      <view class="hero-copy" :style="{ paddingTop: navBottom + 68 + 'px' }">
-        <view class="hero-eyebrow">
-          <view class="orange-line" /><text class="eyebrow-text">{{ slogans.eyebrow }}</text>
-        </view>
-        <view class="hero-title">
-          <view>{{ slogans.titleLead }}<text v-if="slogans.titleAccent" class="accent">{{ slogans.titleAccent }}</text></view>
-          <view>{{ slogans.titleSecondLine }}</view>
-        </view>
-        <view class="hero-desc">{{ slogans.subtitle }}</view>
-      </view>
+      <image class="portal-bg" src="/static/images/portal.jpg" mode="aspectFill" />
       <view class="hero-actions">
         <button
           class="hero-action booking-action"
@@ -56,14 +38,12 @@
       </view>
     </view>
     <view class="portal-body">
-      <view class="space-head"
-        ><text class="section-kicker">{{ slogans.galleryCaption }}</text
-        ><button class="space-link" @tap="previewSpace(0)">查看场馆大图 ↗</button></view
+      <view class="space-head"><button class="space-link" @tap="previewSpace(0)">查看场馆</button></view
       >
-      <view class="space-photos">
-        <button v-for="(src, index) in venuePhotos" :key="src" class="space-photo"
+      <view v-if="venuePhotos.length" class="space-photos">
+        <button v-for="(photo, index) in venuePhotos.slice(0, 3)" :key="photo.id" class="space-photo"
           :aria-label="'查看第' + (index + 1) + '张场馆照片'" @tap="previewSpace(index)">
-          <image :src="src" mode="aspectFill" />
+          <image :src="photo.src" mode="aspectFill" />
         </button>
       </view>
       <button
@@ -78,23 +58,21 @@
               ? "返回教练工作台"
               : "教练登录"
             : memberLoggedIn
-              ? "继续我的训练"
-              : "开始训练"
+              ? "会员首页"
+              : "会员登录"
         }}</text
-        ><text class="button-arrow">→</text>
+        >
       </button>
       <button class="explore-button" @tap="openGuide">
-        先看看训练计划 <text>↗</text>
+        训练计划
       </button>
-      <view class="portal-footer"
-        ><text class="footer-caption">{{ slogans.footerCaption }}</text
-        ><button
+      <view class="portal-footer"><button
           v-if="targetRole !== 'coach'"
           class="coach-entry"
           :disabled="coachBusy || loginBusy"
           @tap="openCoach"
         >
-          教练工作台 ↗</button
+          教练工作台</button
         ><button
           v-else
           class="coach-entry"
@@ -104,11 +82,12 @@
             targetRoute = '';
           "
         >
-          切换会员入口 ↗
+          会员入口
         </button></view
       >
     </view>
 
+    <LoginConsent v-if="consentRole" @agree="agreeToLogin" @decline="declineLogin" />
     <view v-if="browserLogin" class="modal-mask" @tap="closeBrowserLogin">
       <view class="login-sheet" @tap.stop>
         <view class="sheet-heading"
@@ -207,8 +186,8 @@
 </template>
 
 <script>
-import { venuePhotos } from "../../utils/venue-photos";
-import { readPortalSlogans, fetchPortalSlogans, cachePortalSlogans } from "../../api/portal-slogans";
+import LoginConsent from "../../components/LoginConsent.vue";
+import { readVenuePhotos, refreshVenuePhotos } from "../../utils/venue-photos";
 import {
   coachWechatActivate,
   coachWechatLogin,
@@ -218,6 +197,8 @@ import {
 } from "../../api/auth";
 import {
   getMemberSession,
+  POLICY_VERSION,
+  memberProfileTarget,
   hasCoachSession,
   hasMemberSession,
   resolveTargetUrl,
@@ -234,17 +215,19 @@ function createActivationForm() {
 }
 
 export default {
+  components: { LoginConsent },
   data() {
     return {
-      venuePhotos,
-      slogans: readPortalSlogans(),
-      sloganRevision: 0,
+      venuePhotos: readVenuePhotos(),
+
       statusBarHeight: 24,
       navBottom: 74,
       loginBusy: false,
       coachBusy: false,
       targetRole: "member",
       browserLogin: false,
+      consentRole: "",
+      agreedLoginRole: "",
       browserRole: "coach",
       browserForm: { username: "", password: "", code: "" },
       browserBusy: false,
@@ -269,35 +252,26 @@ export default {
     this.targetRole = options && options.role === "coach" ? "coach" : "member";
     this.targetRoute = this.decodeTarget(options && options.target);
     this.refreshLoginState();
+    if (this.targetRoute && !(this.targetRole === "coach" ? this.coachLoggedIn : this.memberLoggedIn)) {
+      this.consentRole = this.targetRole;
+    }
   },
   onShow() {
     this.refreshLoginState();
-    this.refreshSlogans();
+    refreshVenuePhotos().then(photos => { this.venuePhotos = photos; });
+
   },
-  onHide() {
-    this.sloganRevision++;
-  },
-  onUnload() {
-    this.sloganRevision++;
+  onReady() {
+    const loggedIn = this.targetRole === "coach" ? this.coachLoggedIn : this.memberLoggedIn;
+    if (this.targetRoute && loggedIn) this.navigateAfterLogin(this.targetRole);
   },
   methods: {
-    async refreshSlogans() {
-      const revision = ++this.sloganRevision;
-      try {
-        const published = await fetchPortalSlogans();
-        if (published && revision === this.sloganRevision) {
-          this.slogans = published;
-          cachePortalSlogans(published);
-        }
-      } catch {
-        // Keep the last usable copy if the platform rejects this request.
-      }
-    },
     openGuide() {
       uni.navigateTo({ url: "/pages/guide/index" });
     },
     previewSpace(index) {
-      uni.navigateTo({ url: "/pages/portal/gallery?index=" + index });
+      const id = this.venuePhotos[index]?.id || "";
+      uni.navigateTo({ url: "/pages/portal/gallery?index=" + index + "&id=" + encodeURIComponent(id) });
     },
     openMemberAction(action) {
       const routes = {
@@ -313,22 +287,38 @@ export default {
         this.enterHome();
         return;
       }
-      // #ifdef MP-WEIXIN
-      this.loginBusy = true;
-      try {
-        await this.handleMemberLogin();
-      } finally {
-        this.loginBusy = false;
-      }
-      // #endif
-      // #ifndef MP-WEIXIN
-      this.goMemberFallback();
-      // #endif
+      this.consentRole = "member";
     },
     async openCoach() {
       if (this.coachBusy || this.loginBusy || this.browserBusy) return;
       if (this.coachLoggedIn) {
         this.goCoachApp();
+        return;
+      }
+      this.consentRole = "coach";
+    },
+    declineLogin() {
+      this.consentRole = "";
+      this.agreedLoginRole = "";
+      this.memberShortcutRoute = "";
+    },
+    async agreeToLogin() {
+      const role = this.consentRole;
+      if (!role) return;
+      this.consentRole = "";
+      this.agreedLoginRole = role;
+      if (role === "member") {
+        // #ifdef MP-WEIXIN
+        this.loginBusy = true;
+        try {
+          await this.handleMemberLogin();
+        } finally {
+          this.loginBusy = false;
+        }
+        // #endif
+        // #ifndef MP-WEIXIN
+        this.goMemberFallback();
+        // #endif
         return;
       }
       // #ifdef MP-WEIXIN
@@ -346,11 +336,13 @@ export default {
     closeBrowserLogin() {
       if (!this.browserBusy) {
         this.browserLogin = false;
+        this.agreedLoginRole = "";
+        this.browserForm = { username: "", password: "", code: "" };
         this.memberShortcutRoute = "";
       }
     },
     async submitBrowserLogin() {
-      if (this.browserBusy) return;
+      if (this.browserBusy || !this.browserLogin || this.agreedLoginRole !== this.browserRole) return;
       const role = this.browserRole;
       const coach = role === "coach";
       const payload = coach
@@ -362,9 +354,9 @@ export default {
       this.browserBusy = true;
       try {
         const result = await (coach
-          ? coachPasswordLogin(payload)
-          : memberWebLogin(payload));
-        (coach ? saveCoachSession : saveMemberSession)(result);
+          ? coachPasswordLogin({ ...payload, consentVersion: POLICY_VERSION })
+          : memberWebLogin({ ...payload, consentVersion: POLICY_VERSION }));
+        (coach ? saveCoachSession : saveMemberSession)({ ...result, policyVersion: POLICY_VERSION });
         this.browserForm = { username: "", password: "", code: "" };
         this.browserLogin = false;
         this.navigateAfterLogin(role);
@@ -379,8 +371,15 @@ export default {
         return "";
       }
       try {
-        const decoded = decodeURIComponent(target);
-        return /^\/pages\/[\w/-]+(?:\?.*)?$/.test(decoded) ? decoded : "";
+        const decoded = target.startsWith("/") ? target : decodeURIComponent(target);
+        if (/[#\r\n]/.test(decoded)) return "";
+        const [path, query = ""] = decoded.split("?");
+        const coachTraining = path === "/pages/training/index" && /(?:^|&)role=coach(?:&|$)/.test(decodeURIComponent(query));
+        if (this.targetRole === "coach") {
+          return coachTraining || /^\/pages\/coach\/(?:home|schedule|checkin|student|mine|interest)\/index$/.test(path) ? decoded : "";
+        }
+        if (coachTraining || path === "/pages/portal/index") return "";
+        return path === "/pages/mine/profile" || memberProfileTarget(decoded) === decoded ? decoded : "";
       } catch (error) {
         return "";
       }
@@ -396,6 +395,7 @@ export default {
       return resolveTargetUrl(role);
     },
     navigateAfterLogin(role) {
+      this.agreedLoginRole = "";
       const shortcut = role === "member" ? this.memberShortcutRoute : "";
       const target = shortcut || this.resolveRoute(role);
       const needsProfile = role === "member" &&
@@ -433,11 +433,12 @@ export default {
       this.activationForm = createActivationForm();
     },
     async doMemberLogin() {
+      if (this.agreedLoginRole !== "member") return;
       try {
         uni.showLoading({ title: "登录中..." });
         const loginRes = await this.wxLogin();
-        const result = await memberWechatLogin({ code: loginRes.code });
-        saveMemberSession(result);
+        const result = await memberWechatLogin({ code: loginRes.code, consentVersion: POLICY_VERSION });
+        saveMemberSession({ ...result, policyVersion: POLICY_VERSION });
         this.refreshLoginState();
         uni.showToast({ title: "会员登录成功", icon: "success" });
         this.navigateAfterLogin("member");
@@ -476,6 +477,7 @@ export default {
       this.browserLogin = true;
     },
     async handleCoachEntry() {
+      if (this.agreedLoginRole !== "coach") return;
       if (this.coachLoggedIn) {
         this.goCoachApp();
         return;
@@ -483,12 +485,12 @@ export default {
       try {
         uni.showLoading({ title: "校验中..." });
         const loginRes = await this.wxLogin();
-        const result = await coachWechatLogin({ code: loginRes.code });
+        const result = await coachWechatLogin({ code: loginRes.code, consentVersion: POLICY_VERSION });
         if (result && result.needActivation) {
           this.openActivationPopup(result);
           return;
         }
-        saveCoachSession(result);
+        saveCoachSession({ ...result, policyVersion: POLICY_VERSION });
         this.refreshLoginState();
         uni.showToast({ title: "教练登录成功", icon: "success" });
         this.navigateAfterLogin("coach");
@@ -499,7 +501,7 @@ export default {
       }
     },
     async submitCoachActivation() {
-      if (this.activationSubmitting) {
+      if (this.activationSubmitting || !this.activationPopupVisible || this.agreedLoginRole !== "coach") {
         return;
       }
       if (!this.activationForm.mobile) {
@@ -515,11 +517,12 @@ export default {
         uni.showLoading({ title: "激活中..." });
         const loginRes = await this.wxLogin();
         const result = await coachWechatActivate({
+          consentVersion: POLICY_VERSION,
           code: loginRes.code,
           mobile: this.activationForm.mobile,
           activationCode: this.activationForm.activationCode,
         });
-        saveCoachSession(result);
+        saveCoachSession({ ...result, policyVersion: POLICY_VERSION });
         this.activationPopupVisible = false;
         this.activationHint = "";
         this.activationForm = createActivationForm();
@@ -539,149 +542,54 @@ export default {
 
 <style lang="scss" scoped>
 .portal-page {
-  display: flex;
-  flex-direction: column;
-  max-width: 760px;
-  margin: 0 auto;
-  background: #111211;
+  max-width: 680px;
   min-height: 100vh;
-  color: #f6f4ef;
-}
-.portal-hero {
-  flex: 1 0 auto;
-  display: flex;
-  flex-direction: column;
-  position: relative;
-  min-height: 790rpx;
-  overflow: hidden;
-}
-.portal-bg,
-.portal-shade {
-  position: absolute;
-  inset: 0;
-  width: 100%;
-  height: 100%;
-}
-.portal-bg {
-  opacity: 0.84;
-}
-.portal-shade {
-  background: linear-gradient(
-    180deg,
-    rgba(17, 18, 17, 0.25) 0%,
-    rgba(17, 18, 17, 0.12) 24%,
-    rgba(17, 18, 17, 0.48) 56%,
-    #111211 99%
-  );
+  margin: 0 auto;
+  padding: 0 36rpx calc(40rpx + env(safe-area-inset-bottom));
+  background: var(--t1-bg);
+  color: var(--t1-text);
 }
 .brand-bar {
-  position: absolute;
-  z-index: 2;
-  top: 0;
-  left: 0;
-  right: 0;
   display: flex;
   align-items: center;
   gap: 16rpx;
-  padding-left: 36rpx;
-  padding-right: 210rpx;
+  padding-right: 195rpx;
 }
-.brand-logo {
-  width: 66rpx;
-  height: 66rpx;
-  border-radius: 14rpx;
-  flex-shrink: 0;
+.brand-logo { width: 48rpx; height: 48rpx; border-radius: 10rpx; flex-shrink: 0; }
+.brand-name { font-size: 29rpx; font-weight: 700; letter-spacing: .04em; }
+.portal-bg {
+  display: block;
+  width: 100%;
+  height: 360rpx;
+  max-height: 300px;
+  margin: 24rpx 0;
+  border-radius: 20rpx;
 }
-.brand-name {
-  font-size: 27rpx;
-  font-weight: 800;
-  letter-spacing: 2rpx;
-  line-height: 1.2;
-}
-.brand-caption {
-  font-size: 20rpx;
-  color: #cacbc5;
-  letter-spacing: 4rpx;
-}
-.hero-copy {
-  position: relative;
-  padding: 0 40rpx 32rpx;
-}
-.hero-eyebrow {
-  display: flex;
-  align-items: center;
-  gap: 14rpx;
-  font-size: 19rpx;
-  letter-spacing: 4rpx;
-  color: #dedfd9;
-  font-weight: 600;
-  margin-bottom: 24rpx;
-}
-.orange-line {
-  flex-shrink: 0;
-  height: 3rpx;
-  width: 36rpx;
-  background: #ff7a35;
-}
-.hero-title {
-  font-size: 76rpx;
-  font-weight: 800;
-  letter-spacing: -3rpx;
-  line-height: 1.2;
-}
-.hero-title,
-.hero-desc,
-.eyebrow-text,
-.section-kicker,
-.footer-caption {
-  min-width: 0;
-  overflow-wrap: anywhere;
-  word-break: break-word;
-}
-.accent {
-  color: #ff7a35;
-}
-.hero-desc {
-  color: #d1d2cc;
-  font-size: 27rpx;
-  margin-top: 26rpx;
-}
-.hero-actions {
-  position: relative;
-  display: flex;
-  gap: 20rpx;
-  margin-top: auto;
-  padding: 0 40rpx 120rpx;
-}
+.hero-actions { display: flex; gap: 16rpx; }
 .hero-action {
   flex: 1;
-  min-width: 0;
-  min-height: 144rpx;
+  min-height: 100rpx;
   margin: 0;
-  padding: 18rpx 12rpx;
+  padding: 16rpx;
   display: flex;
-  flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 12rpx;
-  border: 1px solid rgba(255, 255, 255, 0.24);
-  border-radius: 16rpx;
-  background: rgba(24, 25, 23, 0.84);
-  color: #f6f4ef;
-  font-size: 32rpx;
-  font-weight: 700;
-  line-height: 1.2;
+  gap: 16rpx;
+  background: var(--t1-text);
+  border: 1px solid var(--t1-text);
+  color: white;
+  font-size: 31rpx;
+  font-weight: 600;
+  border-radius: 14rpx;
 }
-.hero-action-pressed {
-  border-color: #ff7a35;
-  background: #30261f;
-}
+.checkin-action { background: var(--t1-surface); color: var(--t1-text); border-color: var(--t1-border); }
+.hero-action-pressed { opacity: .78; }
 .action-calendar,
 .action-check {
   position: relative;
   width: 42rpx;
   height: 42rpx;
-  border: 2px solid #ff8b52;
+  border: 2px solid currentColor;
   border-radius: 8rpx;
 }
 .action-calendar::before {
@@ -691,8 +599,8 @@ export default {
   left: 6rpx;
   right: 6rpx;
   height: 10rpx;
-  border-left: 2px solid #ff8b52;
-  border-right: 2px solid #ff8b52;
+  border-left: 2px solid currentColor;
+  border-right: 2px solid currentColor;
 }
 .action-calendar::after {
   content: "";
@@ -700,7 +608,7 @@ export default {
   top: 11rpx;
   left: 0;
   right: 0;
-  border-top: 2px solid #ff8b52;
+  border-top: 2px solid currentColor;
 }
 .action-check {
   border-radius: 50%;
@@ -712,104 +620,30 @@ export default {
   top: 43%;
   width: 9rpx;
   height: 18rpx;
-  border-right: 2px solid #ff8b52;
-  border-bottom: 2px solid #ff8b52;
+  border-right: 2px solid currentColor;
+  border-bottom: 2px solid currentColor;
   transform: translate(-50%, -50%) rotate(45deg);
 }
-.portal-body {
-  flex-shrink: 0;
-  position: relative;
-  margin-top: -95rpx;
-  padding: 0 40rpx calc(28rpx + env(safe-area-inset-bottom));
-}
-.space-head {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12rpx;
-  margin-bottom: 18rpx;
-}
-.section-kicker {
-  font-size: 23rpx;
-  color: #bbbeb5;
-}
+.portal-body { display: flex; flex-direction: column; }
+.space-head { display: flex; align-items: center; margin-top: 44rpx; }
 .space-link {
-  margin: 0;
-  background: transparent;
-  border: 0;
-  flex-shrink: 0;
-  font-size: 22rpx;
-  color: #e1e2db;
-  padding: 12rpx 0;
+  display: block; margin: 0; padding: 0; background: transparent;
+  color: var(--t1-text); font-size: 30rpx; font-weight: 600; line-height: 88rpx;
 }
-.space-photos {
-  display: flex;
-  gap: 12rpx;
-  margin-bottom: 38rpx;
-}
+.space-photos { display: flex; gap: 12rpx; margin-bottom: 36rpx; }
 .space-photo {
-  width: calc((100% - 24rpx) / 3);
-  margin: 0;
-  padding: 0;
-  border-radius: 12rpx;
-  overflow: hidden;
-  background: #212220;
+  flex: 1; min-width: 0; margin: 0; padding: 0; border-radius: 12rpx; overflow: hidden;
 }
-.space-photo image {
-  display: block;
-  width: 100%;
-  height: 144rpx;
+.space-photo image { display: block; width: 100%; height: 138rpx; }
+.start-button, .explore-button, .coach-entry {
+  position: relative; display: flex; align-items: center; width: 100%; margin: 0;
+  min-height: 96rpx; padding: 12rpx 0; border-radius: 0; text-align: left;
+  border-top: 1px solid var(--t1-border); background: transparent;
+  color: var(--t1-text); font-size: 29rpx; font-weight: 500;
 }
-.start-button {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  width: 100%;
-  min-height: 100rpx;
-  padding: 0 30rpx;
-  border-radius: 16rpx;
-  background: #ff7a35;
-  color: #20160f;
-  font-size: 31rpx;
-  font-weight: 700;
-  line-height: 1.4;
-}
-.button-arrow {
-  font-size: 42rpx;
-  font-weight: 400;
-}
-.explore-button {
-  width: 100%;
-  margin-top: 14rpx;
-  min-height: 86rpx;
-  border-radius: 16rpx;
-  border: 1px solid #363830;
-  background: #1b1d19;
-  color: #e7e8df;
-  font-size: 26rpx;
-  line-height: 86rpx;
-}
-.explore-button text {
-  margin-left: 12rpx;
-  color: #a2a49c;
-}
-.portal-footer {
-  margin-top: 24rpx;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12rpx;
-  font-size: 20rpx;
-  color: #7d8177;
-}
-.coach-entry {
-  flex-shrink: 0;
-  padding: 14rpx 0 14rpx 20rpx;
-  margin: 0;
-  background: transparent;
-  color: #bfc1b8;
-  font-size: 22rpx;
-  line-height: 1.5;
+.start-button::before, .explore-button::before, .coach-entry::before {
+  content: ""; position: absolute; right: 6rpx; width: 12rpx; height: 12rpx;
+  border-right: 2rpx solid var(--t1-muted); border-top: 2rpx solid var(--t1-muted); transform: rotate(45deg);
 }
 .modal-mask {
   position: fixed;
@@ -825,7 +659,7 @@ export default {
   max-width: 760px;
   padding: 36rpx 36rpx calc(42rpx + env(safe-area-inset-bottom));
   border-radius: 32rpx 32rpx 0 0;
-  background: #1c1d1b;
+  background: var(--t1-surface);
 }
 .sheet-heading {
   display: flex;
@@ -840,64 +674,44 @@ export default {
   width: 64rpx;
   height: 64rpx;
   line-height: 58rpx;
-  background: #2b2d28;
-  color: #a2a49c;
+  background: var(--t1-inset);
+  color: var(--t1-muted);
   border-radius: 50%;
   font-size: 42rpx;
   font-weight: 400;
 }
 .sheet-description {
   margin: 16rpx 0 28rpx;
-  color: #a2a49c;
+  color: var(--t1-muted);
   font-size: 25rpx;
   line-height: 1.7;
 }
 .field-label {
   display: block;
-  color: #c5c7be;
+  color: var(--t1-muted);
   font-size: 24rpx;
   margin: 24rpx 0 12rpx;
 }
 .form-input {
   height: 94rpx;
   padding: 0 24rpx;
-  border: 1px solid #383b32;
+  border: 1px solid var(--t1-border);
   border-radius: 14rpx;
-  color: #f6f4ef;
-  background: #131411;
+  color: var(--t1-text);
+  background: var(--t1-inset);
   font-size: 29rpx;
 }
 .input-placeholder {
-  color: #72776b;
+  color: var(--t1-muted);
 }
 .sheet-submit {
   margin-top: 32rpx;
   min-height: 94rpx;
   line-height: 94rpx;
-  background: #ff7a35;
-  color: #20160f;
+  background: var(--t1-text);
+  color: var(--t1-on-dark);
   font-size: 29rpx;
   font-weight: 700;
   border-radius: 14rpx;
-}
-@media (min-width: 600px) {
-  .portal-hero {
-    min-height: 720px;
-  }
-  .portal-body {
-    margin-top: -140px;
-  }
-  .hero-copy {
-    padding-top: 250px !important;
-  }
-  .hero-actions {
-    padding-bottom: 168px;
-  }
-  .hero-title {
-    font-size: 72px;
-  }
-  .space-photos image {
-    height: 150px;
-  }
 }
 </style>

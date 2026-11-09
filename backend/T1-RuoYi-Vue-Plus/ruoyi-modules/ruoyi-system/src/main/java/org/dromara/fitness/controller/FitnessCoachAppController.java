@@ -3,6 +3,7 @@ package org.dromara.fitness.controller;
 import cn.dev33.satoken.annotation.SaCheckLogin;
 import cn.dev33.satoken.annotation.SaIgnore;
 import lombok.RequiredArgsConstructor;
+import org.dromara.fitness.service.support.FitnessPolicyConsent;
 import org.dromara.common.core.domain.R;
 import org.dromara.common.idempotent.annotation.RepeatSubmit;
 import org.dromara.common.mybatis.core.page.PageQuery;
@@ -26,26 +27,30 @@ import org.springframework.web.bind.annotation.*;
 @RequestMapping("/fitness/coachApp")
 public class FitnessCoachAppController extends BaseController {
 
+    private final FitnessPolicyConsent consent;
     private final IFitnessCoachAppService fitnessCoachAppService;
 
     @SaIgnore
     @RateLimiter(limitType = org.dromara.common.ratelimiter.enums.LimitType.IP, time = 60, count = 5, message = "登录尝试过于频繁，请稍后重试")
     @PostMapping("/auth/login")
     public R<FitnessCoachAppVo.LoginVo> login(@Validated @RequestBody FitnessCoachAppBo.LoginBo bo) {
-        return R.ok(fitnessCoachAppService.login(bo));
+        consent.requireCurrent(bo.getConsentVersion());
+        return R.ok(consent.recordCoach(fitnessCoachAppService.login(bo)));
     }
 
     @SaIgnore
     @PostMapping("/auth/wechatLogin")
     public R<FitnessCoachAppVo.LoginVo> wechatLogin(@Validated @RequestBody FitnessCoachAppBo.WechatLoginBo bo) {
-        return R.ok(fitnessCoachAppService.wechatLogin(bo));
+        consent.requireCurrent(bo.getConsentVersion());
+        return R.ok(consent.recordCoach(fitnessCoachAppService.wechatLogin(bo)));
     }
 
     @SaIgnore
     @RateLimiter(limitType = org.dromara.common.ratelimiter.enums.LimitType.IP, time = 60, count = 5, message = "激活尝试过于频繁，请稍后重试")
     @PostMapping("/auth/wechatActivate")
     public R<FitnessCoachAppVo.LoginVo> wechatActivate(@Validated @RequestBody FitnessCoachAppBo.WechatActivateBo bo) {
-        return R.ok(fitnessCoachAppService.wechatActivate(bo));
+        consent.requireCurrent(bo.getConsentVersion());
+        return R.ok(consent.recordCoach(fitnessCoachAppService.wechatActivate(bo)));
     }
 
     @SaCheckLogin

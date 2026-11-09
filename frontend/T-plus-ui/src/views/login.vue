@@ -2,7 +2,7 @@
   <div class="login">
     <el-form ref="loginRef" :model="loginForm" :rules="loginRules" class="login-form">
       <div class="title-box">
-        <h3 class="title">{{ title }}</h3>
+        <h3 class="title">门店管理登录</h3>
       </div>
 
       <el-form-item v-if="tenantEnabled" prop="tenantId">
@@ -62,7 +62,7 @@
     </el-form>
     <!--  底部  -->
     <div class="el-login-footer">
-      <span>Copyright © 2026 T1健身工作室 All Rights Reserved.</span>
+      <a href="/site/">T1 健身空间</a>
     </div>
 
   </div>
@@ -79,7 +79,6 @@ import { useI18n } from 'vue-i18n';
 
 const { proxy } = getCurrentInstance() as ComponentInternalInstance;
 
-const title = import.meta.env.VITE_APP_TITLE;
 const userStore = useUserStore();
 const router = useRouter();
 const { t } = useI18n();
@@ -223,146 +222,11 @@ onMounted(() => {
 </script>
 
 <style lang="scss" scoped>
-.login {
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  height: 100%;
-  background-image: url('../assets/images/login-background.jpg');
-  background-size: cover;
-  background-position: center;
-}
-
-.title-box {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-
-  .title {
-    margin: 0px auto 26px auto;
-    text-align: center;
-    color: var(--el-text-color-primary);
-    font-weight: 600;
-    letter-spacing: 0.5px;
-  }
-
-  :deep(.lang-select--style) {
-    line-height: 0;
-    color: var(--el-text-color-secondary);
-  }
-}
-
-.login-form {
-  border-radius: var(--app-radius-lg);
-  background: rgba(255, 255, 255, 0.94);
-  border: 1px solid rgba(255, 255, 255, 0.5);
-  width: min(420px, 90vw);
-  padding: 32px 30px 12px 30px;
-  z-index: 1;
-  box-shadow: var(--app-shadow-lg);
-  backdrop-filter: blur(6px);
-  -webkit-backdrop-filter: blur(6px);
-  .el-input {
-    height: 40px;
-    input {
-      height: 40px;
-    }
-  }
-
-  .input-icon {
-    height: 39px;
-    width: 14px;
-    margin-left: 0px;
-  }
-}
-
-.login-tip {
-  font-size: 13px;
-  text-align: center;
-  color: #bfbfbf;
-}
-
-.login-form :deep(.el-input__wrapper) {
-  background-color: rgba(255, 255, 255, 0.9);
-}
-
-.login-form :deep(.el-input__wrapper.is-focus) {
-  box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.2);
-}
-
-.login-form :deep(.el-button--primary) {
-  border-radius: var(--app-radius-md);
-  box-shadow: 0 8px 20px rgba(59, 130, 246, 0.25);
-}
-
-.login-form :deep(.el-button.is-circle) {
-  background: rgba(15, 23, 42, 0.04);
-  border: 1px solid rgba(15, 23, 42, 0.08);
-  color: var(--el-text-color-regular);
-}
-
-.login-form :deep(.el-button.is-circle:hover) {
-  background: rgba(59, 130, 246, 0.1);
-  border-color: rgba(59, 130, 246, 0.2);
-}
-
-.login-code {
-  width: calc(37% - 10px);
-  height: 40px;
-  float: right;
-  margin-left: 10px;
-  box-sizing: border-box;
-  border-radius: var(--app-radius-sm);
-  overflow: hidden;
-  background: rgba(255, 255, 255, 0.9);
-  border: 1px solid var(--el-border-color-light);
-
-  img {
-    cursor: pointer;
-    vertical-align: middle;
-    display: block;
-    width: 100%;
-    height: 40px;
-    object-fit: cover;
-  }
-}
-
-.el-login-footer {
-  height: 40px;
-  line-height: 40px;
-  position: fixed;
-  bottom: 0;
-  width: 100%;
-  text-align: center;
-  color: rgba(255, 255, 255, 0.75);
-  font-family: Arial, serif;
-  font-size: 12px;
-  letter-spacing: 1px;
-}
-
-.login-code-img {
-  height: 40px;
-  padding-left: 0;
-}
-
-:global(html.dark) {
-  .login-form {
-    background: rgba(17, 24, 39, 0.9);
-    border-color: rgba(148, 163, 184, 0.2);
-  }
-
-  .login-form :deep(.el-input__wrapper) {
-    background-color: rgba(17, 24, 39, 0.7);
-  }
-
-  .login-form :deep(.el-button.is-circle) {
-    background: rgba(148, 163, 184, 0.12);
-    border-color: rgba(148, 163, 184, 0.25);
-    color: #e5e7eb;
-  }
-
-  .el-login-footer {
-    color: rgba(226, 232, 240, 0.65);
-  }
-}
+.login { min-height: 100vh; display: grid; place-items: center; padding: 36px 18px; background: var(--el-bg-color-page); }
+.login-form { width: min(100%,380px); padding: 30px; background: var(--el-bg-color); border: 1px solid var(--el-border-color); border-radius: 12px; }
+.title { margin: 0 0 28px; font-size: 26px; letter-spacing: -.04em; color: var(--el-text-color-primary); }
+.login-code { width: calc(37% - 10px); height: 40px; margin-left: 10px; }
+.login-code img { display: block; width: 100%; height: 100%; object-fit: contain; cursor: pointer; }
+.el-login-footer { position: absolute; top: 18px; left: 24px; color: var(--el-text-color-regular); }
+.el-login-footer a:focus-visible { outline: 2px solid currentColor; }
 </style>
