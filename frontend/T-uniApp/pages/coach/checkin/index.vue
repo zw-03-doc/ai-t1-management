@@ -81,7 +81,7 @@
           v-if="activeTab === 'exception'"
           class="secondary-btn"
           :disabled="!!actioningReservationId"
-          @tap="restoreItem(item)"
+          @tap="openReason('restore', item)"
         >
           恢复为待核销
         </button>
@@ -89,7 +89,7 @@
           ><button
             class="primary-btn"
             :disabled="!!actioningReservationId"
-            @tap="item.checkinId ? confirmItem(item) : proxyItem(item)"
+            @tap="item.checkinId ? confirmItem(item) : openReason('proxy', item)"
           >
             {{
               actioningReservationId === item.reservationId
@@ -102,7 +102,7 @@
             v-if="item.checkinId"
             class="secondary-btn"
             :disabled="!!actioningReservationId"
-            @tap="markException(item)"
+            @tap="openReason('exception', item)"
           >
             标记异常
           </button></view
@@ -127,6 +127,8 @@
       </button>
     </block>
     <T1Nav role="coach" current="checkin" />
+    <CheckinReasonSheet v-if="reasonDialog" :dialog="reasonDialog" :busy="!!actioningReservationId"
+      :error="reasonError" @cancel="closeReason" @submit="submitReason" />
   </view>
 </template>
 <script>
@@ -139,8 +141,16 @@ import {
 } from "../../../api/auth";
 
 import T1Nav from "../../../components/T1Nav.vue";
+import CheckinReasonSheet from "../../../components/CheckinReasonSheet.vue";
+
+const reasonActions = {
+  proxy: { title: "为会员代签到", label: "代签到原因", placeholder: "例如：会员已到场，忘带手机", confirm: "确认代签到", success: "已签到，请确认到课" },
+  exception: { title: "标记签到异常", label: "异常原因", placeholder: "填写实际异常情况", confirm: "标记异常", success: "已标记异常" },
+  restore: { title: "恢复为待核销", label: "恢复原因", placeholder: "填写恢复这条记录的原因", confirm: "确认恢复", success: "已恢复待核销" },
+};
+
 export default {
-  components: { T1Nav },
+  components: { T1Nav, CheckinReasonSheet },
   data() {
     return {
       activeTab: "pending",
@@ -161,6 +171,8 @@ export default {
       loading: false,
       errorText: "",
       actioningReservationId: null,
+      reasonDialog: null,
+      reasonError: "",
     };
   },
   computed: {
@@ -181,68 +193,44 @@ export default {
     this.refreshAll();
   },
   methods: {
-    async restoreItem(item) {
+    openReason(action, item) {
+      if (!item?.reservationId || this.actioningReservationId || this.reasonDialog) return;
+      this.reasonError = "";
+      this.reasonDialog = { ...reasonActions[action], action, item };
+    },
+    closeReason() {
       if (this.actioningReservationId) return;
-      const result = await new Promise((resolve) =>
-        uni.showModal({
-          title: "恢复异常签到",
-          content: "请说明恢复原因。恢复后需要重新确认核销。",
-          editable: true,
-          placeholderText: "必填：恢复原因",
-          success: resolve,
-          fail: () => resolve({ confirm: false }),
-        }),
-      );
-      if (!result.confirm) return;
-      const remark = String(result.content || "").trim();
-      if (!remark) {
-        uni.showToast({ title: "请填写恢复原因", icon: "none" });
+      this.reasonDialog = null;
+      this.reasonError = "";
+    },
+    async submitReason(value) {
+      const dialog = this.reasonDialog;
+      if (!dialog || this.actioningReservationId) return;
+      const remark = String(value || "").trim();
+      if (!remark || remark.length > 500) {
+        this.reasonError = `请填写500字以内的${dialog.label}`;
         return;
       }
+      const { action, item } = dialog;
+      this.reasonError = "";
       this.actioningReservationId = item.reservationId;
       try {
-        await coachRestoreCheckin(item.checkinId, remark);
-        uni.showToast({ title: "已恢复待核销", icon: "success" });
+        if (action === "proxy") {
+          let source = "mini";
+          // #ifdef H5
+          source = "web";
+          // #endif
+          await coachProxyCheckin({ reservationId: item.reservationId, remark, source });
+        } else if (action === "exception") {
+          await coachExceptionCheckin({ reservationId: item.reservationId, remark });
+        } else {
+          await coachRestoreCheckin(item.checkinId, remark);
+        }
+        this.reasonDialog = null;
+        uni.showToast({ title: dialog.success, icon: "none" });
         await this.refreshAll();
       } catch (error) {
-        uni.showToast({ title: error.message || "恢复失败", icon: "none" });
-      } finally {
-        this.actioningReservationId = null;
-      }
-    },
-    async proxyItem(item) {
-      if (!item || !item.reservationId || this.actioningReservationId) return;
-      this.actioningReservationId = item.reservationId;
-      try {
-        const result = await new Promise((resolve) =>
-          uni.showModal({
-            title: "为会员代签到",
-            content: "请确认会员已到场，并填写代签到原因。该操作会留存记录。",
-            editable: true,
-            placeholderText: "例如：会员忘带手机，已到场",
-            success: resolve,
-            fail: () => resolve({ confirm: false }),
-          }),
-        );
-        if (!result.confirm) return;
-        const remark = (result.content || "").trim();
-        if (!remark) {
-          uni.showToast({ title: "请填写代签到原因", icon: "none" });
-          return;
-        }
-        let source = "mini";
-        // #ifdef H5
-        source = "web";
-        // #endif
-        await coachProxyCheckin({
-          reservationId: item.reservationId,
-          remark,
-          source,
-        });
-        uni.showToast({ title: "已签到，请确认到课", icon: "none" });
-        await this.refreshAll();
-      } catch (e) {
-        uni.showToast({ title: e.message || "代签到失败", icon: "none" });
+        this.reasonError = error.message || "提交失败，请重试";
       } finally {
         this.actioningReservationId = null;
       }
@@ -427,42 +415,6 @@ export default {
         await this.refreshAll();
       } catch (error) {
         uni.showToast({ title: error.message || "核销失败", icon: "none" });
-      } finally {
-        this.actioningReservationId = null;
-        uni.hideLoading();
-      }
-    },
-    async markException(item) {
-      if (!item || !item.reservationId || this.actioningReservationId) {
-        return;
-      }
-      const result = await new Promise((resolve) =>
-        uni.showModal({
-          title: "标记签到异常",
-          content: "请填写实际异常原因，处理记录会保留。",
-          editable: true,
-          placeholderText: "必填：异常原因",
-          success: resolve,
-          fail: () => resolve({ confirm: false }),
-        }),
-      );
-      if (!result.confirm) return;
-      const remark = String(result.content || "").trim();
-      if (!remark) {
-        uni.showToast({ title: "请填写异常原因", icon: "none" });
-        return;
-      }
-      this.actioningReservationId = item.reservationId;
-      try {
-        uni.showLoading({ title: "提交中..." });
-        await coachExceptionCheckin({
-          reservationId: item.reservationId,
-          remark,
-        });
-        uni.showToast({ title: "已标记异常", icon: "success" });
-        await this.refreshAll();
-      } catch (error) {
-        uni.showToast({ title: error.message || "标记失败", icon: "none" });
       } finally {
         this.actioningReservationId = null;
         uni.hideLoading();

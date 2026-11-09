@@ -12,7 +12,7 @@ function page(relative, answers = [], cards = []) {
   assert.equal(parsed.errors.length, 0);
   const script = parsed.descriptor.script.content.replace(/import\s+[\s\S]*?\s+from\s+['"][^'"]+['"];?/g, '').replace('export default', 'globalThis.component=');
   const calls = [];
-  const ctx = { console, T1Nav: {}, Number, String, Math, Date, Set, Promise,
+  const ctx = { console, T1Nav: {}, CheckinReasonSheet: {}, Number, String, Math, Date, Set, Promise,
     memberEligibleCards: async id => { calls.push(['eligible', id]); return cards; },
     memberCreateReservation: async payload => calls.push(['reserve', payload]),
     coachConfirmCheckin: async payload => calls.push(['confirm', payload]),
@@ -73,13 +73,16 @@ const clone = value => JSON.parse(JSON.stringify(value));
     assert(!calls.some(c=>c[0]==='confirm')); checks++;
   }
   {
-    const {state,calls}=page('pages/coach/checkin/index.vue',[{confirm:true,content:'已核实到场'}]);
-    await state.restoreItem({reservationId:'r',checkinId:'existing'});
+    const {state,calls}=page('pages/coach/checkin/index.vue');
+    state.openReason('restore',{reservationId:'r',checkinId:'existing'});
+    await state.submitReason('  已核实到场  ');
     assert.deepEqual(calls.find(c=>c[0]==='restore'),['restore','existing','已核实到场']); checks++;
   }
   {
-    const {state,calls}=page('pages/coach/checkin/index.vue',[{confirm:true,content:' '}]);
-    await state.restoreItem({reservationId:'r',checkinId:'existing'}); assert(!calls.some(c=>c[0]==='restore')); checks++;
+    const {state,calls}=page('pages/coach/checkin/index.vue');
+    state.openReason('restore',{reservationId:'r',checkinId:'existing'});
+    await state.submitReason(' '); assert(!calls.some(c=>c[0]==='restore')); assert(state.reasonDialog);
+    state.closeReason(); assert.equal(state.reasonDialog,null); checks++;
   }
   console.log(`booking-ui: ${checks} checks passed`);
 })().catch(error => { console.error(error); process.exitCode = 1; });
