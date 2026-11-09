@@ -39,13 +39,19 @@
       class="account-toggle row"
       @tap="accountToolsVisible = !accountToolsVisible"
       ><view
-        ><view class="menu-title">账号与登录</view
+        ><view class="menu-title">账号设置</view
         ></view
       ><text class="menu-arrow">{{
         accountToolsVisible ? "−" : "+"
       }}</text></view
     >
     <view v-if="accountToolsVisible" class="panel account-panel">
+      <label class="row">
+        <text class="menu-title">课程兴趣记录</text>
+        <switch :checked="interestEnabled" :disabled="!interestKey" color="#41443f" @change="changeInterest" />
+      </label>
+      <view class="menu-desc">开启后，教练可根据你浏览课程的时长推荐课程。</view>
+      <view class="account-divider"></view>
       <view class="menu-title">绑定手机号</view>
       <view class="menu-desc">{{
         summary.mobile
@@ -94,6 +100,7 @@
 </template>
 <script>
 import T1Nav from "../../components/T1Nav.vue";
+import { courseInterestEnabled, interestPreferenceKey } from "../../utils/course-interest";
 import MemberAvatar from "../../components/MemberAvatar.vue";
 import {
   memberBindPhone,
@@ -109,6 +116,8 @@ export default {
       loading: false,
       phoneBinding: false,
       accountToolsVisible: false,
+      interestKey: "",
+      interestEnabled: false,
       summaryError: "",
       summary: {},
       menuList: [
@@ -165,9 +174,17 @@ export default {
     },
   },
   onShow() {
+    this.interestKey = interestPreferenceKey();
+    this.interestEnabled = courseInterestEnabled(this.interestKey);
     this.loadSummary();
   },
   methods: {
+    changeInterest(event) {
+      if (!this.interestKey || this.interestKey !== interestPreferenceKey()) return;
+      const enabled = event.detail.value === true;
+      uni.setStorageSync(this.interestKey, enabled);
+      this.interestEnabled = enabled;
+    },
     async createWebCode() {
       try {
         const data = await memberWebCode();

@@ -82,29 +82,12 @@
       <button class="btn reserve-button" @tap="reserve">
         选择日期与时段 →
       </button>
-      <view class="consent-card">
-        <view class="row"
-          ><view class="section-title">让教练了解你的兴趣</view
-          ><switch :checked="tracking" color="#ff7a35" @change="setTracking"
-        /></view>
-        <view class="muted"
-          >开启后，将本页停留时长用于课程推荐。只统计页面打开且在前台的时间，可随时关闭。</view
-        >
-        <view class="consent-state">{{
-          tracking ? "已允许记录浏览时长" : "当前不记录浏览时长"
-        }}</view>
-      </view>
     </block>
   </view>
 </template>
 <script>
 import { request } from "../../utils/request";
-import { getMemberSession } from "../../utils/auth";
-
-function interestPreferenceKey() {
-  const member = getMemberSession().memberInfo;
-  return member?.memberId ? "T1_INTEREST_CONSENT:" + member.tenantId + ":" + member.memberId : "";
-}
+import { courseInterestEnabled, interestPreferenceKey } from "../../utils/course-interest";
 
 export default {
   data() {
@@ -112,7 +95,6 @@ export default {
       courseId: "",
       course: null,
       error: "",
-      tracking: false,
       trackingKey: "",
       sessionId: "",
       timer: null,
@@ -127,7 +109,6 @@ export default {
   },
   onShow() {
     this.trackingKey = interestPreferenceKey();
-    this.tracking = !!this.trackingKey && uni.getStorageSync(this.trackingKey) === true;
     this.visible = true;
     this.startTimer();
   },
@@ -184,15 +165,8 @@ export default {
         this.error = e.message;
       }
     },
-    setTracking(e) {
-      if (!this.trackingKey || this.trackingKey !== interestPreferenceKey()) return;
-      this.stopTimer();
-      this.tracking = e.detail.value;
-      uni.setStorageSync(this.trackingKey, this.tracking);
-      this.startTimer();
-    },
     startTimer() {
-      if (!this.tracking || this.timer || !this.visible) return;
+      if (!courseInterestEnabled(this.trackingKey) || this.timer || !this.visible) return;
       this.lastTick = Date.now();
       this.timer = setInterval(() => this.heartbeat(), 10000);
     },
@@ -207,7 +181,7 @@ export default {
       const now = Date.now();
       const seconds = Math.floor((now - this.lastTick) / 1000);
       this.lastTick = now;
-      if (!this.tracking || this.trackingKey !== interestPreferenceKey() || !this.visible || !this.course || seconds < 1)
+      if (!courseInterestEnabled(this.trackingKey) || this.trackingKey !== interestPreferenceKey() || !this.visible || !this.course || seconds < 1)
         return;
       let source = "mini";
       // #ifdef H5
@@ -498,26 +472,5 @@ export default {
 }
 .reserve-button {
   margin-top: 32rpx;
-}
-.consent-card {
-  padding: 32rpx 0 8rpx;
-  margin-top: 16rpx;
-}
-.consent-card .section-title {
-  font-size: 26rpx;
-}
-.consent-card .muted {
-  font-size: 23rpx;
-  margin-top: 14rpx;
-}
-.consent-card switch {
-  flex-shrink: 0;
-  transform: scale(0.85);
-  transform-origin: right center;
-}
-.consent-state {
-  color: var(--t1-muted);
-  font-size: 21rpx;
-  margin-top: 14rpx;
 }
 </style>
