@@ -34,6 +34,7 @@ export interface FitnessReservationVO extends BaseEntity {
 }
 
 export interface FitnessReservationQuery extends PageQuery {
+  courseId?: number | string;
   reservationNo?: string;
   keyword?: string;
   storeId?: number | string;

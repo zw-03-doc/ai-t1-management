@@ -4,18 +4,20 @@
     <transition :enter-active-class="proxy?.animate.searchAnimate.enter" :leave-active-class="proxy?.animate.searchAnimate.leave">
       <div v-show="showSearch" class="mb-[10px]">
         <el-card shadow="never">
-          <el-form ref="queryFormRef" :model="queryParams" :inline="true">
+          <el-form ref="queryFormRef" :model="queryParams" :inline="true" @submit.prevent>
             <el-form-item v-for="field in queryFields" :key="field.prop" :label="field.label" :prop="field.prop">
               <el-input
                 v-if="field.type === 'input' || !field.type"
                 v-model="queryParams[field.prop]"
                 :placeholder="field.placeholder || `请输入${field.label}`"
                 clearable
-                @keyup.enter="handleQuery"
+                @input="onTextInput"
+                @keyup.enter="!$event.isComposing && handleQuery()"
               />
               <el-select
                 v-else-if="field.type === 'select'"
                 v-model="queryParams[field.prop]"
+                @change="onFilterChange(field)"
                 clearable
                 :placeholder="field.placeholder || `请选择${field.label}`"
               >
@@ -24,6 +26,7 @@
               <el-select
                 v-else-if="['remoteSelect', 'remoteSelectMultiple'].includes(field.type || '')"
                 v-model="queryParams[field.prop]"
+                @change="onFilterChange(field)"
                 :multiple="['remoteSelectMultiple'].includes(field.type || '')"
                 clearable
                 filterable
@@ -49,6 +52,7 @@
               <el-date-picker
                 v-else-if="field.type === 'date'"
                 v-model="queryParams[field.prop]"
+                @change="onFilterChange(field)"
                 type="date"
                 value-format="YYYY-MM-DD"
                 clearable
@@ -57,6 +61,7 @@
               <el-date-picker
                 v-else-if="field.type === 'datetime'"
                 v-model="queryParams[field.prop]"
+                @change="onFilterChange(field)"
                 type="datetime"
                 value-format="YYYY-MM-DD HH:mm:ss"
                 clearable
@@ -64,7 +69,6 @@
               />
             </el-form-item>
             <el-form-item>
-              <el-button type="primary" icon="Search" @click="handleQuery">搜索</el-button>
               <el-button icon="Refresh" @click="resetQuery">重置</el-button>
             </el-form-item>
           </el-form>
@@ -256,6 +260,7 @@ interface QueryField {
   placeholder?: string;
   options?: OptionItem[];
   remoteMethod?: RemoteMethod;
+  dependsOn?: string;
 }
 
 interface FormField {
@@ -375,15 +380,17 @@ function getRemoteKey(scope: FieldScope, prop: string) {
   return `${scope}_${prop}`;
 }
 
+function invalidateRemoteField(key: string) {
+  remoteRequestMap[key] = (remoteRequestMap[key] || 0) + 1;
+  delete remoteOptionsMap[key];
+  delete remoteMoreMap[key];
+  delete remotePageMap[key];
+  delete remoteKeywordMap[key];
+  remoteLoadingMap[key] = false;
+}
+
 function invalidateRemoteOptions(scope: FieldScope) {
-  Object.keys(remoteRequestMap).filter((key) => key.startsWith(`${scope}_`)).forEach((key) => {
-    remoteRequestMap[key] += 1;
-    delete remoteOptionsMap[key];
-    delete remoteMoreMap[key];
-    delete remotePageMap[key];
-    delete remoteKeywordMap[key];
-    remoteLoadingMap[key] = false;
-  });
+  Object.keys(remoteRequestMap).filter(key => key.startsWith(`${scope}_`)).forEach(invalidateRemoteField);
 }
 
 function getRemoteLoading(scope: FieldScope, prop: string) {
@@ -488,12 +495,32 @@ function handleRemoteVisibleChange(field: FieldConfig, scope: FieldScope, visibl
   loadRemoteOptions(field, scope);
 }
 
+let textSearchTimer: ReturnType<typeof setTimeout> | undefined;
+function cancelTextSearch() {
+  if (textSearchTimer !== undefined) clearTimeout(textSearchTimer);
+  textSearchTimer = undefined;
+}
+function onTextInput(value: string) {
+  cancelTextSearch();
+  if (!value) return handleQuery();
+  textSearchTimer = setTimeout(handleQuery, 300);
+}
+function onFilterChange(changed: QueryField) {
+  for (const field of props.queryFields) {
+    if (field.dependsOn !== changed.prop) continue;
+    queryParams.value[field.prop] = props.initialQuery[field.prop];
+    invalidateRemoteField(getRemoteKey('query', field.prop));
+  }
+  return handleQuery();
+}
+
 let listRequest = 0;
 const getList = async () => {
+  cancelTextSearch();
   const requestId = ++listRequest;
   loading.value = true;
   try {
-    const res = await props.listFn(queryParams.value);
+    const res = await props.listFn({ ...queryParams.value });
     if (requestId !== listRequest) return;
     list.value = res.rows || [];
     total.value = res.total || 0;
@@ -523,12 +550,14 @@ const closeDialog = (done: () => void) => {
 
 const handleQuery = () => {
   queryParams.value.pageNum = 1;
-  getList();
+  return getList();
 };
 
 const resetQuery = () => {
   queryFormRef.value?.resetFields();
+  invalidateRemoteOptions('query');
   queryParams.value = applyContext(cloneValue(props.initialQuery));
+  props.queryFields.forEach((field) => ensureRemoteOption(field, 'query'));
   handleQuery();
 };
 
@@ -615,6 +644,7 @@ watch(() => [route.path, route.query], () => {
 });
 
 onBeforeUnmount(() => {
+  cancelTextSearch();
   editRequest += 1;
   listRequest += 1;
   invalidateRemoteOptions('form');

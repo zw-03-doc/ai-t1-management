@@ -36,7 +36,7 @@ import {
   updateReservation,
   resolveReservation
 } from '@/api/fitness/reservation';
-import { loadMemberCardOptions, loadMemberOptions, loadScheduleOptions } from '../components/remoteOptions';
+import { loadCourseOptions, loadMemberCardOptions, loadMemberOptions, loadScheduleOptions } from '../components/remoteOptions';
 
 const { proxy } = getCurrentInstance() as ComponentInternalInstance;
 
@@ -72,7 +72,8 @@ const pageConfig = reactive({
   idKey: 'reservationId',
   exportUrl: 'fitness/reservation/export',
   queryFields: [
-    { label: '排课场次', prop: 'scheduleId', type: 'remoteSelect', remoteMethod: loadScheduleOptions },
+    { label: '课程', prop: 'courseId', type: 'remoteSelect', remoteMethod: loadCourseOptions, placeholder: '输入课程名称或选择课程' },
+    { label: '排课场次', prop: 'scheduleId', type: 'remoteSelect', remoteMethod: loadScheduleOptions, dependsOn: 'courseId', placeholder: '选择场次或输入场次编号' },
     { label: '预约编号', prop: 'reservationNo' },
     { label: '关键字', prop: 'keyword' },
     { label: '预约来源', prop: 'reservationSource', type: 'select', options: sourceOptions },
@@ -111,6 +112,7 @@ const pageConfig = reactive({
     { label: '备注', prop: 'remark' }
   ],
   initialQuery: {
+    courseId: undefined,
     scheduleId: undefined,
     pageNum: 1,
     pageSize: 10,

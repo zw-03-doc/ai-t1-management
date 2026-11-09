@@ -20,7 +20,7 @@ function script(file, exposed) {
 
 const crudFile = 'src/views/fitness/components/FitnessCrudPage.vue';
 const crudScript = script(crudFile,
-  'queryParams,form,dialog,clearContext,handleUpdate,handleAdd,cancel,closeDialog,reset,formRef,submitForm,loadRemoteOptions,remoteOptionsMap,remoteLoadingMap,remoteMoreMap');
+  'queryParams,form,dialog,clearContext,handleUpdate,handleAdd,cancel,closeDialog,reset,formRef,submitForm,loadRemoteOptions,remoteOptionsMap,remoteLoadingMap,remoteMoreMap,onFilterChange,onTextInput,handleQuery');
 const copy = value => JSON.parse(JSON.stringify(value));
 const deferred = () => { let resolve; const promise = new Promise(done => { resolve = done; }); return { promise, resolve }; };
 const base = {
@@ -41,7 +41,7 @@ function setup(overrides = {}, query = {}) {
     addFn: async () => {}, updateFn: async () => {}, ...overrides
   };
   const ctx = {
-    ...base, defineProps: () => props, withDefaults: (value, defaults) => ({ ...defaults, ...value }),
+    ...base, setTimeout, clearTimeout, defineProps: () => props, withDefaults: (value, defaults) => ({ ...defaults, ...value }),
     useRoute: () => route, useRouter: () => ({ replace: target => changeRoute(target.query, target.path) }),
     onMounted() {}, onBeforeUnmount: callback => unmount.push(callback),
     watch: (_source, callback) => watchers.push(callback)
@@ -62,7 +62,7 @@ test('reservation starts with route context, and View all removes the initial sc
   const ctx = { ...base, useRoute: () => ({ query: { scheduleId: 'A' } }),
     addReservation: noop, cancelReservation: noop, delReservation: noop, getReservation: noop,
     listReservation: noop, updateReservation: noop, resolveReservation: noop,
-    loadMemberCardOptions: noop, loadMemberOptions: noop, loadScheduleOptions: noop };
+    loadCourseOptions: noop, loadMemberCardOptions: noop, loadMemberOptions: noop, loadScheduleOptions: noop };
   vm.createContext(ctx);
   vm.runInContext(script('src/views/fitness/reservation/index.vue', 'pageConfig'), ctx);
   const { initialQuery, initialForm } = ctx.api.pageConfig;
@@ -72,6 +72,35 @@ test('reservation starts with route context, and View all removes the initial sc
   assert.equal(run.api.queryParams.value.scheduleId, undefined);
   assert.equal(run.lists.at(-1).scheduleId, undefined);
   assert.equal(run.route.query.tab, 'reserved');
+});
+
+test('changing a course clears the previous session before querying and ignores its late options', async () => {
+  const oldOptions = deferred();
+  const course = { prop: 'courseId', type: 'remoteSelect' };
+  const schedule = { prop: 'scheduleId', type: 'remoteSelect', dependsOn: 'courseId', remoteMethod: () => oldOptions.promise };
+  const { api, lists } = setup({ queryFields: [course, schedule] }, { scheduleId: 'old' });
+  const loading = api.loadRemoteOptions(schedule, 'query');
+  Object.assign(api.queryParams.value, { courseId: 'course2', pageNum: 4 });
+  await api.onFilterChange(course);
+  assert.equal(lists.length, 1);
+  assert.equal(lists[0].courseId, 'course2');
+  assert.equal(lists[0].pageNum, 1);
+  assert.equal(lists[0].scheduleId, undefined);
+  oldOptions.resolve([{ value: 'old', label: '原场次' }]); await loading;
+  assert.equal(api.remoteOptionsMap.query_scheduleId, undefined);
+});
+
+test('typing waits for a pause and an immediate selection cancels the pending duplicate search', async () => {
+  const { api, lists } = setup();
+  for (const keyword of ['a', 'ab']) { api.queryParams.value.keyword = keyword; api.onTextInput(keyword); }
+  await new Promise(resolve => setTimeout(resolve, 360));
+  assert.equal(lists.length, 1);
+  assert.equal(lists[0].keyword, 'ab');
+  api.queryParams.value.keyword = 'abc'; api.onTextInput('abc');
+  await api.onFilterChange({ prop: 'status' });
+  await new Promise(resolve => setTimeout(resolve, 360));
+  assert.equal(lists.length, 2);
+  assert.equal(lists[1].keyword, 'abc');
 });
 
 test('editing A then B keeps B when A responds last', async () => {

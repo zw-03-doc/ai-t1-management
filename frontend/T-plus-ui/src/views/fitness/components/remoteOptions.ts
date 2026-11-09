@@ -206,10 +206,14 @@ export async function loadScheduleOptions({ keyword, value, model, pageNum = 1 }
         coachId: model?.coachId || undefined
       }),
     getRequest: (target) => getSchedule(target as string | number),
-    toOption: (item: any) => ({
-      value: item.scheduleId,
-      label: `${item.scheduleNo || item.scheduleId}｜${item.scheduleDate || ''} ${item.startTime?.slice?.(11, 16) || ''}-${item.endTime?.slice?.(11, 16) || ''} ${item.courseName || ''} / ${item.coachName || ''}`.trim()
-    })
+    toOption: (item: any) => {
+      const day = (item.scheduleDate || item.startTime || '').slice(0, 10);
+      const times = [item.startTime?.slice(11, 16), item.endTime?.slice(11, 16)].filter(Boolean).join('–');
+      return {
+        value: item.scheduleId,
+        label: [[day, times].filter(Boolean).join(' '), item.courseName, item.coachName, item.scheduleNo || item.scheduleId].filter(Boolean).join(' ｜ ')
+      };
+    }
   });
 }
 
