@@ -1,74 +1,49 @@
 <template>
-  <div class="login">
-    <el-form ref="loginRef" :model="loginForm" :rules="loginRules" class="login-form">
-      <div class="title-box">
-        <h3 class="title">门店管理登录</h3>
-      </div>
+  <main class="login">
+    <section class="login-panel" aria-labelledby="login-title">
+      <a class="brand-link" href="/site/">
+        <img :src="brandLogo" width="28" height="28" alt="" />
+        T1 健身空间
+      </a>
+      <h1 id="login-title">门店管理登录</h1>
 
-      <el-form-item v-if="tenantEnabled" prop="tenantId">
-        <el-select v-model="loginForm.tenantId" filterable :placeholder="proxy.$t('login.selectPlaceholder')" style="width: 100%">
-          <el-option v-for="item in tenantList" :key="item.tenantId" :label="item.companyName" :value="item.tenantId"></el-option>
-          <template #prefix><svg-icon icon-class="company" class="el-input__icon input-icon" /></template>
-        </el-select>
-      </el-form-item>
-      <el-form-item prop="username">
-        <el-input v-model="loginForm.username" type="text" size="large" auto-complete="off" :placeholder="proxy.$t('login.username')">
-          <template #prefix><svg-icon icon-class="user" class="el-input__icon input-icon" /></template>
-        </el-input>
-      </el-form-item>
-      <el-form-item prop="password">
-        <el-input
-          v-model="loginForm.password"
-          type="password"
-          size="large"
-          auto-complete="off"
-          :placeholder="proxy.$t('login.password')"
-          @keyup.enter="handleLogin"
-        >
-          <template #prefix><svg-icon icon-class="password" class="el-input__icon input-icon" /></template>
-        </el-input>
-      </el-form-item>
-      <el-form-item v-if="captchaEnabled" prop="code">
-        <el-input
-          v-model="loginForm.code"
-          size="large"
-          auto-complete="off"
-          :placeholder="proxy.$t('login.code')"
-          style="width: 63%"
-          @keyup.enter="handleLogin"
-        >
-          <template #prefix><svg-icon icon-class="validCode" class="el-input__icon input-icon" /></template>
-        </el-input>
-        <div class="login-code">
-          <img :src="codeUrl" class="login-code-img" @click="getCode" />
+      <el-form ref="loginRef" :model="loginForm" :rules="loginRules" label-position="top" hide-required-asterisk
+        class="login-form" @submit.prevent="handleLogin">
+        <el-form-item v-if="tenantEnabled && tenantList.length > 1" prop="tenantId" label="所属机构">
+          <el-select v-model="loginForm.tenantId" size="large" filterable :placeholder="t('login.selectPlaceholder')">
+            <el-option v-for="item in tenantList" :key="item.tenantId" :label="item.companyName" :value="item.tenantId" />
+          </el-select>
+        </el-form-item>
+        <el-form-item prop="username" :label="t('login.username')">
+          <el-input v-model="loginForm.username" name="username" size="large" autocomplete="username" />
+        </el-form-item>
+        <el-form-item prop="password" :label="t('login.password')">
+          <el-input v-model="loginForm.password" name="password" type="password" show-password size="large" autocomplete="current-password" />
+        </el-form-item>
+        <el-form-item v-if="captchaEnabled" prop="code" :label="t('login.code')">
+          <div class="captcha-row">
+            <el-input v-model="loginForm.code" name="code" size="large" :aria-label="t('login.code')" autocomplete="off" />
+            <button class="captcha-image" type="button" aria-label="更换验证码" title="更换验证码" @click="getCode">
+              <img v-if="codeUrl" :src="codeUrl" alt="图形验证码" />
+              <span v-else>获取验证码</span>
+            </button>
+          </div>
+        </el-form-item>
+        <div class="login-options">
+          <el-checkbox v-model="loginForm.rememberMe">{{ t('login.rememberPassword') }}</el-checkbox>
+          <button class="social-login" type="button" @click="doSocialLogin('wechat')">{{ t('login.social.wechat') }}</button>
         </div>
-      </el-form-item>
-      <el-checkbox v-model="loginForm.rememberMe" style="margin: 0 0 25px 0">{{ proxy.$t('login.rememberPassword') }}</el-checkbox>
-      <el-form-item style="float: right">
-        <el-button circle :title="proxy.$t('login.social.wechat')" @click="doSocialLogin('wechat')">
-          <svg-icon icon-class="wechat" />
+        <el-button class="submit" type="primary" native-type="submit" size="large" :loading="loading">
+          {{ loading ? t('login.logging') : t('login.login') }}
         </el-button>
-      </el-form-item>
-
-      <el-form-item style="width: 100%">
-        <el-button :loading="loading" size="large" type="primary" style="width: 100%" @click.prevent="handleLogin">
-          <span v-if="!loading">{{ proxy.$t('login.login') }}</span>
-          <span v-else>{{ proxy.$t('login.logging') }}</span>
-        </el-button>
-        <div v-if="register" style="float: right">
-          <router-link class="link-type" :to="'/register'">{{ proxy.$t('login.switchRegisterPage') }}</router-link>
-        </div>
-      </el-form-item>
-    </el-form>
-    <!--  底部  -->
-    <div class="el-login-footer">
-      <a href="/site/">T1 健身空间</a>
-    </div>
-
-  </div>
+        <router-link v-if="register" class="register-link" to="/register">{{ t('login.switchRegisterPage') }}</router-link>
+      </el-form>
+    </section>
+  </main>
 </template>
 
 <script setup lang="ts">
+import brandLogo from '@/assets/logo/logo.png';
 import { getCodeImg, getTenantList } from '@/api/login';
 import { authRouterUrl } from '@/api/system/social/auth';
 import { useUserStore } from '@/store/modules/user';
@@ -122,6 +97,7 @@ watch(
 );
 
 const handleLogin = () => {
+  if (loading.value) return;
   loginRef.value?.validate(async (valid: boolean, fields: any) => {
     if (valid) {
       loading.value = true;
@@ -192,8 +168,8 @@ const initTenantList = async () => {
   const { data } = await getTenantList(false);
   tenantEnabled.value = data.tenantEnabled === undefined ? true : data.tenantEnabled;
   if (tenantEnabled.value) {
-    tenantList.value = data.voList;
-    if (tenantList.value != null && tenantList.value.length !== 0) {
+    tenantList.value = data.voList ?? [];
+    if (tenantList.value.length && !tenantList.value.some((tenant) => tenant.tenantId === loginForm.value.tenantId)) {
       loginForm.value.tenantId = tenantList.value[0].tenantId;
     }
   }
@@ -222,11 +198,45 @@ onMounted(() => {
 </script>
 
 <style lang="scss" scoped>
-.login { min-height: 100vh; display: grid; place-items: center; padding: 36px 18px; background: var(--el-bg-color-page); }
-.login-form { width: min(100%,380px); padding: 30px; background: var(--el-bg-color); border: 1px solid var(--el-border-color); border-radius: 12px; }
-.title { margin: 0 0 28px; font-size: 26px; letter-spacing: -.04em; color: var(--el-text-color-primary); }
-.login-code { width: calc(37% - 10px); height: 40px; margin-left: 10px; }
-.login-code img { display: block; width: 100%; height: 100%; object-fit: contain; cursor: pointer; }
-.el-login-footer { position: absolute; top: 18px; left: 24px; color: var(--el-text-color-regular); }
-.el-login-footer a:focus-visible { outline: 2px solid currentColor; }
+.login {
+  min-height: 100vh;
+  min-height: 100dvh;
+  display: grid;
+  place-items: center;
+  padding: 24px 16px;
+  background: var(--el-bg-color-page);
+}
+.login-panel {
+  width: min(100%, 384px);
+  padding: clamp(24px, 4vw, 32px);
+  border: 1px solid var(--el-border-color-light);
+  border-radius: 16px;
+  background: var(--el-bg-color);
+  color: var(--el-text-color-primary);
+}
+.brand-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  font-size: 14px;
+  font-weight: 600;
+}
+.brand-link img { border-radius: 6px; object-fit: cover; }
+h1 { margin: 20px 0 24px; font-size: 25px; line-height: 1.25; letter-spacing: -.04em; }
+.login-form :deep(.el-form-item) { margin-bottom: 20px; }
+.login-form :deep(.el-form-item__label) { margin: 0 0 6px; font-size: 14px; line-height: 20px; }
+.login-form :deep(.el-input), .login-form :deep(.el-select__wrapper) { height: 42px; }
+.login-form :deep(.el-input__wrapper) { border-radius: 7px; }
+.captcha-row { display: grid; grid-template-columns: minmax(0,1fr) 106px; gap: 10px; width: 100%; }
+.captcha-image {
+  display: grid; place-items: center; height: 42px; min-width: 0; padding: 0 3px;
+  border: 1px solid var(--el-border-color); border-radius: 7px; background: white; color: #40423f; cursor: pointer;
+}
+.captcha-image img { display: block; max-width: 100%; max-height: 38px; object-fit: contain; }
+.login-options { display: flex; justify-content: space-between; align-items: center; margin: 0 0 12px; }
+.social-login { border: 0; padding: 6px 0 6px 8px; color: var(--el-text-color-regular); background: transparent; cursor: pointer; font: inherit; font-size: 14px; }
+.submit { width: 100%; min-height: 42px; }
+.register-link { display: inline-block; margin-top: 12px; }
+a:focus-visible, button:focus-visible { outline: 2px solid var(--el-color-primary); outline-offset: 3px; }
+@media (max-height: 580px) { .login { padding-block: 12px; } }
 </style>
