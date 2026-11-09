@@ -31,6 +31,7 @@
         </el-form-item>
         <div class="login-options">
           <el-checkbox v-model="loginForm.rememberMe">{{ t('login.rememberPassword') }}</el-checkbox>
+          <a href="/app/#/pages/portal/index?role=coach&amp;target=%2Fpages%2Fcoach%2Fhome%2Findex">教练登录</a>
         </div>
         <el-button class="submit" type="primary" native-type="submit" size="large" :loading="loading">
           {{ loading ? t('login.logging') : t('login.login') }}

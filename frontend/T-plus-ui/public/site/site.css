@@ -10,6 +10,7 @@ nav { gap: clamp(14px,2.5vw,36px); }
 .brand { gap: 10px; font: 750 15px system-ui,sans-serif; letter-spacing: -.025em; }
 .brand img { width: 34px; height: 34px; object-fit: cover; border-radius: 7px; }
 header nav { font-size: 14px; }
+header a { white-space: nowrap; }
 .member { padding: 10px 16px; color: #fff; background: #292b26; border-radius: 7px; }
 main { display: grid; grid-template-columns: minmax(0,.85fr) minmax(0,1.15fr); gap: clamp(30px,7vw,104px); align-items: center; padding: clamp(40px,8vh,100px) 0; min-height: 67vh; }
 h1 { margin: 0 0 clamp(32px,6vh,64px); font-size: clamp(50px,6.6vw,100px); line-height: 1.02; letter-spacing: -.06em; font-weight: 650; }
@@ -24,3 +25,4 @@ a:hover { text-decoration: underline; text-underline-offset: 4px; }
 .venue span { position: absolute; bottom: 18px; right: 18px; gap: 18px; background: #fff; padding: 10px 14px; border-radius: 6px; font-size: 14px; }
 footer { border-top: 1px solid #dcded6; padding: 24px 0; color: #5b5d56; font-size: 13px; flex-wrap: wrap; }
 @media(max-width:700px) { main { grid-template-columns: 1fr; gap: 25px; } h1 { font-size: 48px; margin-bottom: 28px; } h1 span { display:inline; } .services { max-width: none; } .venue img { height: auto; aspect-ratio: 4/3; } }
+@media(max-width:390px) { header { flex-wrap: wrap; gap: 12px; } header nav { flex-grow: 1; justify-content: space-between; } }

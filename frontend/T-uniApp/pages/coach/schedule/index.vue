@@ -11,10 +11,10 @@
         {{ item.label }}
       </button></view
     >
-    <view class="list-head"
-      ><text>{{ activeLabel }}课程</text
-      ><text class="muted">{{ loading ? "加载中" : total + " 节" }}</text></view
-    >
+    <view class="list-head">
+      <view><text>{{ activeLabel }}课程</text><text v-if="!loading" class="muted lesson-total">{{ total }} 节</text></view>
+      <button class="create-lesson" @tap="createSchedule">新增排课</button>
+    </view>
     <view v-if="loading" class="state-card"
       ><text class="state-title">正在加载排课</text
       ></view
@@ -97,6 +97,7 @@ export default {
   data() {
     return {
       activeTab: "today",
+      selectedDate: "",
       tabs: [
         { label: "今日", value: "today" },
         { label: "明日", value: "tomorrow" },
@@ -119,10 +120,25 @@ export default {
       );
     },
   },
+  onLoad(options) {
+    if (options?.date) this.selectDate(options.date);
+  },
   onShow() {
     this.loadData();
   },
   methods: {
+    createSchedule() {
+      uni.navigateTo({
+        url: "/pages/coach/schedule/create",
+        events: { scheduled: date => this.selectDate(date) },
+      });
+    },
+    selectDate(date) {
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) return;
+      this.selectedDate = date;
+      this.tabs = [...this.tabs.filter(tab => tab.value !== "date"), { label: date.slice(5).replace("-", "/"), value: "date" }];
+      this.activeTab = "date";
+    },
     changeTab(tab) {
       if (this.activeTab === tab) return;
       this.activeTab = tab;
@@ -142,7 +158,8 @@ export default {
       try {
         const table =
           (await coachScheduleList({
-            scope: this.activeTab,
+            scope: this.activeTab === "date" ? "all" : this.activeTab,
+            scheduleDate: this.activeTab === "date" ? this.selectedDate : undefined,
             pageNum: page,
             pageSize: 30,
           })) || {};
@@ -254,9 +271,21 @@ button::after {
 }
 .list-head {
   display: flex;
+  align-items: center;
   justify-content: space-between;
   margin: 32rpx 0 20rpx;
   font-size: 27rpx;
+}
+.lesson-total { margin-left: 16rpx; }
+.create-lesson {
+  display: inline-flex;
+  align-items: center;
+  min-height: 80rpx;
+  padding: 0 28rpx;
+  border-radius: 12rpx;
+  font-size: 26rpx;
+  background: var(--t1-text);
+  color: var(--t1-on-dark);
 }
 .muted {
   color: var(--t1-muted);

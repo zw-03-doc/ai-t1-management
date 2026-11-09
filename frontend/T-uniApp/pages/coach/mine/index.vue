@@ -101,13 +101,15 @@
           @tap="openSection = openSection === 'password' ? '' : 'password'"
         >
           <view
-            ><text class="section-title">登录密码</text
+            ><text class="section-title">网页登录密码</text
             ></view
           ><text class="toggle-arrow">{{
             openSection === "password" ? "−" : "+"
           }}</text>
         </button>
         <view v-if="openSection === 'password'" class="form-content">
+          <view v-if="profile.mobile" class="account-row"><text>登录手机号</text><text>{{ profile.mobile }}</text></view>
+          <!-- #ifndef MP-WEIXIN -->
           <view class="form-item"
             ><text class="label">当前密码</text
             ><input
@@ -117,13 +119,15 @@
               placeholder="请输入当前密码"
               placeholder-style="color:#74786f"
           /></view>
+          <!-- #endif -->
           <view class="form-item"
             ><text class="label">新密码</text
             ><input
               v-model="passwordForm.newPassword"
               class="input"
               password
-              placeholder="请输入至少 6 位新密码"
+              maxlength="20"
+              placeholder="设置 6–20 位密码"
               placeholder-style="color:#74786f"
           /></view>
           <view class="form-item"
@@ -132,6 +136,7 @@
               v-model="passwordForm.confirmPassword"
               class="input"
               password
+              maxlength="20"
               placeholder="再次输入新密码"
               placeholder-style="color:#74786f"
           /></view>
@@ -140,7 +145,7 @@
             :disabled="savingPassword || loading"
             @tap="savePassword"
           >
-            {{ savingPassword ? "提交中…" : "修改密码" }}
+            {{ savingPassword ? "保存中…" : "保存密码" }}
           </button>
         </view>
       </view>
@@ -246,6 +251,9 @@ export default {
           coachMessageList({ pageNum: 1, pageSize: 10 }),
         ]);
         this.profile = profile || {};
+        // #ifdef MP-WEIXIN
+        if (!this.loaded && profile?.webPasswordSet === false) this.openSection = "password";
+        // #endif
         this.loaded = true;
         this.form = {
           nickName: (profile && profile.nickName) || "",
@@ -307,15 +315,20 @@ export default {
         return;
       }
       if (
-        !this.passwordForm.oldPassword ||
         !this.passwordForm.newPassword ||
         !this.passwordForm.confirmPassword
       ) {
         uni.showToast({ title: "请填写完整密码信息", icon: "none" });
         return;
       }
-      if (this.passwordForm.newPassword.length < 6) {
-        uni.showToast({ title: "新密码至少6位", icon: "none" });
+      // #ifndef MP-WEIXIN
+      if (!this.passwordForm.oldPassword) {
+        uni.showToast({ title: "请输入当前密码", icon: "none" });
+        return;
+      }
+      // #endif
+      if (this.passwordForm.newPassword.length < 6 || this.passwordForm.newPassword.length > 20 || !this.passwordForm.newPassword.trim()) {
+        uni.showToast({ title: "密码须为 6–20 位", icon: "none" });
         return;
       }
       if (this.passwordForm.newPassword !== this.passwordForm.confirmPassword) {
@@ -325,16 +338,24 @@ export default {
       this.savingPassword = true;
       try {
         uni.showLoading({ title: "提交中..." });
-        await coachUpdatePassword({
-          oldPassword: this.passwordForm.oldPassword,
-          newPassword: this.passwordForm.newPassword,
-        });
+        const payload = { newPassword: this.passwordForm.newPassword };
+        // #ifdef MP-WEIXIN
+        const login = await new Promise((resolve, reject) => uni.login({ provider: "weixin", success: resolve, fail: reject }));
+        if (!login.code) throw new Error("微信身份校验失败，请重试");
+        payload.code = login.code;
+        // #endif
+        // #ifndef MP-WEIXIN
+        payload.oldPassword = this.passwordForm.oldPassword;
+        // #endif
+        await coachUpdatePassword(payload);
+        this.profile.webPasswordSet = true;
         this.passwordForm = {
           oldPassword: "",
           newPassword: "",
           confirmPassword: "",
         };
-        uni.showToast({ title: "密码修改成功", icon: "success" });
+        this.openSection = "";
+        uni.showToast({ title: "网页登录密码已保存", icon: "success" });
       } catch (error) {
         uni.showToast({ title: error.message || "密码修改失败", icon: "none" });
       } finally {

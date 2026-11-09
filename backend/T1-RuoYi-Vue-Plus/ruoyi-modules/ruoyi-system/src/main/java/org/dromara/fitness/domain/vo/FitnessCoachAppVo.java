@@ -112,6 +112,10 @@ public final class FitnessCoachAppVo {
 
         private String userStatus;
 
+        private boolean webPasswordSet;
+
+        @com.fasterxml.jackson.annotation.JsonIgnore
+        @lombok.ToString.Exclude
         private String password;
 
         public String getDisplayName() {
@@ -123,6 +127,18 @@ public final class FitnessCoachAppVo {
             }
             return userName;
         }
+    }
+
+    @Data
+    public static class AssignedCourseVo {
+        private Long courseId;
+        private String courseName;
+        private Integer durationMinutes;
+        private Integer capacity;
+        private BigDecimal displayPrice;
+        private Date listingUntil;
+        private Integer bookingAdvanceDays;
+        private Integer bookingCloseMinutes;
     }
 
     @Data

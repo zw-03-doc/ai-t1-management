@@ -22,6 +22,10 @@ public interface IFitnessCoachAppService {
 
     FitnessCoachAppVo.HomeOverviewVo queryHomeOverview();
 
+    java.util.List<FitnessCoachAppVo.AssignedCourseVo> queryAssignedCourses();
+
+    FitnessCoachAppVo.ScheduleVo createSchedule(FitnessCoachAppBo.ScheduleCreateBo bo);
+
     TableDataInfo<FitnessCoachAppVo.ScheduleVo> queryMySchedule(FitnessCoachAppBo.ScheduleQueryBo bo, PageQuery pageQuery);
 
     FitnessCoachAppVo.ScheduleVo queryScheduleDetail(Long scheduleId);

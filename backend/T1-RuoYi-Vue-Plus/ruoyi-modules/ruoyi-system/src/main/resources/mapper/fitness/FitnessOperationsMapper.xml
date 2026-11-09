@@ -63,6 +63,7 @@
       AND del_flag='0' AND schedule_status NOT IN ('cancelled','finished')
       AND start_time&lt;#{endTime} AND end_time&gt;#{startTime}
     <if test="scheduleId != null">AND schedule_id&lt;&gt;#{scheduleId}</if>
+    FOR UPDATE
   </select>
   <update id="transitionCheckin">
     UPDATE fit_checkin_record SET operator_user_id=#{operatorId}, checkin_status=#{status},

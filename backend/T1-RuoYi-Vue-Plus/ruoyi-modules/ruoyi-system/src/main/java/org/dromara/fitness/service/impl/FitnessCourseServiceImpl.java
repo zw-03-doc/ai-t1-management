@@ -1,6 +1,7 @@
 package org.dromara.fitness.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import lombok.RequiredArgsConstructor;
 import org.dromara.common.core.constant.TenantConstants;
 import org.dromara.common.core.exception.ServiceException;
@@ -74,8 +75,14 @@ public class FitnessCourseServiceImpl implements IFitnessCourseService {
         }
         FitCourse update = MapstructUtils.convert(bo, FitCourse.class);
         update.setCourseNo(FitnessBizCodeUtils.fillOrKeep(bo.getCourseNo(), db.getCourseNo(), "CRS"));
+        if (!bo.isDefaultCoachProvided()) update.setDefaultCoachId(db.getDefaultCoachId());
         operations.prepareCourse(update, db);
         validEntityBeforeSave(update);
+        if (bo.isDefaultCoachProvided() && update.getDefaultCoachId() == null) {
+            return baseMapper.update(update, new LambdaUpdateWrapper<FitCourse>()
+                .eq(FitCourse::getCourseId, db.getCourseId()).set(FitCourse::getDefaultCoachId, null)) > 0;
+        }
+        if (!bo.isDefaultCoachProvided()) update.setDefaultCoachId(null);
         return baseMapper.updateById(update) > 0;
     }
 

@@ -70,7 +70,16 @@ public final class FitnessCoachAppBo {
 
         @NotBlank(message = "激活码不能为空")
         private String activationCode;
+
+        @jakarta.validation.constraints.Size(min = 6, max = 20, message = "网页密码须为6至20位")
+        private String webPassword;
     }
+
+    public record ScheduleCreateBo(
+        @NotNull(message = "请选择课程") Long courseId,
+        @NotNull(message = "请选择排课日期") java.time.LocalDate scheduleDate,
+        @NotNull(message = "请选择开始时间") @com.fasterxml.jackson.annotation.JsonFormat(pattern = "HH:mm") java.time.LocalTime startTime
+    ) {}
 
     @Data
     @EqualsAndHashCode(callSuper = true)
@@ -141,10 +150,13 @@ public final class FitnessCoachAppBo {
     @EqualsAndHashCode(callSuper = true)
     public static class PasswordUpdateBo extends BaseEntity {
 
-        @NotBlank(message = "旧密码不能为空")
         private String oldPassword;
 
+        /** Fresh wx.login proof for changing the bound coach's own web password. */
+        private String code;
+
         @NotBlank(message = "新密码不能为空")
+        @jakarta.validation.constraints.Size(min = 6, max = 20, message = "网页密码须为6至20位")
         private String newPassword;
     }
 }

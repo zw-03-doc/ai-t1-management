@@ -102,7 +102,7 @@
         >
         <view class="sheet-description">{{
           browserRole === "coach"
-            ? "使用门店为你开通的账号。"
+            ? "使用绑定的手机号和网页登录密码。密码可在小程序教练端「我的」中设置。"
             : "在小程序「我的」获取一次性网页登录码。"
         }}</view>
         <view v-if="browserRole === 'coach'">
@@ -110,7 +110,7 @@
           ><input
             v-model.trim="browserForm.username"
             class="form-input"
-            placeholder="手机号或账号"
+            placeholder="绑定的手机号或原登录账号"
             placeholder-class="input-placeholder"
           />
           <text class="field-label">密码</text
@@ -147,8 +147,8 @@
     >
       <view class="login-sheet" @tap.stop>
         <view class="sheet-heading"
-          ><text>开通教练身份</text
-          ><button class="close-button" @tap="closeActivationPopup">
+          ><text>绑定教练账号</text
+          ><button class="close-button" :disabled="activationSubmitting" @tap="closeActivationPopup">
             ×
           </button></view
         >
@@ -172,13 +172,16 @@
           placeholder="由门店管理员提供"
           placeholder-class="input-placeholder"
         />
+        <text class="field-label">网页登录密码</text>
+        <input v-model="activationForm.webPassword" class="form-input" password maxlength="20"
+          placeholder="设置 6–20 位密码" placeholder-class="input-placeholder" />
         <button
           class="sheet-submit"
           :disabled="activationSubmitting"
           :loading="activationSubmitting"
           @tap="submitCoachActivation"
         >
-          关联教练账号
+          绑定并设置密码
         </button>
       </view>
     </view>
@@ -210,7 +213,7 @@ function createActivationForm() {
   return {
     mobile: "",
     activationCode: "",
-    openid: "",
+    webPassword: "",
   };
 }
 
@@ -376,7 +379,7 @@ export default {
         const [path, query = ""] = decoded.split("?");
         const coachTraining = path === "/pages/training/index" && /(?:^|&)role=coach(?:&|$)/.test(decodeURIComponent(query));
         if (this.targetRole === "coach") {
-          return coachTraining || /^\/pages\/coach\/(?:home|schedule|checkin|student|mine|interest)\/index$/.test(path) ? decoded : "";
+          return coachTraining || path === "/pages/coach/schedule/create" || /^\/pages\/coach\/(?:home|schedule|checkin|student|mine|interest)\/index$/.test(path) ? decoded : "";
         }
         if (coachTraining || path === "/pages/portal/index") return "";
         return path === "/pages/mine/profile" || memberProfileTarget(decoded) === decoded ? decoded : "";
@@ -419,10 +422,7 @@ export default {
     openActivationPopup(loginVo) {
       this.activationPopupVisible = true;
       this.activationHint = (loginVo && loginVo.message) || "";
-      this.activationForm = {
-        ...createActivationForm(),
-        openid: (loginVo && loginVo.openid) || "",
-      };
+      this.activationForm = createActivationForm();
     },
     closeActivationPopup() {
       if (this.activationSubmitting) {
@@ -504,12 +504,16 @@ export default {
       if (this.activationSubmitting || !this.activationPopupVisible || this.agreedLoginRole !== "coach") {
         return;
       }
-      if (!this.activationForm.mobile) {
-        uni.showToast({ title: "请输入手机号", icon: "none" });
+      if (!/^1\d{10}$/.test(this.activationForm.mobile)) {
+        uni.showToast({ title: "请输入门店登记的 11 位手机号", icon: "none" });
         return;
       }
       if (!this.activationForm.activationCode) {
         uni.showToast({ title: "请输入激活码", icon: "none" });
+        return;
+      }
+      if (this.activationForm.webPassword.length < 6 || this.activationForm.webPassword.length > 20 || !this.activationForm.webPassword.trim()) {
+        uni.showToast({ title: "请设置 6–20 位网页登录密码", icon: "none" });
         return;
       }
       try {
@@ -521,6 +525,7 @@ export default {
           code: loginRes.code,
           mobile: this.activationForm.mobile,
           activationCode: this.activationForm.activationCode,
+          webPassword: this.activationForm.webPassword,
         });
         saveCoachSession({ ...result, policyVersion: POLICY_VERSION });
         this.activationPopupVisible = false;
@@ -655,6 +660,8 @@ export default {
   justify-content: center;
 }
 .login-sheet {
+  max-height: 92vh;
+  overflow-y: auto;
   width: 100%;
   max-width: 760px;
   padding: 36rpx 36rpx calc(42rpx + env(safe-area-inset-bottom));

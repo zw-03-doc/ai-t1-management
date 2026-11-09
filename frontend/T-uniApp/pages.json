@@ -72,6 +72,10 @@
       }
     },
     {
+      "path": "pages/coach/schedule/create",
+      "style": { "navigationBarTitleText": "新增排课" }
+    },
+    {
       "path": "pages/coach/checkin/index",
       "style": {
         "navigationBarTitleText": "签到与核销"

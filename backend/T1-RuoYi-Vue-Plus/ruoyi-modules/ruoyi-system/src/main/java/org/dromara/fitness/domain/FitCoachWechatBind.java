@@ -50,6 +50,11 @@ public class FitCoachWechatBind extends TenantEntity {
      */
     private String wechatOpenid;
 
+    @com.baomidou.mybatisplus.annotation.TableField(select = false)
+    @com.fasterxml.jackson.annotation.JsonIgnore
+    @lombok.ToString.Exclude
+    private String webPasswordHash;
+
     /**
      * 激活时间
      */

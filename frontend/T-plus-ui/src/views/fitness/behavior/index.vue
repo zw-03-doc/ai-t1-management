@@ -1,11 +1,6 @@
 <template>
   <div class="p-4">
-    <el-alert
-      title="预约、签到、代签到和核销记录实际操作者、对象、时间与来源。课程、教练和排课配置变更可在系统操作日志查看。"
-      type="info"
-      :closable="false"
-      class="mb-4"
-    /><el-card
+    <el-card
       ><template #header
         ><div class="flex justify-between"><span>行为记录</span><el-button :loading="loading" @click="load">刷新</el-button></div></template
       ><el-table v-loading="loading" :data="rows"
@@ -27,6 +22,7 @@
 <script setup lang="ts" name="FitnessBehavior">
 import request from '@/utils/request';
 const actionLabels: Record<string, string> = {
+  coach_create_schedule: '教练排课',
   admin_finish_schedule: '管理员结束场次',
   member_reservation: '会员预约',
   admin_reservation: '管理员预约',

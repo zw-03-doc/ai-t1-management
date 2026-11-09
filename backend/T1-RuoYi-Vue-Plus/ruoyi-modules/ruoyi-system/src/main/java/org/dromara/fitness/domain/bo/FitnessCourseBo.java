@@ -1,5 +1,8 @@
 package org.dromara.fitness.domain.bo;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
+import lombok.AccessLevel;
+import lombok.Setter;
 import io.github.linpeilie.annotations.AutoMapper;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
@@ -52,6 +55,15 @@ public class FitnessCourseBo extends BaseEntity {
      * 默认教练ID
      */
     private Long defaultCoachId;
+
+    @JsonIgnore
+    @Setter(AccessLevel.NONE)
+    private boolean defaultCoachProvided;
+
+    public void setDefaultCoachId(Long defaultCoachId) {
+        this.defaultCoachId = defaultCoachId;
+        this.defaultCoachProvided = true;
+    }
 
     /**
      * 课程时长（分钟）

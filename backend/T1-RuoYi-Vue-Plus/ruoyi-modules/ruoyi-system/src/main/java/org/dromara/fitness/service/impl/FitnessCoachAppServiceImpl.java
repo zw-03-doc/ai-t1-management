@@ -15,6 +15,7 @@ import org.dromara.fitness.domain.FitCoachWechatBind;
 import org.dromara.fitness.domain.FitCourseReservation;
 import org.dromara.fitness.domain.dto.FitnessWechatMiniDto;
 import org.dromara.fitness.domain.bo.FitnessCoachAppBo;
+import org.dromara.fitness.domain.bo.FitnessScheduleBo;
 import org.dromara.fitness.domain.vo.FitnessCoachAppVo;
 import org.dromara.fitness.domain.FitMemberCard;
 import org.dromara.fitness.mapper.FitnessCoachAppMapper;
@@ -23,6 +24,8 @@ import org.dromara.fitness.mapper.FitnessCoachWechatBindMapper;
 import org.dromara.fitness.mapper.FitnessMemberCardMapper;
 import org.dromara.fitness.mapper.FitnessReservationMapper;
 import org.dromara.fitness.service.IFitnessCoachAppService;
+import org.dromara.fitness.service.IFitnessScheduleService;
+import org.dromara.fitness.utils.FitnessBookingPolicy;
 import org.dromara.fitness.service.support.FitnessWechatMiniAuthService;
 import org.dromara.fitness.utils.FitnessSecurityUtils;
 import org.dromara.system.domain.SysUser;
@@ -32,6 +35,7 @@ import org.dromara.fitness.service.support.FitnessOperationsService;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
+import java.time.ZonedDateTime;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
@@ -48,6 +52,7 @@ import java.util.stream.Collectors;
 public class FitnessCoachAppServiceImpl implements IFitnessCoachAppService {
 
     private final FitnessOperationsService operations;
+    private final IFitnessScheduleService schedules;
     private final org.dromara.fitness.service.support.FitnessEntitlementService entitlements;
     private final FitnessCoachAppMapper baseMapper;
     private final FitnessCoachMapper coachMapper;
@@ -62,10 +67,16 @@ public class FitnessCoachAppServiceImpl implements IFitnessCoachAppService {
         String accountKey = "fitness:coach-login:" + cn.hutool.crypto.digest.DigestUtil.sha256Hex(bo.getUsername().trim().toLowerCase(java.util.Locale.ROOT));
         if (org.dromara.common.redis.utils.RedisUtils.rateLimiter(accountKey, org.redisson.api.RateType.OVERALL, 5, 60) < 0)
             throw new ServiceException("账号登录尝试过于频繁，请1分钟后重试");
-        FitnessCoachAppVo.CoachProfileVo authInfo = baseMapper.selectCoachAuthInfo(bo.getUsername());
+        String account = bo.getUsername().trim();
+        List<FitnessCoachAppVo.CoachProfileVo> matches = baseMapper.selectCoachAuthInfo(account);
+        // A current bound mobile takes precedence over another account's historic login name.
+        if (matches.isEmpty() || (matches.size() > 1 && Objects.equals(matches.get(1).getMobile(), account))) {
+            throw new ServiceException("手机号或密码错误");
+        }
+        FitnessCoachAppVo.CoachProfileVo authInfo = matches.get(0);
         validateCoachAuthInfo(authInfo, true);
         if (StringUtils.isBlank(authInfo.getPassword()) || !BCrypt.checkpw(bo.getPassword(), authInfo.getPassword())) {
-            throw new ServiceException("用户名或密码错误");
+            throw new ServiceException("手机号或密码错误");
         }
         return buildLoginVo(authInfo, null, true, null);
     }
@@ -73,7 +84,7 @@ public class FitnessCoachAppServiceImpl implements IFitnessCoachAppService {
     @Override
     @Transactional(rollbackFor = Exception.class)
     public FitnessCoachAppVo.LoginVo wechatLogin(FitnessCoachAppBo.WechatLoginBo bo) {
-        String openid = resolveOpenid(bo.getCode(), bo.getOpenid());
+        String openid = resolveOpenid(bo.getCode());
         FitCoachWechatBind bind = getWechatBindByOpenid(openid);
         if (bind == null) {
             return buildPendingActivationVo(openid);
@@ -85,25 +96,39 @@ public class FitnessCoachAppServiceImpl implements IFitnessCoachAppService {
     @Override
     @Transactional(rollbackFor = Exception.class)
     public FitnessCoachAppVo.LoginVo wechatActivate(FitnessCoachAppBo.WechatActivateBo bo) {
-        String openid = resolveOpenid(bo.getCode(), bo.getOpenid());
+        String openid = resolveOpenid(bo.getCode());
         FitCoachWechatBind currentBind = getWechatBindByOpenid(openid);
         if (currentBind != null) {
             ensureBindActive(currentBind);
-            return buildActivatedLoginByBind(currentBind, openid, "当前微信已完成激活");
+            if (bo.getWebPassword() == null) return buildActivatedLoginByBind(currentBind, openid, "当前微信已完成激活");
         }
         FitCoachWechatBind bind = getWechatBindByMobileAndCode(bo.getMobile(), bo.getActivationCode());
         if (bind == null) {
             throw new ServiceException("手机号或激活码错误");
         }
         ensureBindActive(bind);
-        if (StringUtils.isNotBlank(bind.getWechatOpenid()) && !Objects.equals(bind.getWechatOpenid(), openid)) {
+        if (currentBind != null && !Objects.equals(currentBind.getBindId(), bind.getBindId())) {
+            throw new ServiceException("当前微信已绑定其他教练");
+        }
+        boolean alreadyBound = StringUtils.isNotBlank(bind.getWechatOpenid());
+        if (alreadyBound && !Objects.equals(bind.getWechatOpenid(), openid)) {
             throw new ServiceException("此身份已激活，请联系店长");
         }
         bind.setWechatOpenid(openid);
         if (bind.getActivateTime() == null) {
             bind.setActivateTime(new Date());
         }
-        coachWechatBindMapper.updateById(bind);
+        if (bo.getWebPassword() != null) {
+            validateWebPassword(bo.getWebPassword());
+            if (alreadyBound && bind.getWebPasswordHash() != null) {
+                if (!BCrypt.checkpw(bo.getWebPassword(), bind.getWebPasswordHash())) {
+                    throw new ServiceException("网页密码已设置，请在教练工作台修改");
+                }
+            } else {
+                bind.setWebPasswordHash(BCrypt.hashpw(bo.getWebPassword()));
+            }
+        }
+        saveBinding(bind);
         return buildActivatedLoginByBind(bind, openid, "激活成功");
     }
 
@@ -128,6 +153,46 @@ public class FitnessCoachAppServiceImpl implements IFitnessCoachAppService {
         overviewVo.setPendingList(limitList(pendingList, 4));
         overviewVo.setMessageList(buildMessageList(todaySchedules, pendingList));
         return overviewVo;
+    }
+
+    @Override
+    public List<FitnessCoachAppVo.AssignedCourseVo> queryAssignedCourses() {
+        var coach = FitnessSecurityUtils.getCoachLoginUser();
+        return baseMapper.selectAssignedCourses(coach.getTenantId(), coach.getCoachId(), coach.getUserId());
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public FitnessCoachAppVo.ScheduleVo createSchedule(FitnessCoachAppBo.ScheduleCreateBo bo) {
+        var coach = FitnessSecurityUtils.getCoachLoginUser();
+        var course = baseMapper.lockAssignedCourse(coach.getTenantId(), coach.getCoachId(), coach.getUserId(), bo.courseId());
+        if (course == null) throw new ServiceException("只能为本人在职门店分配给自己的已上架课程排课");
+
+        ZonedDateTime start = bo.scheduleDate().atTime(bo.startTime()).atZone(FitnessBookingPolicy.ZONE);
+        Date startsAt = Date.from(start.toInstant());
+        Date now = new Date();
+        if (!startsAt.after(now)) throw new ServiceException("开课时间须晚于当前时间");
+        Date opens = FitnessBookingPolicy.bookingOpensAt(startsAt, course.getBookingAdvanceDays());
+        Date closes = FitnessBookingPolicy.minutesBefore(startsAt, course.getBookingCloseMinutes());
+        if (!closes.after(now)) throw new ServiceException("该时段的预约截止时间已过，请选择更晚的时间");
+        if (course.getListingUntil() != null && !opens.before(course.getListingUntil())) {
+            throw new ServiceException("开始接受预约时课程已下架，请提前排课或联系管理员延长上架期");
+        }
+
+        FitnessScheduleBo schedule = new FitnessScheduleBo();
+        schedule.setCourseId(course.getCourseId());
+        schedule.setCoachId(coach.getCoachId());
+        schedule.setScheduleDate(Date.from(bo.scheduleDate().atStartOfDay(FitnessBookingPolicy.ZONE).toInstant()));
+        schedule.setStartTime(startsAt);
+        schedule.setEndTime(Date.from(start.plusMinutes(course.getDurationMinutes()).toInstant()));
+        schedule.setReservationOpenTime(opens);
+        schedule.setReservationDeadline(closes);
+        schedule.setScheduleMode("normal");
+        schedule.setScheduleStatus("open");
+        if (!schedules.insertByBo(schedule)) throw new ServiceException("排课未保存，请重试");
+        operations.audit(null, schedule.getStoreId(), schedule.getScheduleId(), null, null, "coach_create_schedule",
+            FitnessSecurityUtils.getCurrentSource(), course.getCourseName());
+        return queryScheduleDetail(schedule.getScheduleId());
     }
 
     @Override
@@ -242,11 +307,13 @@ public class FitnessCoachAppServiceImpl implements IFitnessCoachAppService {
         if (coach == null) {
             throw new ServiceException("教练资料不存在");
         }
-        if (StringUtils.isNotBlank(bo.getMobile()) && !Objects.equals(bo.getMobile(), coach.getMobile())
-            && coachMapper.exists(new LambdaQueryWrapper<FitCoach>()
-            .eq(FitCoach::getMobile, bo.getMobile())
-            .ne(FitCoach::getCoachId, coachId))) {
-            throw new ServiceException("手机号已存在");
+        if (StringUtils.isNotBlank(bo.getMobile()) && !Objects.equals(bo.getMobile(), coach.getMobile())) {
+            if (!bo.getMobile().matches("1[3-9][0-9]{9}")) throw new ServiceException("请输入有效的手机号");
+            if (coachMapper.exists(new LambdaQueryWrapper<FitCoach>().eq(FitCoach::getMobile, bo.getMobile()).ne(FitCoach::getCoachId, coachId))
+                || sysUserMapper.exists(new LambdaQueryWrapper<SysUser>().ne(SysUser::getUserId, userId)
+                    .and(q -> q.eq(SysUser::getPhonenumber, bo.getMobile()).or().eq(SysUser::getUserName, bo.getMobile())))) {
+                throw new ServiceException("手机号已被其他账号使用");
+            }
         }
         if (baseMapper.updateCoachProfile(coachId, bo) <= 0) {
             throw new ServiceException("更新教练资料失败");
@@ -268,21 +335,39 @@ public class FitnessCoachAppServiceImpl implements IFitnessCoachAppService {
     @Override
     @Transactional(rollbackFor = Exception.class)
     public void updatePassword(FitnessCoachAppBo.PasswordUpdateBo bo) {
-        Long userId = FitnessSecurityUtils.getCurrentCoachUserId();
-        SysUser sysUser = sysUserMapper.selectById(userId);
-        if (sysUser == null) {
-            throw new ServiceException("当前教练账号不存在");
+        var current = FitnessSecurityUtils.getCoachLoginUser();
+        validateWebPassword(bo.getNewPassword());
+        // Exchange a fresh code before taking a database lock. OpenID from clients is never trusted.
+        String openid = StringUtils.isNotBlank(bo.getCode()) ? resolveOpenid(bo.getCode()) : null;
+        FitCoachWechatBind bind = coachWechatBindMapper.selectOne(new LambdaQueryWrapper<FitCoachWechatBind>()
+            .eq(FitCoachWechatBind::getTenantId, current.getTenantId()).eq(FitCoachWechatBind::getCoachId, current.getCoachId())
+            .last("FOR UPDATE"));
+        ensureBindActive(bind);
+        var account = baseMapper.selectCoachAuthInfoByCoachId(current.getCoachId());
+        validateCoachAuthInfo(account, false);
+        if (!Objects.equals(account.getUserId(), current.getUserId()) || !Objects.equals(account.getTenantId(), current.getTenantId())) {
+            throw new ServiceException("教练账号关联已变化，请重新登录");
         }
-        if (!BCrypt.checkpw(bo.getOldPassword(), sysUser.getPassword())) {
-            throw new ServiceException("旧密码错误");
+        if (openid != null) {
+            if (!Objects.equals(openid, bind.getWechatOpenid())) throw new ServiceException("请使用绑定的教练微信设置密码");
+        } else if (StringUtils.isBlank(bo.getOldPassword()) || !BCrypt.checkpw(bo.getOldPassword(), account.getPassword())) {
+            throw new ServiceException("当前密码错误");
         }
-        if (BCrypt.checkpw(bo.getNewPassword(), sysUser.getPassword())) {
+        if (account.isWebPasswordSet() && BCrypt.checkpw(bo.getNewPassword(), account.getPassword())) {
             throw new ServiceException("新密码不能与旧密码相同");
         }
-        SysUser update = new SysUser();
-        update.setUserId(userId);
-        update.setPassword(BCrypt.hashpw(bo.getNewPassword()));
-        sysUserMapper.updateById(update);
+        bind.setWebPasswordHash(BCrypt.hashpw(bo.getNewPassword()));
+        saveBinding(bind);
+    }
+
+    private void validateWebPassword(String password) {
+        if (StringUtils.isBlank(password) || password.length() < 6 || password.length() > 20) {
+            throw new ServiceException("网页密码须为6至20位");
+        }
+    }
+
+    private void saveBinding(FitCoachWechatBind bind) {
+        if (coachWechatBindMapper.updateById(bind) != 1) throw new ServiceException("教练绑定已变化，请重试");
     }
 
     @Override
@@ -328,25 +413,29 @@ public class FitnessCoachAppServiceImpl implements IFitnessCoachAppService {
         return loginVo;
     }
 
-    private String resolveOpenid(String code, String openid) {
+    private String resolveOpenid(String code) {
         if (StringUtils.isBlank(code)) throw new ServiceException("请通过微信登录凭证登录");
         FitnessWechatMiniDto.SessionInfo sessionInfo = wechatMiniAuthService.code2Session(code);
-        openid = sessionInfo.getOpenid();
+        String openid = sessionInfo.getOpenid();
         if (StringUtils.isBlank(openid)) throw new ServiceException("微信登录未返回有效身份");
         return openid;
     }
 
     private FitCoachWechatBind getWechatBindByOpenid(String openid) {
         return coachWechatBindMapper.selectOne(new LambdaQueryWrapper<FitCoachWechatBind>()
+            .eq(FitCoachWechatBind::getTenantId, org.dromara.common.core.constant.TenantConstants.DEFAULT_TENANT_ID)
             .eq(FitCoachWechatBind::getWechatOpenid, openid)
             .last("LIMIT 1"));
     }
 
     private FitCoachWechatBind getWechatBindByMobileAndCode(String mobile, String activationCode) {
         return coachWechatBindMapper.selectOne(new LambdaQueryWrapper<FitCoachWechatBind>()
+            .select(FitCoachWechatBind::getBindId, FitCoachWechatBind::getCoachId, FitCoachWechatBind::getWechatOpenid,
+                FitCoachWechatBind::getWebPasswordHash, FitCoachWechatBind::getActivateTime, FitCoachWechatBind::getBindStatus, FitCoachWechatBind::getVersion)
+            .eq(FitCoachWechatBind::getTenantId, org.dromara.common.core.constant.TenantConstants.DEFAULT_TENANT_ID)
             .eq(FitCoachWechatBind::getCoachMobile, mobile)
             .eq(FitCoachWechatBind::getActivationCode, activationCode)
-            .last("LIMIT 1"));
+            .last("LIMIT 1 FOR UPDATE"));
     }
 
     private void ensureBindActive(FitCoachWechatBind bind) {
@@ -375,7 +464,7 @@ public class FitnessCoachAppServiceImpl implements IFitnessCoachAppService {
             return;
         }
         bind.setCoachMobile(mobile);
-        coachWechatBindMapper.updateById(bind);
+        saveBinding(bind);
     }
 
     private FitnessCoachAppBo.ScheduleQueryBo buildTodayScheduleBo() {

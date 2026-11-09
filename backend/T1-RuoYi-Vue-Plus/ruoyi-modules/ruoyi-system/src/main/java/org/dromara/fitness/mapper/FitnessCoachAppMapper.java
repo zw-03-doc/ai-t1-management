@@ -14,13 +14,19 @@ import java.util.List;
  */
 public interface FitnessCoachAppMapper {
 
-    FitnessCoachAppVo.CoachProfileVo selectCoachAuthInfo(@Param("username") String username);
+    List<FitnessCoachAppVo.CoachProfileVo> selectCoachAuthInfo(@Param("username") String username);
 
     FitnessCoachAppVo.CoachProfileVo selectCoachAuthInfoByCoachId(@Param("coachId") Long coachId);
 
     FitnessCoachAppVo.CoachProfileVo selectCoachProfileByUserId(@Param("userId") Long userId);
 
     FitnessCoachAppVo.HomeStatsVo selectCoachHomeStats(@Param("coachId") Long coachId);
+
+    List<FitnessCoachAppVo.AssignedCourseVo> selectAssignedCourses(@Param("tenantId") String tenantId,
+        @Param("coachId") Long coachId, @Param("userId") Long userId);
+
+    FitnessCoachAppVo.AssignedCourseVo lockAssignedCourse(@Param("tenantId") String tenantId,
+        @Param("coachId") Long coachId, @Param("userId") Long userId, @Param("courseId") Long courseId);
 
     List<FitnessCoachAppVo.ScheduleVo> selectCoachScheduleList(@Param("coachId") Long coachId,
                                                                @Param("bo") FitnessCoachAppBo.ScheduleQueryBo bo);

@@ -4,7 +4,7 @@
     "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
 <mapper namespace="org.dromara.fitness.mapper.FitnessCoachAppMapper">
 
-    <select id="selectCoachAuthInfo" resultType="org.dromara.fitness.domain.vo.FitnessCoachAppVo$CoachProfileVo">
+    <sql id="coachAccount">
         SELECT c.tenant_id AS tenantId,
                u.user_id AS userId,
                u.user_name AS userName,
@@ -14,72 +14,39 @@
                c.store_id AS storeId,
                st.store_name AS storeName,
                c.coach_name AS coachName,
-               c.mobile,
+               COALESCE(b.coach_mobile, c.mobile) AS mobile,
                c.avatar_url AS avatarUrl,
                c.skill_tags AS skillTags,
                c.level_code AS levelCode,
                c.intro,
                c.hire_status AS hireStatus,
                u.status AS userStatus,
-               u.password
+               b.web_password_hash IS NOT NULL AS webPasswordSet,
+               COALESCE(b.web_password_hash, u.password) AS password
         FROM fit_coach c
         INNER JOIN sys_user u ON u.user_id = c.user_id AND u.tenant_id = c.tenant_id AND u.del_flag = '0'
         LEFT JOIN fit_store st ON st.store_id = c.store_id AND st.del_flag = '0'
-        WHERE c.del_flag = '0'
+        LEFT JOIN fit_coach_wechat_bind b ON b.coach_id = c.coach_id AND b.tenant_id = c.tenant_id AND b.del_flag = '0'
+        WHERE c.del_flag = '0' AND (b.bind_id IS NULL OR b.bind_status = '0')
+    </sql>
+
+    <select id="selectCoachAuthInfo" resultType="org.dromara.fitness.domain.vo.FitnessCoachAppVo$CoachProfileVo">
+        <include refid="coachAccount"/>
           AND c.tenant_id = '000000'
-          AND u.user_name = #{username}
-        LIMIT 1
+          AND (COALESCE(b.coach_mobile, c.mobile) = #{username}
+               OR (b.web_password_hash IS NULL AND u.user_name = #{username}))
+        ORDER BY (COALESCE(b.coach_mobile, c.mobile) = #{username}) DESC
+        LIMIT 2
     </select>
 
     <select id="selectCoachAuthInfoByCoachId" resultType="org.dromara.fitness.domain.vo.FitnessCoachAppVo$CoachProfileVo">
-        SELECT c.tenant_id AS tenantId,
-               u.user_id AS userId,
-               u.user_name AS userName,
-               u.nick_name AS nickName,
-               u.phonenumber,
-               c.coach_id AS coachId,
-               c.store_id AS storeId,
-               st.store_name AS storeName,
-               c.coach_name AS coachName,
-               c.mobile,
-               c.avatar_url AS avatarUrl,
-               c.skill_tags AS skillTags,
-               c.level_code AS levelCode,
-               c.intro,
-               c.hire_status AS hireStatus,
-               u.status AS userStatus,
-               u.password
-        FROM fit_coach c
-        INNER JOIN sys_user u ON u.user_id = c.user_id AND u.tenant_id = c.tenant_id AND u.del_flag = '0'
-        LEFT JOIN fit_store st ON st.store_id = c.store_id AND st.del_flag = '0'
-        WHERE c.del_flag = '0'
+        <include refid="coachAccount"/>
           AND c.coach_id = #{coachId}
         LIMIT 1
     </select>
 
-
     <select id="selectCoachProfileByUserId" resultType="org.dromara.fitness.domain.vo.FitnessCoachAppVo$CoachProfileVo">
-        SELECT c.tenant_id AS tenantId,
-               u.user_id AS userId,
-               u.user_name AS userName,
-               u.nick_name AS nickName,
-               u.phonenumber,
-               c.coach_id AS coachId,
-               c.store_id AS storeId,
-               st.store_name AS storeName,
-               c.coach_name AS coachName,
-               c.mobile,
-               c.avatar_url AS avatarUrl,
-               c.skill_tags AS skillTags,
-               c.level_code AS levelCode,
-               c.intro,
-               c.hire_status AS hireStatus,
-               u.status AS userStatus,
-               u.password
-        FROM fit_coach c
-        INNER JOIN sys_user u ON u.user_id = c.user_id AND u.tenant_id = c.tenant_id AND u.del_flag = '0'
-        LEFT JOIN fit_store st ON st.store_id = c.store_id AND st.del_flag = '0'
-        WHERE c.del_flag = '0'
+        <include refid="coachAccount"/>
           AND u.user_id = #{userId}
         LIMIT 1
     </select>
@@ -123,6 +90,27 @@
                      AND s.coach_id = #{coachId}
                      AND YEARWEEK(s.schedule_date, 1) = YEARWEEK(CURDATE(), 1)
                ), 0) AS weekSessionCount
+    </select>
+
+    <sql id="assignedCourses">
+        SELECT c.course_id, c.course_name, COALESCE(c.duration_minutes, 60) AS duration_minutes,
+               COALESCE(c.capacity, 20) AS capacity, COALESCE(c.display_price, 0) AS display_price, c.listing_until,
+               COALESCE(c.booking_advance_days, 7) AS booking_advance_days, COALESCE(c.booking_close_minutes, 30) AS booking_close_minutes
+        FROM fit_course c
+        JOIN fit_coach co ON co.coach_id = c.default_coach_id AND co.tenant_id = c.tenant_id AND co.store_id = c.store_id
+        JOIN sys_user u ON u.user_id = co.user_id AND u.tenant_id = co.tenant_id
+        JOIN fit_store st ON st.store_id = c.store_id AND st.tenant_id = c.tenant_id
+        WHERE c.tenant_id = #{tenantId} AND co.coach_id = #{coachId} AND u.user_id = #{userId}
+          AND c.del_flag = '0' AND c.status = '0' AND co.del_flag = '0' AND co.hire_status = '0'
+          AND u.del_flag = '0' AND u.status = '0' AND st.del_flag = '0' AND st.status = '0'
+          AND (c.published_at IS NULL OR c.published_at &lt;= NOW())
+          AND (c.listing_until IS NULL OR c.listing_until &gt; NOW())
+    </sql>
+    <select id="selectAssignedCourses" resultType="org.dromara.fitness.domain.vo.FitnessCoachAppVo$AssignedCourseVo">
+        <include refid="assignedCourses"/> ORDER BY c.course_name, c.course_id
+    </select>
+    <select id="lockAssignedCourse" resultType="org.dromara.fitness.domain.vo.FitnessCoachAppVo$AssignedCourseVo">
+        <include refid="assignedCourses"/> AND c.course_id = #{courseId} FOR UPDATE
     </select>
 
     <select id="selectCoachScheduleList" resultType="org.dromara.fitness.domain.vo.FitnessCoachAppVo$ScheduleVo">

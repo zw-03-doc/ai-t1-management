@@ -190,6 +190,7 @@ export function coachWechatActivate(data) {
 	return request({
 		url: '/fitness/coachApp/auth/wechatActivate',
 		method: 'POST',
+		noRepeat: true,
 		data
 	})
 }
@@ -215,6 +216,14 @@ export function coachScheduleList(params = {}) {
 		data: params,
 		auth: 'coach'
 	})
+}
+
+export function coachScheduleCourses() {
+	return request({ url: '/fitness/coachApp/schedule/courses', auth: 'coach' })
+}
+
+export function coachCreateSchedule(data) {
+	return request({ url: '/fitness/coachApp/schedule', method: 'POST', data, auth: 'coach' })
 }
 
 export function coachCheckinList(params = {}) {
@@ -271,6 +280,7 @@ export function coachUpdatePassword(data) {
 	return request({
 		url: '/fitness/coachApp/mine/password',
 		method: 'PUT',
+		noRepeat: true,
 		data,
 		auth: 'coach'
 	})
@@ -284,7 +294,7 @@ export function coachMessageList(params = {}) {
 	})
 }
 
-export const coachPasswordLogin = data => request({url:'/fitness/coachApp/auth/login',method:'POST',data})
+export const coachPasswordLogin = data => request({url:'/fitness/coachApp/auth/login',method:'POST',data,noRepeat:true})
 export const memberWebLogin = data => request({url:'/fitness/mini/auth/webLogin',method:'POST',data})
 export const memberWebCode = () => request({url:'/fitness/mini/auth/webCode',method:'POST',auth:'member'})
 export const coachProxyCheckin = data => request({url:'/fitness/coachApp/checkin/proxy',method:'POST',data,auth:'coach'})

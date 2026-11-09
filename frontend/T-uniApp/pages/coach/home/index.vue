@@ -8,6 +8,7 @@
         <view class="hero-sub"
           >{{ coachName }} · {{ coachProfile.storeName || "门店待分配" }}</view
         >
+        <button class="create-lesson" @tap="goPage('/pages/coach/schedule/create')">新增排课</button>
       </view>
     </view>
 
@@ -229,6 +230,18 @@ export default {
 </script>
 
 <style scoped lang="scss">
+.coach-page .create-lesson {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  margin-top: 20rpx;
+  padding: 0 32rpx;
+  min-height: 80rpx;
+  border-radius: 12rpx;
+  background: var(--t1-text);
+  color: var(--t1-on-dark);
+  font-size: 27rpx;
+}
 .coach-page {
   box-sizing: border-box;
   width: 100%;

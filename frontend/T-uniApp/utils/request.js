@@ -72,7 +72,9 @@ function redirectToPortal(auth, message) {
   const page = pages[pages.length - 1];
   const tab = page?.$vm?.currentTab || page?.currentTab || page?.options?.tab;
   let target = "";
-  if (auth === "member") {
+  if (auth === "coach" && page?.route === "pages/coach/schedule/create") {
+    target = "/" + page.route;
+  } else if (auth === "member") {
     if (page?.route === "pages/course/index" && ["schedule", "reservation"].includes(tab)) {
       target = "/pages/course/index?tab=" + tab;
     } else if (["pages/activity/index", "pages/activity/detail", "pages/activity/plan"].includes(page?.route)) {

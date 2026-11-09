@@ -14,6 +14,10 @@ import FitnessCrudPage from '../components/FitnessCrudPage.vue';
 import { addCourse, delCourse, getCourse, listCourse, updateCourse } from '@/api/fitness/course';
 import { loadCoachOptions, loadStoreOptions } from '../components/remoteOptions';
 
+function loadCourseCoachOptions(params: Parameters<typeof loadCoachOptions>[0]) {
+  return loadCoachOptions({ ...params, model: { ...params.model, hireStatus: '0' } });
+}
+
 const statusOptions = [
   { label: '上架', value: '0' },
   { label: '下架', value: '1' }
@@ -42,7 +46,7 @@ const pageConfig = reactive({
     { label: '课程名称', prop: 'courseName' },
     { label: '课程类型', prop: 'courseType', type: 'select', options: courseTypeOptions },
     { label: '归属门店', prop: 'storeId', type: 'remoteSelect', remoteMethod: loadStoreOptions },
-    { label: '默认教练', prop: 'defaultCoachId', type: 'remoteSelect', remoteMethod: loadCoachOptions },
+    { label: '负责教练', prop: 'defaultCoachId', type: 'remoteSelect', placeholder: '选择可为本课程排课的教练', remoteMethod: loadCourseCoachOptions },
     { label: '时长(分钟)', prop: 'durationMinutes', type: 'number' },
     { label: '人数上限', prop: 'capacity', type: 'number', min: 1 },
     { label: '展示价格(元)', prop: 'displayPrice', type: 'number', precision: 2 },
@@ -63,7 +67,7 @@ const pageConfig = reactive({
     { label: '课程名称', prop: 'courseName' },
     { label: '课程类型', prop: 'courseType', type: 'tag', options: courseTypeOptions },
     { label: '归属门店', prop: 'storeName' },
-    { label: '默认教练', prop: 'coachName' },
+    { label: '负责教练', prop: 'coachName' },
     { label: '时长(分钟)', prop: 'durationMinutes' },
     { label: '人数上限', prop: 'capacity' },
     { label: '展示价格(元)', prop: 'displayPrice' },
@@ -110,7 +114,7 @@ const pageConfig = reactive({
   listFn: listCourse,
   getFn: getCourse,
   addFn: addCourse,
-  updateFn: updateCourse,
+  updateFn: (data: Parameters<typeof updateCourse>[0]) => updateCourse({ ...data, defaultCoachId: data.defaultCoachId || null }),
   delFn: delCourse
 });
 </script>

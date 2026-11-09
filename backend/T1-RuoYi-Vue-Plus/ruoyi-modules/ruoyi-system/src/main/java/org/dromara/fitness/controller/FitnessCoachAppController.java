@@ -67,6 +67,19 @@ public class FitnessCoachAppController extends BaseController {
     }
 
     @SaCheckLogin
+    @GetMapping("/schedule/courses")
+    public R<java.util.List<FitnessCoachAppVo.AssignedCourseVo>> assignedCourses() {
+        return R.ok(fitnessCoachAppService.queryAssignedCourses());
+    }
+
+    @SaCheckLogin
+    @RepeatSubmit
+    @PostMapping("/schedule")
+    public R<FitnessCoachAppVo.ScheduleVo> createSchedule(@Validated @RequestBody FitnessCoachAppBo.ScheduleCreateBo bo) {
+        return R.ok(fitnessCoachAppService.createSchedule(bo));
+    }
+
+    @SaCheckLogin
     @GetMapping("/schedule/my")
     public TableDataInfo<FitnessCoachAppVo.ScheduleVo> mySchedule(FitnessCoachAppBo.ScheduleQueryBo bo, PageQuery pageQuery) {
         return fitnessCoachAppService.queryMySchedule(bo, pageQuery);
