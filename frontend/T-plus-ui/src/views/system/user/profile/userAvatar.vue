@@ -1,7 +1,9 @@
 <template>
-  <div class="user-info-head" @click="editCropper()">
-    <img :src="options.img" title="点击上传头像" class="img-circle img-lg" />
-    <el-dialog v-model="open" :title="title" width="800px" append-to-body @opened="modalOpened" @close="closeDialog">
+  <div>
+    <button type="button" class="user-info-head" title="更换头像" aria-label="更换头像" @click="editCropper">
+      <img :src="options.img" alt="" />
+    </button>
+    <el-dialog v-model="open" :title="title" width="min(800px, 94vw)" append-to-body @opened="modalOpened" @close="closeDialog">
       <el-row>
         <el-col :xs="24" :md="12" :style="{ height: '350px' }">
           <vue-cropper
@@ -159,7 +161,14 @@ const closeDialog = () => {
 .user-info-head {
   position: relative;
   display: inline-block;
-  height: 120px;
+  height: 64px;
+  width: 64px;
+  border: 0;
+  padding: 0;
+  border-radius: 50%;
+  overflow: hidden;
+  background: var(--el-fill-color-light);
+  img { width: 100%; height: 100%; object-fit: cover; }
 }
 
 .user-info-head:hover:after {
@@ -176,7 +185,7 @@ const closeDialog = () => {
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   cursor: pointer;
-  line-height: 110px;
+  line-height: 64px;
   border-radius: 50%;
 }
 </style>

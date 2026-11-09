@@ -237,13 +237,14 @@ export async function loadSystemUserOptions({ keyword, value, pageNum = 1 }: Rem
       listUser({
         pageNum,
         pageSize: DEFAULT_PAGE_SIZE,
+        status: '0',
         userName: keyword || undefined,
       }),
     getRequest: (target) => getUser(target as string | number),
     getData: (res) => res?.data?.user,
     toOption: (item: any) => ({
       value: item.userId,
-      label: `${item.nickName || item.userName || '未命名用户'}${item.userName ? `（${item.userName}）` : ''}`
+      label: `${item.nickName || item.userName || '员工账号'}${item.userName && item.userName !== item.nickName ? `（${item.userName}）` : ''}`
     })
   });
 }

@@ -10,20 +10,29 @@ import InnerLink from '@/layout/components/InnerLink/index.vue';
 import { ref } from 'vue';
 import { createCustomNameComponent } from '@/utils/createCustomNameComponent';
 
-// 匹配views里面所有的.vue文件
-const modules = import.meta.glob('./../../views/**/*.vue');
-// Only fitness pages belong in the working navigation. Other granted routes
-// remain registered, e.g. account administration opened from the user menu.
-function fitnessMenu(routes: RouteRecordRaw[]): RouteRecordRaw[] {
+const modules = import.meta.glob([
+  './../../views/fitness/**/*.vue',
+  './../../views/system/user/{index,authRole}.vue',
+  './../../views/system/role/{index,authUser}.vue'
+]);
+
+function projectRoutes(routes: RouteRecordRaw[], includeStaff: boolean): RouteRecordRaw[] {
   return routes.flatMap((route) => {
     if (route.children?.length) {
-      const children = fitnessMenu(route.children);
+      const children = projectRoutes(route.children, includeStaff);
       return children.length ? [{ ...route, children } as RouteRecordRaw] : [];
     }
-    return String(route.component).startsWith('fitness/') ? [route] : [];
+    const component = String(route.component);
+    return component.startsWith('fitness/') || (includeStaff && staffPageTitles.has(component)) ? [route] : [];
   });
 }
 
+const staffPageTitles = new Map([
+  ['system/user/index', '员工账号'],
+  ['system/user/authRole', '设置员工角色'],
+  ['system/role/index', '角色权限'],
+  ['system/role/authUser', '角色成员']
+]);
 export const usePermissionStore = defineStore('permission', () => {
   const routes = ref<RouteRecordRaw[]>([]);
   const addRoutes = ref<RouteRecordRaw[]>([]);
@@ -60,9 +69,9 @@ export const usePermissionStore = defineStore('permission', () => {
   const generateRoutes = async (): Promise<RouteRecordRaw[]> => {
     const res = await getRouters();
     const { data } = res;
-    const menu = fitnessMenu(data);
+    const menu = projectRoutes(data, false);
     const sdata = JSON.parse(JSON.stringify(menu));
-    const rdata = JSON.parse(JSON.stringify(data));
+    const rdata = JSON.parse(JSON.stringify(projectRoutes(data, true)));
     const defaultData = JSON.parse(JSON.stringify(menu));
     const sidebarRoutes = filterAsyncRouter(sdata);
     const rewriteRoutes = filterAsyncRouter(rdata, undefined, true);
@@ -91,6 +100,8 @@ export const usePermissionStore = defineStore('permission', () => {
       if (type && route.children) {
         route.children = filterChildren(route.children, undefined);
       }
+      const title = staffPageTitles.get(String(route.component));
+      if (title) route.meta = { ...route.meta, title };
       // Layout ParentView 组件特殊处理
       if (route.component?.toString() === 'Layout') {
         route.component = Layout;

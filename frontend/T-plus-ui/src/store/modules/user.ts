@@ -2,7 +2,7 @@ import { to } from 'await-to-js';
 import { getToken, removeToken, setToken } from '@/utils/auth';
 import { login as loginApi, logout as logoutApi, getInfo as getUserInfo } from '@/api/login';
 import { LoginData } from '@/api/types';
-import defAva from '@/assets/images/profile.jpg';
+import studioLogo from '@/assets/logo/logo.png';
 import { defineStore } from 'pinia';
 import { ref } from 'vue';
 
@@ -38,7 +38,7 @@ export const useUserStore = defineStore('user', () => {
     if (res) {
       const data = res.data;
       const user = data.user;
-      const profile = user.avatar == '' || user.avatar == null ? defAva : user.avatar;
+      const profile = user.avatar || studioLogo;
 
       if (data.roles && data.roles.length > 0) {
         // 验证返回的roles是否是一个非空数组

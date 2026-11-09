@@ -1,70 +1,21 @@
 <template>
-  <div class="p-2">
-    <el-row :gutter="20">
-      <el-col :span="6" :xs="24">
-        <el-card class="box-card">
-          <template #header>
-            <div class="clearfix">
-              <span>个人信息</span>
-            </div>
-          </template>
-          <div>
-            <div class="text-center">
-              <userAvatar />
-            </div>
-            <ul class="list-group list-group-striped">
-              <li class="list-group-item">
-                <svg-icon icon-class="user" />用户名称
-                <div class="pull-right">{{ state.user.userName }}</div>
-              </li>
-              <li class="list-group-item">
-                <svg-icon icon-class="phone" />手机号码
-                <div class="pull-right">{{ state.user.phonenumber }}</div>
-              </li>
-              <li class="list-group-item">
-                <svg-icon icon-class="email" />用户邮箱
-                <div class="pull-right">{{ state.user.email }}</div>
-              </li>
-              <li class="list-group-item">
-                <svg-icon icon-class="tree" />所属部门
-                <div v-if="state.user.deptName" class="pull-right">{{ state.user.deptName }} / {{ state.postGroup }}</div>
-              </li>
-              <li class="list-group-item">
-                <svg-icon icon-class="peoples" />所属角色
-                <div class="pull-right">{{ state.roleGroup }}</div>
-              </li>
-              <li class="list-group-item">
-                <svg-icon icon-class="date" />创建日期
-                <div class="pull-right">{{ state.user.createTime }}</div>
-              </li>
-            </ul>
-          </div>
-        </el-card>
-      </el-col>
-      <el-col :span="18" :xs="24">
-        <el-card>
-          <template #header>
-            <div class="clearfix">
-              <span>基本资料</span>
-            </div>
-          </template>
-          <el-tabs v-model="activeTab">
-            <el-tab-pane label="基本资料" name="userinfo">
-              <userInfo :user="userForm" />
-            </el-tab-pane>
-            <el-tab-pane label="修改密码" name="resetPwd">
-              <resetPwd />
-            </el-tab-pane>
-            <el-tab-pane label="第三方应用" name="thirdParty">
-              <thirdParty :auths="state.auths" />
-            </el-tab-pane>
-            <el-tab-pane label="在线设备" name="onlineDevice">
-              <onlineDevice :devices="state.devices" />
-            </el-tab-pane>
-          </el-tabs>
-        </el-card>
-      </el-col>
-    </el-row>
+  <div class="p-2 profile">
+    <el-card shadow="never">
+      <header class="identity">
+        <user-avatar />
+        <div>
+          <h2>{{ user?.nickName || user?.userName }}</h2>
+          <p v-if="user">登录账号 {{ user.userName }}<span v-if="roles"> · {{ roles }}</span></p>
+        </div>
+      </header>
+      <el-tabs v-model="activeTab">
+        <el-tab-pane label="个人资料" name="info">
+          <user-info v-if="user" :key="revision" :user="user" class="settings" @saved="getUser" />
+        </el-tab-pane>
+        <el-tab-pane label="修改密码" name="password" lazy><reset-pwd class="settings" /></el-tab-pane>
+        <el-tab-pane label="登录设备" name="devices" lazy><online-device v-loading="loadingDevices" :devices="devices" @updated="loadDevices" /></el-tab-pane>
+      </el-tabs>
+    </el-card>
   </div>
 </template>
 
@@ -72,51 +23,43 @@
 import UserAvatar from './userAvatar.vue';
 import UserInfo from './userInfo.vue';
 import ResetPwd from './resetPwd.vue';
-import ThirdParty from './thirdParty.vue';
 import OnlineDevice from './onlineDevice.vue';
-import { getAuthList } from '@/api/system/social/auth';
 import { getUserProfile } from '@/api/system/user';
 import { getOnline } from '@/api/monitor/online';
-import { UserVO } from '@/api/system/user/types';
+import type { UserVO } from '@/api/system/user/types';
 
-const activeTab = ref('userinfo');
-interface State {
-  user: Partial<UserVO>;
-  roleGroup: string;
-  postGroup: string;
-  auths: any;
-  devices: any;
+const activeTab = ref('info');
+const user = ref<UserVO>();
+const roles = ref('');
+const revision = ref(0);
+const devices = ref([]);
+const loadingDevices = ref(false);
+
+async function getUser() {
+  const { data } = await getUserProfile();
+  user.value = data.user;
+  roles.value = data.roleGroup;
+  revision.value++;
 }
-const state = ref<State>({
-  user: {},
-  roleGroup: '',
-  postGroup: '',
-  auths: [],
-  devices: []
-});
 
-const userForm = ref({});
+async function loadDevices() {
+  loadingDevices.value = true;
+  try {
+    const result = await getOnline();
+    devices.value = result.rows || [];
+  } finally {
+    loadingDevices.value = false;
+  }
+}
 
-const getUser = async () => {
-  const res = await getUserProfile();
-  state.value.user = res.data.user;
-  userForm.value = { ...res.data.user };
-  state.value.roleGroup = res.data.roleGroup;
-  state.value.postGroup = res.data.postGroup;
-};
-
-const getAuths = async () => {
-  const res = await getAuthList();
-  state.value.auths = res.data;
-};
-const getOnlines = async () => {
-  const res = await getOnline();
-  state.value.devices = res.rows;
-};
-
-onMounted(() => {
-  getUser();
-  getAuths();
-  getOnlines();
-});
+watch(activeTab, tab => { if (tab === 'devices') loadDevices(); });
+onMounted(getUser);
 </script>
+
+<style scoped>
+.profile { max-width: 1120px; }
+.identity { display: flex; align-items: center; gap: 18px; padding: 4px 0 18px; }
+.identity h2 { font-size: 20px; margin: 0 0 6px; }
+.identity p { margin: 0; font-size: 14px; color: var(--el-text-color-secondary); overflow-wrap: anywhere; }
+.settings { max-width: 480px; margin-top: 12px; }
+</style>

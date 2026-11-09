@@ -45,7 +45,7 @@
                 <el-dropdown-item>{{ proxy.$t('navbar.personalCenter') }}</el-dropdown-item>
               </router-link>
               <router-link v-if="canManageUsers" to="/system/user">
-                <el-dropdown-item>管理账号</el-dropdown-item>
+                <el-dropdown-item>员工账号</el-dropdown-item>
               </router-link>
               <router-link v-if="canManageRoles" to="/system/role">
                 <el-dropdown-item>角色权限</el-dropdown-item>

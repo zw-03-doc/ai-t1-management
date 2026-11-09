@@ -34,6 +34,7 @@ import org.dromara.system.mapper.SysRoleMapper;
 import org.dromara.system.mapper.SysRoleMenuMapper;
 import org.dromara.system.mapper.SysUserRoleMapper;
 import org.dromara.system.service.ISysRoleService;
+import org.dromara.system.service.StaffRoleMenus;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -49,6 +50,7 @@ import java.util.*;
 @Service
 public class SysRoleServiceImpl implements ISysRoleService, RoleService {
 
+    private final StaffRoleMenus staffMenus;
     private final SysRoleMapper baseMapper;
     private final SysRoleMenuMapper roleMenuMapper;
     private final SysUserRoleMapper userRoleMapper;
@@ -294,10 +296,11 @@ public class SysRoleServiceImpl implements ISysRoleService, RoleService {
     @Transactional(rollbackFor = Exception.class)
     public int insertRole(SysRoleBo bo) {
         SysRole role = MapstructUtils.convert(bo, SysRole.class);
-        // 新增角色信息
+        role.setRoleId(null);
+        role.setDataScope(LoginHelper.isSuperAdmin() && "1".equals(bo.getDataScope()) ? "1" : "5");
         baseMapper.insert(role);
-        bo.setRoleId(role.getRoleId());
-        return insertRoleMenu(bo);
+        staffMenus.save(role.getRoleId(), bo.getMenuIds(), new Long[0]);
+        return 1;
     }
 
     /**
@@ -314,11 +317,15 @@ public class SysRoleServiceImpl implements ISysRoleService, RoleService {
         if (SystemConstants.DISABLE.equals(role.getStatus()) && this.countUserRoleByRoleId(role.getRoleId()) > 0) {
             throw new ServiceException("角色已分配，不能禁用!");
         }
-        // 修改角色信息
-        baseMapper.updateById(role);
-        // 删除角色与菜单关联
-        roleMenuMapper.delete(new LambdaQueryWrapper<SysRoleMenu>().eq(SysRoleMenu::getRoleId, role.getRoleId()));
-        return insertRoleMenu(bo);
+        SysRole existing = baseMapper.selectOne(new LambdaQueryWrapper<SysRole>()
+            .eq(SysRole::getRoleId, role.getRoleId()).last("FOR UPDATE"));
+        if (existing == null) throw new ServiceException("角色不存在");
+        if (!Objects.equals(existing.getRoleKey(), role.getRoleKey())) throw new ServiceException("已有角色的标识不能更改");
+        staffMenus.save(role.getRoleId(), bo.getMenuIds(), bo.getOriginalMenuIds());
+        // Only edit fields owned by this form. Preserve department and data visibility settings.
+        return baseMapper.update(null, new LambdaUpdateWrapper<SysRole>().eq(SysRole::getRoleId, role.getRoleId())
+            .set(SysRole::getRoleName, role.getRoleName()).set(SysRole::getRoleSort, role.getRoleSort())
+            .set(SysRole::getStatus, role.getStatus()).set(SysRole::getRemark, role.getRemark()));
     }
 
     /**
@@ -349,35 +356,18 @@ public class SysRoleServiceImpl implements ISysRoleService, RoleService {
     @Override
     @Transactional(rollbackFor = Exception.class)
     public int authDataScope(SysRoleBo bo) {
-        SysRole role = MapstructUtils.convert(bo, SysRole.class);
-        // 修改角色信息
-        baseMapper.updateById(role);
-        // 删除角色与部门关联
-        roleDeptMapper.delete(new LambdaQueryWrapper<SysRoleDept>().eq(SysRoleDept::getRoleId, role.getRoleId()));
-        // 新增角色和部门信息（数据权限）
-        return insertRoleDept(bo);
+        if (bo.getRoleId() == null || bo.getDataScope() == null || !Set.of("1", "2", "3", "4", "5", "6").contains(bo.getDataScope())) {
+            throw new ServiceException("无效的角色数据范围");
+        }
+        boolean custom = "2".equals(bo.getDataScope());
+        if (custom && bo.getDeptIds() == null) throw new ServiceException("请明确指定授权组织");
+        int rows = baseMapper.update(null, new LambdaUpdateWrapper<SysRole>().eq(SysRole::getRoleId, bo.getRoleId())
+            .set(SysRole::getDataScope, bo.getDataScope()));
+        if (rows == 0) return 0;
+        roleDeptMapper.delete(new LambdaQueryWrapper<SysRoleDept>().eq(SysRoleDept::getRoleId, bo.getRoleId()));
+        return custom ? insertRoleDept(bo) : rows;
     }
 
-    /**
-     * 新增角色菜单信息
-     *
-     * @param role 角色对象
-     */
-    private int insertRoleMenu(SysRoleBo role) {
-        int rows = 1;
-        // 新增用户与角色管理
-        List<SysRoleMenu> list = new ArrayList<>();
-        for (Long menuId : role.getMenuIds()) {
-            SysRoleMenu rm = new SysRoleMenu();
-            rm.setRoleId(role.getRoleId());
-            rm.setMenuId(menuId);
-            list.add(rm);
-        }
-        if (CollUtil.isNotEmpty(list)) {
-            rows = roleMenuMapper.insertBatch(list) ? list.size() : 0;
-        }
-        return rows;
-    }
 
     /**
      * 新增角色部门信息(数据权限)

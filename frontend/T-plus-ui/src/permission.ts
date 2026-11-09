@@ -3,7 +3,7 @@ import router from './router';
 import NProgress from 'nprogress';
 import 'nprogress/nprogress.css';
 import { getToken } from '@/utils/auth';
-import { isHttp, isPathMatch } from '@/utils/validate';
+import { isHttp } from '@/utils/validate';
 import { isRelogin } from '@/utils/request';
 import { useUserStore } from '@/store/modules/user';
 import { useSettingsStore } from '@/store/modules/settings';
@@ -11,12 +11,6 @@ import { usePermissionStore } from '@/store/modules/permission';
 import { ElMessage } from 'element-plus/es';
 
 NProgress.configure({ showSpinner: false });
-const whiteList = ['/login', '/register', '/social-callback', '/register*', '/register/*'];
-
-const isWhiteList = (path: string) => {
-  return whiteList.some((pattern) => isPathMatch(pattern, path));
-};
-
 router.beforeEach(async (to, from, next) => {
   NProgress.start();
   if (getToken()) {
@@ -25,8 +19,6 @@ router.beforeEach(async (to, from, next) => {
     if (to.path === '/login') {
       next({ path: '/' });
       NProgress.done();
-    } else if (isWhiteList(to.path)) {
-      next();
     } else {
       if (useUserStore().roles.length === 0) {
         isRelogin.show = true;
@@ -60,7 +52,7 @@ router.beforeEach(async (to, from, next) => {
       NProgress.done();
       next(false);
       window.location.replace('/site/');
-    } else if (isWhiteList(to.path)) {
+    } else if (to.path === '/login') {
       // 在免登录白名单，直接进入
       next();
     } else {

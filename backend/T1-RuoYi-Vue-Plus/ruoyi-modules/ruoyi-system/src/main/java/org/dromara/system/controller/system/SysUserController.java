@@ -8,10 +8,8 @@ import cn.hutool.crypto.digest.BCrypt;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.constraints.NotNull;
 import lombok.RequiredArgsConstructor;
-import org.dromara.common.core.constant.SystemConstants;
 import org.dromara.common.core.domain.R;
 import org.dromara.common.core.domain.model.LoginUser;
-import org.dromara.common.core.utils.StreamUtils;
 import org.dromara.common.core.utils.StringUtils;
 import org.dromara.common.encrypt.annotation.ApiEncrypt;
 import org.dromara.common.excel.core.ExcelResult;
@@ -27,7 +25,6 @@ import org.dromara.common.tenant.helper.TenantHelper;
 import org.dromara.common.web.core.BaseController;
 import org.dromara.system.domain.bo.SysDeptBo;
 import org.dromara.system.domain.bo.SysPostBo;
-import org.dromara.system.domain.bo.SysRoleBo;
 import org.dromara.system.domain.bo.SysUserBo;
 import org.dromara.system.domain.vo.*;
 import org.dromara.system.listener.SysUserImportListener;
@@ -56,6 +53,7 @@ public class SysUserController extends BaseController {
     private final ISysPostService postService;
     private final ISysDeptService deptService;
     private final ISysTenantService tenantService;
+    private final StaffAccountRoles staffRoles;
 
     /**
      * 获取用户列表
@@ -145,10 +143,7 @@ public class SysUserController extends BaseController {
                 userInfoVo.setPostIds(postService.selectPostListByUserId(userId));
             }
         }
-        SysRoleBo roleBo = new SysRoleBo();
-        roleBo.setStatus(SystemConstants.NORMAL);
-        List<SysRoleVo> roles = roleService.selectRoleList(roleBo);
-        userInfoVo.setRoles(LoginHelper.isSuperAdmin(userId) ? roles : StreamUtils.filter(roles, r -> !r.isSuperAdmin()));
+        userInfoVo.setRoles(staffRoles.options());
         return R.ok(userInfoVo);
     }
 
@@ -174,7 +169,7 @@ public class SysUserController extends BaseController {
             }
         }
         user.setPassword(BCrypt.hashpw(user.getPassword()));
-        return toAjax(userService.insertUser(user));
+        return toAjax(staffRoles.create(user));
     }
 
     /**
@@ -195,7 +190,7 @@ public class SysUserController extends BaseController {
         } else if (StringUtils.isNotEmpty(user.getEmail()) && !userService.checkEmailUnique(user)) {
             return R.fail("修改用户'" + user.getUserName() + "'失败，邮箱账号已存在");
         }
-        return toAjax(userService.updateUser(user));
+        return toAjax(staffRoles.update(user));
     }
 
     /**
@@ -264,10 +259,13 @@ public class SysUserController extends BaseController {
     public R<SysUserInfoVo> authRole(@PathVariable Long userId) {
         userService.checkUserDataScope(userId);
         SysUserVo user = userService.selectUserById(userId);
-        List<SysRoleVo> roles = roleService.selectRolesAuthByUserId(userId);
         SysUserInfoVo userInfoVo = new SysUserInfoVo();
         userInfoVo.setUser(user);
-        userInfoVo.setRoles(LoginHelper.isSuperAdmin(userId) ? roles : StreamUtils.filter(roles, r -> !r.isSuperAdmin()));
+        List<Long> assigned = user.getRoles().stream().map(SysRoleVo::getRoleId).toList();
+        List<SysRoleVo> options = staffRoles.options();
+        options.forEach(role -> role.setFlag(assigned.contains(role.getRoleId())));
+        userInfoVo.setRoleIds(assigned);
+        userInfoVo.setRoles(options);
         return R.ok(userInfoVo);
     }
 
@@ -281,9 +279,8 @@ public class SysUserController extends BaseController {
     @Log(title = "用户管理", businessType = BusinessType.GRANT)
     @RepeatSubmit()
     @PutMapping("/authRole")
-    public R<Void> insertAuthRole(Long userId, Long[] roleIds) {
-        userService.checkUserDataScope(userId);
-        userService.insertUserAuth(userId, roleIds);
+    public R<Void> insertAuthRole(Long userId, Long[] roleIds, Long[] originalRoleIds) {
+        staffRoles.assign(userId, roleIds, originalRoleIds);
         return R.ok();
     }
 

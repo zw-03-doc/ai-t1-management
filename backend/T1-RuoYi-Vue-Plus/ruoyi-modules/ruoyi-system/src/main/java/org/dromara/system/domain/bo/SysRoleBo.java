@@ -78,6 +78,8 @@ public class SysRoleBo extends BaseEntity {
      */
     private Long[] menuIds;
 
+    private Long[] originalMenuIds;
+
     /**
      * 部门组（数据权限）
      */

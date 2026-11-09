@@ -39,8 +39,8 @@ export const constantRoutes: RouteRecordRaw[] = [
   },
   {
     path: '/social-callback',
-    hidden: true,
-    component: () => import('@/layout/components/SocialCallback/index.vue')
+    redirect: '/login',
+    hidden: true
   },
   {
     path: '/login',
@@ -49,17 +49,18 @@ export const constantRoutes: RouteRecordRaw[] = [
   },
   {
     path: '/register',
-    component: () => import('@/views/register.vue'),
+    redirect: '/login',
     hidden: true
   },
   {
     path: '/:pathMatch(.*)*',
-    component: () => import('@/views/error/404.vue'),
+    component: () => import('@/views/error/AccessMessage.vue'),
     hidden: true
   },
   {
     path: '/401',
-    component: () => import('@/views/error/401.vue'),
+    component: () => import('@/views/error/AccessMessage.vue'),
+    props: { forbidden: true },
     hidden: true
   },
   {

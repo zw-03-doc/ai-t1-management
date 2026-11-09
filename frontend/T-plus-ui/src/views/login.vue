@@ -31,12 +31,10 @@
         </el-form-item>
         <div class="login-options">
           <el-checkbox v-model="loginForm.rememberMe">{{ t('login.rememberPassword') }}</el-checkbox>
-          <button class="social-login" type="button" @click="doSocialLogin('wechat')">{{ t('login.social.wechat') }}</button>
         </div>
         <el-button class="submit" type="primary" native-type="submit" size="large" :loading="loading">
           {{ loading ? t('login.logging') : t('login.login') }}
         </el-button>
-        <router-link v-if="register" class="register-link" to="/register">{{ t('login.switchRegisterPage') }}</router-link>
       </el-form>
     </section>
   </main>
@@ -45,11 +43,9 @@
 <script setup lang="ts">
 import brandLogo from '@/assets/logo/logo.png';
 import { getCodeImg, getTenantList } from '@/api/login';
-import { authRouterUrl } from '@/api/system/social/auth';
 import { useUserStore } from '@/store/modules/user';
 import { LoginData, TenantVO } from '@/api/types';
 import { to } from 'await-to-js';
-import { HttpStatus } from '@/enums/RespEnum';
 import { useI18n } from 'vue-i18n';
 
 const { proxy } = getCurrentInstance() as ComponentInternalInstance;
@@ -81,8 +77,6 @@ const captchaEnabled = ref(true);
 // 租户开关
 const tenantEnabled = ref(true);
 
-// 注册开关
-const register = ref(false);
 const redirect = ref('/');
 const loginRef = ref<ElFormInstance>();
 // 租户列表
@@ -175,21 +169,6 @@ const initTenantList = async () => {
   }
 };
 
-/**
- * 第三方登录
- * @param type
- */
-const doSocialLogin = (type: string) => {
-  authRouterUrl(type, loginForm.value.tenantId).then((res: any) => {
-    if (res.code === HttpStatus.SUCCESS) {
-      // 获取授权地址跳转
-      window.location.href = res.data;
-    } else {
-      ElMessage.error(res.msg);
-    }
-  });
-};
-
 onMounted(() => {
   getCode();
   initTenantList();
@@ -234,9 +213,7 @@ h1 { margin: 20px 0 24px; font-size: 25px; line-height: 1.25; letter-spacing: -.
 }
 .captcha-image img { display: block; max-width: 100%; max-height: 38px; object-fit: contain; }
 .login-options { display: flex; justify-content: space-between; align-items: center; margin: 0 0 12px; }
-.social-login { border: 0; padding: 6px 0 6px 8px; color: var(--el-text-color-regular); background: transparent; cursor: pointer; font: inherit; font-size: 14px; }
 .submit { width: 100%; min-height: 42px; }
-.register-link { display: inline-block; margin-top: 12px; }
 a:focus-visible, button:focus-visible { outline: 2px solid var(--el-color-primary); outline-offset: 3px; }
 @media (max-height: 580px) { .login { padding-block: 12px; } }
 </style>

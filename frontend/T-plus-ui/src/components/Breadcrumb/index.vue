@@ -2,76 +2,30 @@
   <el-breadcrumb class="app-breadcrumb" separator="/">
     <transition-group name="breadcrumb">
       <el-breadcrumb-item v-for="(item, index) in levelList" :key="item.path">
-        <span v-if="item.redirect === 'noRedirect' || index == levelList.length - 1" class="no-redirect">{{ item.meta?.title }}</span>
-        <a v-else @click.prevent="handleLink(item)">{{ item.meta?.title }}</a>
+        <span v-if="String(item.redirect).toLowerCase() === 'noredirect' || index === levelList.length - 1" class="no-redirect">{{ item.meta?.title }}</span>
+        <router-link v-else :to="item.path">{{ item.meta?.title }}</router-link>
       </el-breadcrumb-item>
     </transition-group>
   </el-breadcrumb>
 </template>
 
 <script setup lang="ts">
-import { RouteLocationMatched } from 'vue-router';
-import { usePermissionStore } from '@/store/modules/permission';
-
 const route = useRoute();
-const router = useRouter();
-const permissionStore = usePermissionStore();
-const levelList = ref<RouteLocationMatched[]>([]);
 
-const getBreadcrumb = () => {
-  // only show routes with meta.title
-  let matched = [];
-  const pathNum = findPathNum(route.path);
-  // multi-level menu
-  if (pathNum > 2) {
-    const reg = /\/\w+/gi;
-    const pathList = route.path.match(reg).map((item, index) => {
-      if (index !== 0) item = item.slice(1);
-      return item;
-    });
-    getMatched(pathList, permissionStore.defaultRoutes, matched);
-  } else {
-    matched = route.matched.filter((item) => item.meta && item.meta.title);
-  }
-  // 判断是否为首页
-  if (!isDashboard(matched[0])) {
-    matched = [{ path: '/index', meta: { title: '首页' } }].concat(matched);
-  }
-  levelList.value = matched.filter((item) => item.meta && item.meta.title && item.meta.breadcrumb !== false);
-};
-const findPathNum = (str, char = '/') => {
-  if (typeof str !== 'string' || str.length === 0) return 0;
-  return str.split(char).length - 1;
-};
-const getMatched = (pathList, routeList, matched) => {
-  const data = routeList.find((item) => item.path == pathList[0] || (item.name += '').toLowerCase() == pathList[0]);
-  if (data) {
-    matched.push(data);
-    if (data.children && pathList.length) {
-      pathList.shift();
-      getMatched(pathList, data.children, matched);
-    }
-  }
-};
-const isDashboard = (route: RouteLocationMatched) => {
-  const name = route && (route.name as string);
-  if (!name) {
-    return false;
-  }
-  return name.trim() === 'Index';
-};
-const handleLink = (item) => {
-  const { redirect, path } = item;
-  redirect ? router.push(redirect) : router.push(path);
-};
+const levelList = computed(() => {
+  const items = route.matched
+    .filter(item => item.meta.title && item.meta.breadcrumb !== false)
+    .map(item => ({ path: item.path, meta: item.meta, redirect: item.redirect }));
+  const home = { path: '/index', meta: { title: '首页' }, redirect: undefined };
 
-watchEffect(() => {
-  // if you go to the redirect page, do not update the breadcrumbs
-  if (route.path.startsWith('/redirect/')) return;
-  getBreadcrumb();
-});
-onMounted(() => {
-  getBreadcrumb();
+  if (route.path.startsWith('/system/user-auth/')) {
+    return [home, { path: '/system/user', meta: { title: '员工账号' }, redirect: undefined }, ...items.slice(-1)];
+  }
+  if (route.path.startsWith('/system/role-auth/')) {
+    return [home, { path: '/system/role', meta: { title: '角色权限' }, redirect: undefined }, ...items.slice(-1)];
+  }
+  if (['/system/user', '/system/role'].includes(route.path)) return [home, ...items.slice(-1)];
+  return route.path === '/index' ? [home] : [home, ...items];
 });
 </script>
 

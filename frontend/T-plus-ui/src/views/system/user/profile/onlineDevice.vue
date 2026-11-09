@@ -17,9 +17,7 @@
       </el-table-column>
       <el-table-column label="操作" align="center" class-name="small-padding fixed-width">
         <template #default="scope">
-          <el-tooltip content="删除" placement="top">
-            <el-button link type="primary" icon="Delete" @click="handldDelOnline(scope.row)"> </el-button>
-          </el-tooltip>
+          <el-button link type="danger" @click="handldDelOnline(scope.row)">退出登录</el-button>
         </template>
       </el-table-column>
     </el-table>
@@ -37,17 +35,18 @@ const props = defineProps({
   devices: propTypes.any.isRequired
 });
 const devices = computed(() => props.devices);
+const emit = defineEmits<{ updated: [] }>();
 
 /** 删除按钮操作 */
 const handldDelOnline = (row: any) => {
-  ElMessageBox.confirm('删除设备后，在该设备登录需要重新进行验证')
+  ElMessageBox.confirm('确定让这台设备退出登录？')
     .then(() => {
       return delOnline(row.tokenId);
     })
     .then((res: any) => {
       if (res.code === 200) {
-        proxy?.$modal.msgSuccess('删除成功');
-        proxy?.$tab.refreshPage();
+        proxy?.$modal.msgSuccess('设备已退出登录');
+        emit('updated');
       } else {
         proxy?.$modal.msgError(res.msg);
       }

@@ -70,6 +70,8 @@ def main() -> None:
     count = run(query, input=b"SELECT COUNT(*) FROM information_schema.tables WHERE table_schema='t1_fitness';", capture_output=True)
     if count.stdout.decode().strip().splitlines()[-1] != "0":
         raise SystemExit("T1 database is not empty; refusing to rerun destructive baseline SQL")
+    staged = json.loads((release / "manifest.json").read_text())["sql_sources"]
+    [framework] = [item["file"] for item in staged if Path(item["source"]).name == "ry_vue_5.X.sql"]
     for path in sorted((release / "sql").glob("*.sql")):
         result = subprocess.run(query, input=path.read_bytes(), capture_output=True)
         if result.returncode:
@@ -78,7 +80,10 @@ def main() -> None:
             print(result.stderr.decode(errors="replace"), file=sys.stderr)
             raise SystemExit(result.returncode)
         print(f"SQL_OK {path.name}")
-    run(query, input=admin_sql.read_bytes(), capture_output=True)
+        if path.name == framework:
+            # Apply fresh-install credentials and disable baseline demo accounts
+            # before the business upgrades decide which unused examples to archive.
+            run(query, input=admin_sql.read_bytes(), capture_output=True)
     admin_sql.unlink()
     private_file(marker, json.dumps({"release": release.name, "initialized_at": time.strftime("%Y-%m-%dT%H:%M:%S%z")}))
     print("T1_DATABASE_INITIALIZED; application activation is a separate step")

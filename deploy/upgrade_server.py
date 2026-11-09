@@ -13,6 +13,7 @@ EXPECTED_MIGRATIONS = (
     'V1.3.5__fitness_navigation.sql',
     'V1.3.6__venue_gallery.sql',
     'V1.3.7__login_policy_consent.sql',
+    'V1.3.8__archive_framework_examples.sql',
 )
 
 def release_file(release, name):

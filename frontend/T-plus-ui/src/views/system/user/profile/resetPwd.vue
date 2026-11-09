@@ -1,5 +1,5 @@
 <template>
-  <el-form ref="pwdRef" :model="user" :rules="rules" label-width="80px">
+  <el-form ref="pwdRef" :model="user" :rules="rules" label-width="96px">
     <el-form-item label="旧密码" prop="oldPassword">
       <el-input v-model="user.oldPassword" placeholder="请输入旧密码" type="password" show-password />
     </el-form-item>
@@ -11,7 +11,7 @@
     </el-form-item>
     <el-form-item>
       <el-button type="primary" @click="submit">保存</el-button>
-      <el-button type="danger" @click="close">关闭</el-button>
+
     </el-form-item>
   </el-form>
 </template>
@@ -66,8 +66,5 @@ const submit = () => {
     }
   });
 };
-/** 关闭按钮 */
-const close = () => {
-  proxy?.$tab.closePage();
-};
+
 </script>

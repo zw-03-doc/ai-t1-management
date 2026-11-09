@@ -1,10 +1,15 @@
 package org.dromara.system.controller.system;
 
 import cn.dev33.satoken.annotation.SaCheckPermission;
+import cn.dev33.satoken.annotation.SaMode;
+import cn.dev33.satoken.stp.StpUtil;
 import cn.hutool.core.lang.tree.Tree;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import org.dromara.common.core.domain.R;
+import org.dromara.common.core.exception.ServiceException;
+import org.dromara.common.core.constant.TenantConstants;
+import org.dromara.common.satoken.utils.LoginHelper;
 import org.dromara.common.excel.utils.ExcelUtil;
 import org.dromara.common.idempotent.annotation.RepeatSubmit;
 import org.dromara.common.log.annotation.Log;
@@ -21,6 +26,7 @@ import org.dromara.system.domain.vo.SysUserVo;
 import org.dromara.system.service.ISysDeptService;
 import org.dromara.system.service.ISysRoleService;
 import org.dromara.system.service.ISysUserService;
+import org.dromara.system.service.StaffRoleMenus;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
@@ -40,6 +46,17 @@ public class SysRoleController extends BaseController {
     private final ISysRoleService roleService;
     private final ISysUserService userService;
     private final ISysDeptService deptService;
+    private final StaffRoleMenus staffMenus;
+
+    @SaCheckPermission(value = {"system:role:add", "system:role:edit"}, mode = SaMode.OR)
+    @GetMapping("/projectMenus")
+    public R<StaffRoleMenus.Options> projectMenus(@RequestParam(required = false) Long roleId) {
+        if (roleId != null) {
+            StpUtil.checkPermission("system:role:edit");
+            roleService.checkRoleDataScope(roleId);
+        }
+        return R.ok(staffMenus.options(roleId));
+    }
 
     /**
      * 获取角色信息列表
@@ -81,6 +98,7 @@ public class SysRoleController extends BaseController {
     @RepeatSubmit()
     @PostMapping
     public R<Void> add(@Validated @RequestBody SysRoleBo role) {
+        role.setRoleId(null);
         roleService.checkRoleAllowed(role);
         if (!roleService.checkRoleNameUnique(role)) {
             return R.fail("新增角色'" + role.getRoleName() + "'失败，角色名称已存在");
@@ -122,6 +140,7 @@ public class SysRoleController extends BaseController {
     @RepeatSubmit()
     @PutMapping("/dataScope")
     public R<Void> dataScope(@RequestBody SysRoleBo role) {
+        if (!LoginHelper.isSuperAdmin()) throw new ServiceException("只有管理员可更改角色数据范围");
         roleService.checkRoleAllowed(role);
         roleService.checkRoleDataScope(role.getRoleId());
         return toAjax(roleService.authDataScope(role));
@@ -169,6 +188,7 @@ public class SysRoleController extends BaseController {
     @SaCheckPermission("system:role:list")
     @GetMapping("/authUser/allocatedList")
     public TableDataInfo<SysUserVo> allocatedList(SysUserBo user, PageQuery pageQuery) {
+        roleService.checkRoleDataScope(user.getRoleId());
         return userService.selectAllocatedList(user, pageQuery);
     }
 
@@ -178,6 +198,7 @@ public class SysRoleController extends BaseController {
     @SaCheckPermission("system:role:list")
     @GetMapping("/authUser/unallocatedList")
     public TableDataInfo<SysUserVo> unallocatedList(SysUserBo user, PageQuery pageQuery) {
+        roleService.checkRoleDataScope(user.getRoleId());
         return userService.selectUnallocatedList(user, pageQuery);
     }
 
@@ -189,6 +210,7 @@ public class SysRoleController extends BaseController {
     @RepeatSubmit()
     @PutMapping("/authUser/cancel")
     public R<Void> cancelAuthUser(@RequestBody SysUserRole userRole) {
+        checkMemberChange(userRole.getRoleId(), new Long[] {userRole.getUserId()}, false);
         return toAjax(roleService.deleteAuthUser(userRole));
     }
 
@@ -203,6 +225,7 @@ public class SysRoleController extends BaseController {
     @RepeatSubmit()
     @PutMapping("/authUser/cancelAll")
     public R<Void> cancelAuthUserAll(Long roleId, Long[] userIds) {
+        checkMemberChange(roleId, userIds, false);
         return toAjax(roleService.deleteAuthUsers(roleId, userIds));
     }
 
@@ -217,7 +240,7 @@ public class SysRoleController extends BaseController {
     @RepeatSubmit()
     @PutMapping("/authUser/selectAll")
     public R<Void> selectAuthUserAll(Long roleId, Long[] userIds) {
-        roleService.checkRoleDataScope(roleId);
+        checkMemberChange(roleId, userIds, true);
         return toAjax(roleService.insertAuthUsers(roleId, userIds));
     }
 
@@ -242,5 +265,24 @@ public class SysRoleController extends BaseController {
      * @param depts       下拉树结构列表
      */
     public record DeptTreeSelectVo(List<Long> checkedKeys, List<Tree<Long>> depts) {}
+
+    private void checkMemberChange(Long roleId, Long[] userIds, boolean adding) {
+        if (roleId == null || userIds == null || userIds.length == 0) throw new ServiceException("请选择角色和员工");
+        roleService.checkRoleDataScope(roleId);
+        SysRoleVo role = roleService.selectRoleById(roleId);
+        if (role == null || role.isSuperAdmin()
+            || (TenantConstants.TENANT_ADMIN_ROLE_KEY.equals(role.getRoleKey()) && !LoginHelper.isSuperAdmin())) {
+            throw new ServiceException("该角色不支持分配成员");
+        }
+        if (adding && !"0".equals(role.getStatus())) throw new ServiceException("停用的角色不能添加成员");
+        staffMenus.checkAssignable(roleId);
+        for (Long id : userIds) {
+            if (id == null || id.equals(LoginHelper.getUserId())) throw new ServiceException("请选择其他员工账号");
+            userService.checkUserAllowed(id);
+            userService.checkUserDataScope(id);
+            SysUserVo employee = userService.selectUserById(id);
+            if (employee == null || (adding && !"0".equals(employee.getStatus()))) throw new ServiceException("员工账号无效或已停用");
+        }
+    }
 
 }

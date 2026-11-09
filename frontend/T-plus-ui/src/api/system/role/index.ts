@@ -2,9 +2,13 @@ import { UserVO } from '@/api/system/user/types';
 import { UserQuery } from '@/api/system/user/types';
 import { AxiosPromise } from 'axios';
 import { RoleQuery, RoleVO, RoleDeptTree } from './types';
+import type { RoleMenuTree } from '@/api/system/menu/types';
 import request from '@/utils/request';
 
-export const listRole = (query: RoleQuery): AxiosPromise<RoleVO[]> => {
+export const projectMenus = (roleId?: string | number): AxiosPromise<RoleMenuTree> =>
+  request({ url: '/system/role/projectMenus', method: 'get', params: { roleId } });
+
+export const listRole = (query: RoleQuery): Promise<{ rows: RoleVO[]; total: number }> => {
   return request({
     url: '/system/role/list',
     method: 'get',
