@@ -28,7 +28,7 @@ function openPortal(platform, profileStatus = 'completed') {
   const script = portal.replace(/\/\/ #(ifdef|ifndef) MP-WEIXIN\r?\n([\s\S]*?)\/\/ #endif/g,
     (_, type, code) => (type === 'ifdef') === (platform === 'mp') ? code : '')
   const component = vm.runInNewContext(auth + '\n' + script.replace('export default', 'const component =') + '\ncomponent', {
-    uni, readPortalSlogans: () => ({}), memberWechatLogin: async () => result, memberWebLogin: async () => result
+    uni, venuePhotos: [], readPortalSlogans: () => ({}), memberWechatLogin: async () => result, memberWebLogin: async () => result
   })
   const state = component.data()
   for (const [name, method] of Object.entries(component.methods)) state[name] = method.bind(state)

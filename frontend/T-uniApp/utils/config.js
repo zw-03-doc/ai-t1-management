@@ -7,6 +7,7 @@ export const API_BASE_URL =
 
 export const PUBLIC_ROUTES = [
   "/pages/portal/index",
+  "/pages/portal/gallery",
   "/pages/activity/index",
   "/pages/guide/index",
 ];

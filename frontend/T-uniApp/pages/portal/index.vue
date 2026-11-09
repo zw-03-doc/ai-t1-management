@@ -58,12 +58,13 @@
     <view class="portal-body">
       <view class="space-head"
         ><text class="section-kicker">{{ slogans.galleryCaption }}</text
-        ><text class="space-link" @tap="previewSpace">看看空间 ↗</text></view
+        ><button class="space-link" @tap="previewSpace(0)">查看场馆大图 ↗</button></view
       >
-      <view class="space-photos" @tap="previewSpace">
-        <image src="/static/images/live-1.jpg" mode="aspectFill" />
-        <image src="/static/images/live-2.jpg" mode="aspectFill" />
-        <image src="/static/images/live-3.jpg" mode="aspectFill" />
+      <view class="space-photos">
+        <button v-for="(src, index) in venuePhotos" :key="src" class="space-photo"
+          :aria-label="'查看第' + (index + 1) + '张场馆照片'" @tap="previewSpace(index)">
+          <image :src="src" mode="aspectFill" />
+        </button>
       </view>
       <button
         class="start-button"
@@ -206,6 +207,7 @@
 </template>
 
 <script>
+import { venuePhotos } from "../../utils/venue-photos";
 import { readPortalSlogans, fetchPortalSlogans, cachePortalSlogans } from "../../api/portal-slogans";
 import {
   coachWechatActivate,
@@ -234,6 +236,7 @@ function createActivationForm() {
 export default {
   data() {
     return {
+      venuePhotos,
       slogans: readPortalSlogans(),
       sloganRevision: 0,
       statusBarHeight: 24,
@@ -293,14 +296,8 @@ export default {
     openGuide() {
       uni.navigateTo({ url: "/pages/guide/index" });
     },
-    previewSpace() {
-      uni.previewImage({
-        urls: [
-          "/static/images/live-1.jpg",
-          "/static/images/live-2.jpg",
-          "/static/images/live-3.jpg",
-        ],
-      });
+    previewSpace(index) {
+      uni.navigateTo({ url: "/pages/portal/gallery?index=" + index });
     },
     openMemberAction(action) {
       const routes = {
@@ -737,6 +734,9 @@ export default {
   color: #bbbeb5;
 }
 .space-link {
+  margin: 0;
+  background: transparent;
+  border: 0;
   flex-shrink: 0;
   font-size: 22rpx;
   color: #e1e2db;
@@ -747,10 +747,18 @@ export default {
   gap: 12rpx;
   margin-bottom: 38rpx;
 }
-.space-photos image {
+.space-photo {
   width: calc((100% - 24rpx) / 3);
-  height: 144rpx;
+  margin: 0;
+  padding: 0;
   border-radius: 12rpx;
+  overflow: hidden;
+  background: #212220;
+}
+.space-photo image {
+  display: block;
+  width: 100%;
+  height: 144rpx;
 }
 .start-button {
   display: flex;

@@ -23,6 +23,7 @@ function setup({ base = 'https://fitness.example/api', storage = new Map() } = {
   const requests = []
   const context = {
     API_BASE_URL: base,
+    venuePhotos: [],
     hasMemberSession: () => false, hasCoachSession: () => false,
     uni: {
       getStorageSync: key => storage.get(key),
@@ -108,7 +109,7 @@ test('首页实际模板显示七段文案，强调同行、第二行独立，�
   const html = await renderToString(app)
   assert.match(html, /为更好的<text class="accent">自己<\/text><\/view><view>继续训练。<\/view>/)
   for (const text of [display.eyebrow, display.subtitle, display.galleryCaption, '&lt;b&gt;footer&lt;/b&gt;']) assert.ok(html.includes(text))
-  assert.ok(html.includes('看看空间'))
+  assert.ok(html.includes('查看场馆大图'))
   assert.ok(html.includes('教练工作台'))
 })
 

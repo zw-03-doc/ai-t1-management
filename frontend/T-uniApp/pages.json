@@ -7,6 +7,13 @@
       }
     },
     {
+      "path": "pages/portal/gallery",
+      "style": {
+        "navigationBarTitleText": "场馆环境",
+        "disableScroll": true
+      }
+    },
+    {
       "path": "pages/index/index",
       "style": {
         "navigationBarTitleText": "T1 健身空间"
