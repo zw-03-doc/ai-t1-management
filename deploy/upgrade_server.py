@@ -16,6 +16,7 @@ EXPECTED_MIGRATIONS = (
     'V1.3.8__archive_framework_examples.sql',
     'V1.3.9__coach_web_password.sql',
     'V1.3.10__activity_plan_tenant.sql',
+    'V1.3.11__store_venue_albums.sql',
 )
 
 def release_file(release, name):
@@ -187,6 +188,10 @@ def main():
         for item in migrations:
             active_migration = Path(item['source']).name
             (backup / 'migration-progress.json').write_text(json.dumps({'applied': applied, 'attempting': active_migration, 'databaseKeptOnRollback': True}))
+            if active_migration == 'V1.3.11__store_venue_albums.sql':
+                # Drain the old writer before copying the album. On failure the rollback restarts it.
+                switch_attempted = True
+                run(['docker', 'compose', '-p', 't1-management', '-f', str(current / 'compose.yml'), 'stop', 'api'])
             mysql(release_file(release, 'sql/' + item['file']).read_text())
             applied.append(active_migration)
             active_migration = None

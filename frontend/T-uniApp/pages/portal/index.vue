@@ -15,7 +15,8 @@
         />
         <text class="brand-name">T1 FITNESS</text>
       </view>
-      <image class="portal-bg" src="/static/images/portal.jpg" mode="aspectFill" />
+      <image v-if="!venueStore || venuePhotos.length" class="portal-bg"
+        :src="venueStore ? venuePhotos[0].src : '/static/images/portal.jpg'" mode="aspectFill" />
       <view class="hero-actions">
         <button
           class="hero-action booking-action"
@@ -190,7 +191,7 @@
 
 <script>
 import LoginConsent from "../../components/LoginConsent.vue";
-import { readVenuePhotos, refreshVenuePhotos } from "../../utils/venue-photos";
+import { readVenuePhotos, refreshVenuePhotos, venueStoreId, watchVenueQuery } from "../../utils/venue-photos";
 import {
   coachWechatActivate,
   coachWechatLogin,
@@ -221,7 +222,8 @@ export default {
   components: { LoginConsent },
   data() {
     return {
-      venuePhotos: readVenuePhotos(),
+      venuePhotos: [],
+      venueStore: "",
 
       statusBarHeight: 24,
       navBottom: 74,
@@ -245,6 +247,15 @@ export default {
     };
   },
   onLoad(options) {
+    this.venueStore = venueStoreId(options?.storeId);
+    this.venuePhotos = readVenuePhotos(this.venueStore);
+    this.stopVenueQuery = watchVenueQuery("/pages/portal/index", query => {
+      const store = venueStoreId(query.storeId);
+      if (store === this.venueStore) return;
+      this.venueStore = store;
+      this.venuePhotos = readVenuePhotos(store);
+      this.refreshAlbum();
+    });
     const info = uni.getSystemInfoSync();
     this.statusBarHeight = info.statusBarHeight || 24;
     this.navBottom = this.statusBarHeight + 52;
@@ -261,20 +272,26 @@ export default {
   },
   onShow() {
     this.refreshLoginState();
-    refreshVenuePhotos().then(photos => { this.venuePhotos = photos; });
-
+    this.refreshAlbum();
   },
+  onUnload() { this.stopVenueQuery?.(); },
   onReady() {
     const loggedIn = this.targetRole === "coach" ? this.coachLoggedIn : this.memberLoggedIn;
     if (this.targetRoute && loggedIn) this.navigateAfterLogin(this.targetRole);
   },
   methods: {
+    refreshAlbum() {
+      const store = this.venueStore;
+      refreshVenuePhotos(store).then(photos => {
+        if (store === this.venueStore) this.venuePhotos = photos;
+      });
+    },
     openGuide() {
       uni.navigateTo({ url: "/pages/guide/index" });
     },
     previewSpace(index) {
       const id = this.venuePhotos[index]?.id || "";
-      uni.navigateTo({ url: "/pages/portal/gallery?index=" + index + "&id=" + encodeURIComponent(id) });
+      uni.navigateTo({ url: "/pages/portal/gallery?index=" + index + "&id=" + encodeURIComponent(id) + (this.venueStore ? "&storeId=" + encodeURIComponent(this.venueStore) : "") });
     },
     openMemberAction(action) {
       const routes = {

@@ -18,6 +18,7 @@
         <el-descriptions-item label="地址" :span="2">{{ selectedStore.address || '未设置' }}</el-descriptions-item>
       </el-descriptions>
       <el-space wrap class="my-[16px]">
+        <el-button v-hasPermi="['fitness:venue:query']" @click="manage('venue')">场馆图片</el-button>
         <el-button v-hasPermi="['fitness:coach:list']" @click="manage('coach')">教练管理</el-button>
         <el-button v-hasPermi="['fitness:member:list']" @click="manage('member')">会员管理</el-button>
         <el-button v-hasPermi="['fitness:course:list']" @click="manage('course')">课程模板</el-button>

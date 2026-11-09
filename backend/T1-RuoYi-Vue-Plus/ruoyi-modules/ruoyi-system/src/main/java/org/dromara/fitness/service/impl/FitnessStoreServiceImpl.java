@@ -14,6 +14,8 @@ import org.dromara.fitness.domain.FitStore;
 import org.dromara.fitness.domain.bo.FitnessStoreBo;
 import org.dromara.fitness.domain.vo.FitnessStoreVo;
 import org.dromara.fitness.mapper.FitnessStoreMapper;
+import org.dromara.fitness.mapper.FitnessVenueMapper;
+import org.springframework.transaction.annotation.Transactional;
 import org.dromara.fitness.service.IFitnessStoreService;
 import org.springframework.stereotype.Service;
 
@@ -30,6 +32,7 @@ import java.util.List;
 public class FitnessStoreServiceImpl implements IFitnessStoreService {
 
     private final FitnessStoreMapper baseMapper;
+    private final FitnessVenueMapper venueMapper;
 
     @Override
     public FitnessStoreVo queryById(Long storeId) {
@@ -47,6 +50,7 @@ public class FitnessStoreServiceImpl implements IFitnessStoreService {
     }
 
     @Override
+    @Transactional(rollbackFor = Exception.class)
     public Boolean insertByBo(FitnessStoreBo bo) {
         FitStore add = MapstructUtils.convert(bo, FitStore.class);
         add.setStoreId(IdGeneratorUtil.nextLongId());
@@ -55,6 +59,9 @@ public class FitnessStoreServiceImpl implements IFitnessStoreService {
         boolean flag = baseMapper.insert(add) > 0;
         if (flag) {
             bo.setStoreId(add.getStoreId());
+            if (venueMapper.adoptDefault(add.getTenantId(), add.getStoreId()) == 1) {
+                venueMapper.copyLegacyPhotos(add.getTenantId(), add.getStoreId());
+            }
         }
         return flag;
     }

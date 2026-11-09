@@ -8,7 +8,7 @@ const source = fs.readFileSync(path.join(__dirname, '../utils/venue-photos.js'),
   .replace(/^import .*/m, '').replace(/\/\/ #ifdef H5[\s\S]*?\/\/ #endif/, '').replace(/export /g, '')
 function client(storage, reply) {
   return vm.runInNewContext(source + '\n;({ readVenuePhotos, refreshVenuePhotos })', {
-    API_BASE_URL: 'https://api.example.test',
+    API_BASE_URL: 'https://api.example.test', DEFAULT_VENUE_STORE_ID: '',
     uni: {
       getStorageSync: k => storage.get(k),
       setStorageSync: (k, v) => storage.set(k, v),
@@ -41,4 +41,27 @@ test('首页和相册共享同一次请求，保留管理员排序、本机预�
   assert.equal(calls, 1)
   assert.equal(photos[0].src, 'https://api.example.test/fitness/mini/portal/venue/images/' + id)
   assert.equal(photos[1].src, '/static/images/live-2.jpg')
+})
+
+test('不同门店的请求、相册缓存及图片地址相互隔离', async () => {
+  const requests = [], storage = new Map()
+  const c = client(storage, r => requests.push(r))
+  const a = '2119000000000000001', b = '2119000000000000002'
+  assert.equal(c.readVenuePhotos(b).length, 0)
+  const first = c.refreshVenuePhotos(a), second = c.refreshVenuePhotos(b)
+  assert.notEqual(first, second)
+  assert(requests[0].url.endsWith('?storeId=' + a))
+  const id = '5f0b8567-26a8-4d6c-b7fb-339768146754'
+  const url = '/fitness/mini/portal/venue/images/' + id + '?storeId=' + a
+  requests[1].success({statusCode:200,data:{code:200,data:{storeId:b,version:0,photos:[]}}})
+  requests[0].success({statusCode:200,data:{code:200,data:{storeId:a,version:1,photos:[{id,url}]}}})
+  assert.equal((await first)[0].src, 'https://api.example.test'+url)
+  assert.equal((await second).length, 0)
+  const offline = client(storage, r => r.fail())
+  assert.equal((await offline.refreshVenuePhotos(a)).length, 1)
+  assert.equal((await offline.refreshVenuePhotos(b)).length, 0)
+  const gone = c.refreshVenuePhotos(a)
+  requests[2].success({statusCode:200,data:{code:404}})
+  assert.equal((await gone).length, 0)
+  assert.equal(client(storage, r => r.fail()).readVenuePhotos(a).length, 0)
 })

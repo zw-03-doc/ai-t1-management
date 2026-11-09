@@ -5,6 +5,8 @@ export const API_BASE_URL =
   (import.meta.env.DEV && uni.getStorageSync("T1_API_BASE_URL")) ||
   DEFAULT_API_BASE_URL;
 
+export const DEFAULT_VENUE_STORE_ID = import.meta.env.VITE_VENUE_STORE_ID || "";
+
 export const PUBLIC_ROUTES = [
   "/pages/legal/index",
   "/pages/portal/index",

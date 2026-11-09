@@ -43,3 +43,10 @@
 上线须实际检查：DNS A记录、可信TLS、管理端与H5静态资源、后端登录、角色授权、预约/签到和训练计划；构建通过不能替代这些检查。还需比较原OPS三容器ID、`https://ops.wedodiary.top/` 与 `https://studio.wedodiary.top/` 状态。微信开发工具打开、真实微信身份、上传与正式发布分别记录，不相互替代。
 
 云CLI凭据只从已有授权服务器配置读入短时进程环境，不复制到T1机器或输出日志。相关官方参考：[CLI环境变量](https://www.alibabacloud.com/help/en/cli/environment-variables)。
+
+
+### 门店场馆相册
+
+公开查询使用 `GET /prod-api/fitness/mini/portal/venue?storeId=<门店ID>`。返回门店 ID、门店名称、相册版本和有序图片列表；上传照片使用返回的图片地址。省略门店 ID 时使用原 T1 门店。门店 ID 按十进制字符串传递。官网可通过 `/site/?storeId=<门店ID>` 进入，会员首页与相册页接受同一参数。为某家店单独构建小程序时可设置 `VITE_VENUE_STORE_ID`。
+
+后台从 `GET /prod-api/fitness/portal/venue/stores` 获取可管理门店，读取相册、上传、更换、排序、删除时均传递 `storeId`。写操作携带该店相册的当前 `version`。

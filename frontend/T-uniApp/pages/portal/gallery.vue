@@ -17,24 +17,40 @@
 </template>
 
 <script>
-import { readVenuePhotos, refreshVenuePhotos } from '../../utils/venue-photos'
+import { readVenuePhotos, refreshVenuePhotos, venueStoreId, watchVenueQuery } from '../../utils/venue-photos'
 
 export default {
   data() {
-    return { photos: readVenuePhotos(), current: 0, failed: {} }
+    return { photos: [], current: 0, failed: {}, albumRequest: 0 }
   },
   onLoad(options) {
-    const index = Number(options?.index)
-    const byId = this.photos.findIndex(photo => photo.id === options?.id)
-    if (byId >= 0) this.current = byId
-    else if (Number.isInteger(index) && index >= 0 && index < this.photos.length) this.current = index
-    const initial = this.current
-    refreshVenuePhotos().then(photos => {
-      const id = this.current === initial && options?.id ? options.id : this.photos[this.current]?.id
-      const selected = photos.findIndex(photo => photo.id === id)
-      this.current = selected >= 0 ? selected : Math.max(0, Math.min(this.current, photos.length - 1))
-      this.photos = photos
-    })
+    this.loadAlbum(options)
+    this.stopVenueQuery = watchVenueQuery('/pages/portal/gallery', this.loadAlbum)
+  },
+  onUnload() {
+    this.albumRequest++
+    this.stopVenueQuery?.()
+  },
+  methods: {
+    loadAlbum(options) {
+      const request = ++this.albumRequest
+      this.current = 0
+      this.failed = {}
+      const store = venueStoreId(options?.storeId)
+      this.photos = readVenuePhotos(store)
+      const index = Number(options?.index)
+      const byId = this.photos.findIndex(photo => photo.id === options?.id)
+      if (byId >= 0) this.current = byId
+      else if (Number.isInteger(index) && index >= 0 && index < this.photos.length) this.current = index
+      const initial = this.current
+      refreshVenuePhotos(store).then(photos => {
+        if (request !== this.albumRequest) return
+        const id = this.current === initial && options?.id ? options.id : this.photos[this.current]?.id
+        const selected = photos.findIndex(photo => photo.id === id)
+        this.current = selected >= 0 ? selected : Math.max(0, Math.min(this.current, photos.length - 1))
+        this.photos = photos
+      })
+    }
   }
 }
 </script>

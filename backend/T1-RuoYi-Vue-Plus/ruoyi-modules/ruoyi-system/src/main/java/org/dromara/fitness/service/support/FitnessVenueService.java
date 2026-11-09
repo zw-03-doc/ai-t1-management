@@ -24,22 +24,50 @@ public class FitnessVenueService {
     private final FitnessVenueMapper mapper;
 
     public record Photo(String id, String url) {}
-    public record Gallery(int version, List<Photo> photos) {}
+    public record Gallery(String storeId, String storeName, int version, List<Photo> photos) {}
 
-    @Transactional(readOnly = true)
-    public Gallery gallery() {
-        int version = mapper.version(BRAND);
-        return new Gallery(version, mapper.ids(BRAND).stream().map(id -> new Photo(id,
-            id.matches("live-[123]") ? "/app/static/images/" + id + ".jpg" : IMAGE_PATH + id)).toList());
+    public List<FitnessVenueMapper.Store> stores() {
+        checkAdminTenant();
+        return mapper.stores(BRAND);
     }
 
-    public byte[] image(String id) {
-        var stored = mapper.image(BRAND, id);
-        return stored == null ? null : stored.jpeg();
+    private Long resolveStore(Long requested) {
+        return requested == null ? mapper.defaultStore(BRAND) : requested;
+    }
+
+    @Transactional(readOnly = true)
+    public Gallery gallery(Long requested, boolean admin) {
+        if (admin) checkAdminTenant();
+        Long id = resolveStore(requested);
+        var store = id == null ? null : mapper.store(BRAND, id);
+        if (store == null || (!admin && !"0".equals(store.status()))) {
+            if (requested == null) return new Gallery(null, null, 0, List.of());
+            throw new ServiceException("门店不存在或未开放", 404);
+        }
+        return album(store, requested != null);
+    }
+
+    private Gallery album(FitnessVenueMapper.Store store, boolean scoped) {
+        long id = store.storeId();
+        Integer version = mapper.version(BRAND, id);
+        String suffix = scoped ? "?storeId=" + id : "";
+        return new Gallery(String.valueOf(id), store.storeName(), version == null ? 0 : version,
+            mapper.ids(BRAND, id).stream().map(photo -> new Photo(photo, photo.matches("live-[123]")
+                ? "/app/static/images/" + photo + ".jpg" : IMAGE_PATH + photo + suffix)).toList());
+    }
+
+    @Transactional(readOnly = true)
+    public byte[] image(Long requested, String photoId, boolean admin) {
+        if (admin) checkAdminTenant();
+        Long id = resolveStore(requested);
+        var store = id == null ? null : mapper.store(BRAND, id);
+        if (store == null || (!admin && !"0".equals(store.status()))) return null;
+        var image = mapper.image(BRAND, id, photoId);
+        return image == null ? null : image.jpeg();
     }
 
     @Transactional(rollbackFor = Exception.class)
-    public Gallery upload(int version, String replaceId, MultipartFile file) {
+    public Gallery upload(Long requested, int version, String replaceId, MultipartFile file) {
         checkAdminTenant();
         if (file == null || file.isEmpty() || file.getSize() > 10L * 1024 * 1024) {
             throw new ServiceException("请选择 10 MB 以内的 JPEG 或 PNG 图片");
@@ -51,38 +79,43 @@ public class FitnessVenueService {
         } catch (IOException ex) {
             throw new ServiceException("图片无法读取，请更换文件");
         }
-        claim(version);
+        var store = claim(requested, version);
+        long storeId = store.storeId();
         String id = UUID.randomUUID().toString();
-        if (replaceId == null) mapper.insert(BRAND, id, mapper.nextPosition(BRAND), jpeg);
-        else if (mapper.replace(BRAND, replaceId, id, jpeg) != 1) throw new ServiceException("图片不存在");
-        return gallery();
+        if (replaceId == null) mapper.insert(BRAND, storeId, id, mapper.nextPosition(BRAND, storeId), jpeg);
+        else if (mapper.replace(BRAND, storeId, replaceId, id, jpeg) != 1) throw new ServiceException("图片不存在");
+        return album(store, requested != null);
     }
 
     @Transactional(rollbackFor = Exception.class)
-    public Gallery order(int version, List<String> requested) {
+    public Gallery order(Long requestedStore, int version, List<String> requested) {
         checkAdminTenant();
-        claim(version);
-        List<String> current = mapper.ids(BRAND);
+        var store = claim(requestedStore, version);
+        List<String> current = mapper.ids(BRAND, store.storeId());
         if (requested == null || current.size() != requested.size() || !new HashSet<>(current).equals(new HashSet<>(requested))) {
             throw new ServiceException("图片列表已变更，请刷新");
         }
-        for (int i = 0; i < requested.size(); i++) mapper.move(BRAND, requested.get(i), i + 1);
-        return gallery();
+        for (int i = 0; i < requested.size(); i++) mapper.move(BRAND, store.storeId(), requested.get(i), i + 1);
+        return album(store, requestedStore != null);
     }
 
     @Transactional(rollbackFor = Exception.class)
-    public Gallery delete(int version, String id) {
+    public Gallery delete(Long requested, int version, String id) {
         checkAdminTenant();
-        claim(version);
-        if (mapper.remove(BRAND, id) != 1) throw new ServiceException("图片不存在");
-        return gallery();
+        var store = claim(requested, version);
+        if (mapper.remove(BRAND, store.storeId(), id) != 1) throw new ServiceException("图片不存在");
+        return album(store, requested != null);
     }
 
-    private void claim(int version) {
-        if (mapper.claim(BRAND, version) != 1) throw new ServiceException("场馆图片已变更，请刷新后重试", 409);
+    private FitnessVenueMapper.Store claim(Long requested, int version) {
+        Long id = resolveStore(requested);
+        var store = id == null ? null : mapper.lockStore(BRAND, id);
+        if (store == null) throw new ServiceException("门店不存在", 404);
+        mapper.ensureGallery(BRAND, id);
+        if (mapper.claim(BRAND, id, version) != 1) throw new ServiceException("场馆图片已变更，请刷新后重试", 409);
+        return store;
     }
 
-    // This album is published on the T1 brand homepage.
     private static void checkAdminTenant() {
         if (TenantHelper.isEnable() && !BRAND.equals(TenantHelper.getTenantId())) {
             throw new ServiceException("当前账号无权管理品牌首页", 403);
