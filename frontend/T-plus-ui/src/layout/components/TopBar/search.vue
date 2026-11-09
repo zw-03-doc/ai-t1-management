@@ -43,7 +43,7 @@ type SearchState<T = any> = {
 // 定义变量内容
 const layoutMenuAutocompleteRef = ref();
 const router = useRouter();
-const routes = computed(() => usePermissionStore().routes);
+const routes = computed(() => usePermissionStore().defaultRoutes);
 const state = reactive<SearchState>({
   isShowSearch: false,
   menuQuery: '',

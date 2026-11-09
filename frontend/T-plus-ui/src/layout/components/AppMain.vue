@@ -1,7 +1,8 @@
 <template>
   <section class="app-main">
     <router-view v-slot="{ Component, route }">
-      <transition :enter-active-class="animate" mode="out-in">
+      <!-- Pages with sibling drawers have no single element to signal the end of a leave transition. -->
+      <transition :enter-active-class="animate">
         <keep-alive :include="tagsViewStore.cachedViews">
           <component :is="Component" v-if="!route.meta.link" :key="route.path" />
         </keep-alive>

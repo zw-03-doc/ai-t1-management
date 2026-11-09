@@ -12,6 +12,18 @@ import { createCustomNameComponent } from '@/utils/createCustomNameComponent';
 
 // 匹配views里面所有的.vue文件
 const modules = import.meta.glob('./../../views/**/*.vue');
+// Only fitness pages belong in the working navigation. Other granted routes
+// remain registered, e.g. account administration opened from the user menu.
+function fitnessMenu(routes: RouteRecordRaw[]): RouteRecordRaw[] {
+  return routes.flatMap((route) => {
+    if (route.children?.length) {
+      const children = fitnessMenu(route.children);
+      return children.length ? [{ ...route, children } as RouteRecordRaw] : [];
+    }
+    return String(route.component).startsWith('fitness/') ? [route] : [];
+  });
+}
+
 export const usePermissionStore = defineStore('permission', () => {
   const routes = ref<RouteRecordRaw[]>([]);
   const addRoutes = ref<RouteRecordRaw[]>([]);
@@ -48,9 +60,10 @@ export const usePermissionStore = defineStore('permission', () => {
   const generateRoutes = async (): Promise<RouteRecordRaw[]> => {
     const res = await getRouters();
     const { data } = res;
-    const sdata = JSON.parse(JSON.stringify(data));
+    const menu = fitnessMenu(data);
+    const sdata = JSON.parse(JSON.stringify(menu));
     const rdata = JSON.parse(JSON.stringify(data));
-    const defaultData = JSON.parse(JSON.stringify(data));
+    const defaultData = JSON.parse(JSON.stringify(menu));
     const sidebarRoutes = filterAsyncRouter(sdata);
     const rewriteRoutes = filterAsyncRouter(rdata, undefined, true);
     const defaultRoutes = filterAsyncRouter(defaultData);

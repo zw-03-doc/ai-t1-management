@@ -31,20 +31,21 @@ export const useAppStore = defineStore('app', () => {
 
     sidebar.opened = !sidebar.opened;
     sidebar.withoutAnimation = withoutAnimation;
-    if (sidebar.opened) {
-      sidebarStatus.value = '1';
-    } else {
-      sidebarStatus.value = '0';
+    if (device.value === 'desktop') {
+      sidebarStatus.value = sidebar.opened ? '1' : '0';
     }
   };
 
-  const closeSideBar = ({ withoutAnimation }: any): void => {
-    sidebarStatus.value = '0';
-    sidebar.opened = false;
-    sidebar.withoutAnimation = withoutAnimation;
+  const closeMobileDrawer = (): void => {
+    if (device.value === 'mobile') {
+      sidebar.opened = false;
+      sidebar.withoutAnimation = false;
+    }
   };
-  const toggleDevice = (d: string): void => {
-    device.value = d;
+  const setDevice = (next: 'mobile' | 'desktop'): void => {
+    device.value = next;
+    sidebar.opened = next === 'desktop' && sidebarStatus.value === '1';
+    sidebar.withoutAnimation = true;
   };
   const setSize = (s: 'large' | 'default' | 'small'): void => {
     size.value = s;
@@ -65,8 +66,8 @@ export const useAppStore = defineStore('app', () => {
     size,
     changeLanguage,
     toggleSideBar,
-    closeSideBar,
-    toggleDevice,
+    closeMobileDrawer,
+    setDevice,
     setSize,
     toggleSideBarHide
   };

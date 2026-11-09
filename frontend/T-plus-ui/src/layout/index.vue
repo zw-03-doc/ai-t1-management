@@ -1,39 +1,32 @@
 <template>
   <div :class="classObj" class="app-wrapper" :style="{ '--current-color': theme }">
-    <div v-if="device === 'mobile' && sidebar.opened" class="drawer-bg" @click="handleClickOutside" />
-    <side-bar v-if="!sidebar.hide" class="sidebar-container" />
+    <button v-if="drawerOpen" class="drawer-bg" type="button" aria-label="关闭导航菜单" @click="appStore.closeMobileDrawer" />
+    <side-bar v-if="!sidebar.hide" id="app-navigation" class="sidebar-container" :inert="device === 'mobile' && !sidebar.opened" @click="onSidebarClick" />
     <div :class="{ sidebarHide: sidebar.hide }" class="main-container">
       <div :class="{ 'fixed-header': fixedHeader }">
-        <navbar ref="navbarRef" @set-layout="setLayout" />
+        <navbar ref="navbarRef" />
       </div>
       <app-main />
-      <settings ref="settingRef" />
+      <settings />
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
 import SideBar from './components/Sidebar/index.vue';
-import { AppMain, Navbar, Settings, TagsView } from './components';
+import { AppMain, Navbar, Settings } from './components';
 import { useAppStore } from '@/store/modules/app';
 import { useSettingsStore } from '@/store/modules/settings';
-import { NavTypeEnum } from '@/enums/NavTypeEnum';
-import { initWebSocket } from '@/utils/websocket';
-import { initSSE } from '@/utils/sse';
+import { useEventListener, useMediaQuery } from '@vueuse/core';
 
 const settingsStore = useSettingsStore();
+const appStore = useAppStore();
+const route = useRoute();
 const theme = computed(() => settingsStore.theme);
-const sidebar = computed(() => useAppStore().sidebar);
-const device = computed(() => useAppStore().device);
-const needTagsView = computed(() => settingsStore.tagsView);
+const sidebar = computed(() => appStore.sidebar);
+const device = computed(() => appStore.device);
 const fixedHeader = computed(() => settingsStore.fixedHeader);
-const layout = computed(() => settingsStore.navType);
-
-// 根据布局模式判断是否显示侧边栏
-const showSidebar = computed(() => {
-  if (sidebar.value.hide) return false;
-  return layout.value === NavTypeEnum.LEFT || layout.value === NavTypeEnum.MIX;
-});
+const drawerOpen = computed(() => device.value === 'mobile' && !sidebar.value.hide && sidebar.value.opened);
 
 const classObj = computed(() => ({
   hideSidebar: !sidebar.value.opened,
@@ -42,23 +35,21 @@ const classObj = computed(() => ({
   mobile: device.value === 'mobile'
 }));
 
-const { width } = useWindowSize();
-const WIDTH = 992; // refer to Bootstrap's responsive design
-
-watchEffect(() => {
-  if (device.value === 'mobile') {
-    useAppStore().closeSideBar({ withoutAnimation: false });
-  }
-  if (width.value - 1 < WIDTH) {
-    useAppStore().toggleDevice('mobile');
-    useAppStore().closeSideBar({ withoutAnimation: true });
-  } else {
-    useAppStore().toggleDevice('desktop');
-  }
+const isNarrow = useMediaQuery('(max-width: 992px)');
+watch(isNarrow, (narrow) => appStore.setDevice(narrow ? 'mobile' : 'desktop'), { immediate: true });
+watch(() => route.fullPath, () => appStore.closeMobileDrawer());
+useEventListener('keydown', (event) => {
+  if (drawerOpen.value && event.key === 'Escape') appStore.closeMobileDrawer();
 });
 
+function onSidebarClick(event: MouseEvent) {
+  // Re-selecting the current page produces no route change. A group title should stay open.
+  if (drawerOpen.value && event.target instanceof Element && event.target.closest('a[href]')) {
+    appStore.closeMobileDrawer();
+  }
+}
+
 const navbarRef = ref<InstanceType<typeof Navbar>>();
-const settingRef = ref<InstanceType<typeof Settings>>();
 
 onMounted(() => {
   nextTick(() => {
@@ -66,22 +57,8 @@ onMounted(() => {
   });
 });
 
-onMounted(() => {
-  const protocol = window.location.protocol === 'https:' ? 'wss://' : 'ws://';
-  initWebSocket(protocol + window.location.host + import.meta.env.VITE_APP_BASE_API + '/resource/websocket');
-});
 
-onMounted(() => {
-  initSSE(import.meta.env.VITE_APP_BASE_API + '/resource/sse');
-});
 
-const handleClickOutside = () => {
-  useAppStore().closeSideBar({ withoutAnimation: false });
-};
-
-const setLayout = () => {
-  settingRef.value?.openSetting();
-};
 </script>
 
 <style lang="scss" scoped>
@@ -101,12 +78,13 @@ const setLayout = () => {
 }
 
 .drawer-bg {
-  background: #000;
-  opacity: 0.3;
+  background: rgb(0 0 0 / 30%);
+  border: 0;
+  padding: 0;
+  inset: 0;
   width: 100%;
-  top: 0;
   height: 100%;
-  position: absolute;
+  position: fixed;
   z-index: 999;
 }
 

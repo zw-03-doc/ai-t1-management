@@ -12,7 +12,7 @@
     <div class="right-menu flex align-center">
       <template v-if="appStore.device !== 'mobile'">
         <el-select
-          v-if="userId === 1 && tenantEnabled"
+          v-if="userId === 1 && tenantEnabled && tenantList.length > 1"
           v-model="companyName"
           class="min-w-244px"
           clearable
@@ -32,29 +32,6 @@
             <svg-icon class-name="search-icon" icon-class="search" />
           </div>
         </el-tooltip>
-        <!-- 消息 -->
-        <el-tooltip :content="proxy.$t('navbar.message')" effect="dark" placement="bottom">
-          <div>
-            <el-popover placement="bottom" trigger="click" transition="el-zoom-in-top" :width="300" :persistent="false">
-              <template #reference>
-                <el-badge :value="newNotice > 0 ? newNotice : ''" :max="99">
-                  <div class="right-menu-item hover-effect" style="display: block"><svg-icon icon-class="message" /></div>
-                </el-badge>
-              </template>
-              <template #default>
-                <notice></notice>
-              </template>
-            </el-popover>
-          </div>
-        </el-tooltip>
-        <el-tooltip :content="proxy.$t('navbar.full')" effect="dark" placement="bottom">
-          <screenfull id="screenfull" class="right-menu-item hover-effect" />
-        </el-tooltip>
-
-        <el-tooltip :content="proxy.$t('navbar.layoutSize')" effect="dark" placement="bottom">
-          <size-select id="size-select" class="right-menu-item hover-effect" />
-        </el-tooltip>
-
       </template>
       <div class="avatar-container">
         <el-dropdown class="right-menu-item hover-effect" trigger="click" @command="handleCommand">
@@ -67,9 +44,12 @@
               <router-link v-if="!dynamic" to="/user/profile">
                 <el-dropdown-item>{{ proxy.$t('navbar.personalCenter') }}</el-dropdown-item>
               </router-link>
-              <el-dropdown-item v-if="settingsStore.showSettings" command="setLayout">
-                <span>{{ proxy.$t('navbar.layoutSetting') }}</span>
-              </el-dropdown-item>
+              <router-link v-if="canManageUsers" to="/system/user">
+                <el-dropdown-item>管理账号</el-dropdown-item>
+              </router-link>
+              <router-link v-if="canManageRoles" to="/system/role">
+                <el-dropdown-item>角色权限</el-dropdown-item>
+              </router-link>
               <el-dropdown-item divided command="logout">
                 <span>{{ proxy.$t('navbar.logout') }}</span>
               </el-dropdown-item>
@@ -86,11 +66,10 @@ import SearchMenu from './TopBar/search.vue';
 import { useAppStore } from '@/store/modules/app';
 import { useUserStore } from '@/store/modules/user';
 import { useSettingsStore } from '@/store/modules/settings';
-import { useNoticeStore } from '@/store/modules/notice';
+import { checkPermi } from '@/utils/permission';
 import { getTenantList } from '@/api/login';
 import { dynamicClear, dynamicTenant } from '@/api/system/tenant';
 import { TenantVO } from '@/api/types';
-import notice from './notice/index.vue';
 import router from '@/router';
 import { ElMessageBoxOptions } from 'element-plus/es/components/message-box/src/message-box.type';
 import { NavTypeEnum } from '@/enums/NavTypeEnum';
@@ -100,8 +79,8 @@ import TopBar from './TopBar'
 const appStore = useAppStore();
 const userStore = useUserStore();
 const settingsStore = useSettingsStore();
-const noticeStore = storeToRefs(useNoticeStore());
-const newNotice = ref(<number>0);
+const canManageUsers = computed(() => checkPermi(['system:user:list']) && router.getRoutes().some(r => r.path === '/system/user'));
+const canManageRoles = computed(() => checkPermi(['system:role:list']) && router.getRoutes().some(r => r.path === '/system/role'));
 
 const { proxy } = getCurrentInstance() as ComponentInternalInstance;
 
@@ -175,29 +154,9 @@ const logout = async () => {
   });
 };
 
-const emits = defineEmits(['setLayout']);
-const setLayout = () => {
-  emits('setLayout');
-};
-// 定义Command方法对象 通过key直接调用方法
-const commandMap: { [key: string]: any } = {
-  setLayout,
-  logout
-};
 const handleCommand = (command: string) => {
-  // 判断是否存在该方法
-  if (commandMap[command]) {
-    commandMap[command]();
-  }
+  if (command === 'logout') logout();
 };
-//用深度监听 消息
-watch(
-  () => noticeStore.state.value.notices,
-  (newVal) => {
-    newNotice.value = newVal.filter((item: any) => !item.read).length;
-  },
-  { deep: true }
-);
 </script>
 
 <style lang="scss" scoped>
