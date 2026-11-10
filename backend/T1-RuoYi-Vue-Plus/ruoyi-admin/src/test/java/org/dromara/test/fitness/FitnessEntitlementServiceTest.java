@@ -29,6 +29,23 @@ class FitnessEntitlementServiceTest {
         var course=new FitCourse(); course.setCourseId(6L); course.setTenantId("000000"); course.setCourseType("group"); when(courses.selectById(6L)).thenReturn(course); return c;
     }
     private FitCourseReservation reservation() { var r=new FitCourseReservation(); r.setCardId(1L); r.setMemberId(2L); r.setScheduleId(5L); return r; }
+    @Test void additionalAllowedCourseWorksForEligibilityAndBooking() {
+        try (var auth = mockStatic(FitnessSecurityUtils.class)) {
+            auth.when(FitnessSecurityUtils::getCurrentTenantId).thenReturn("000000");
+            var card = setup("count_card");
+            var plan = new FitCardPlan();
+            plan.setPlanId(9L);
+            plan.setBindCourseId(99L);
+            when(plans.selectById(9L)).thenReturn(plan);
+            when(cards.selectList(any())).thenReturn(List.of(card));
+            when(plans.hasExtraCourse("000000", 9L, 6L)).thenReturn(true);
+            assertEquals(List.of(card), service.eligibleCards(2L, 5L));
+            assertEquals(1L, service.reservationRule(2L, 5L, 1L, false).cardId());
+            when(plans.hasExtraCourse("000000", 9L, 6L)).thenReturn(false);
+            assertTrue(service.eligibleCards(2L, 5L).isEmpty());
+            assertThrows(ServiceException.class, () -> service.reservationRule(2L, 5L, 1L, false));
+        }
+    }
     @Test void noCardBookingRequiresExplicitExperience() {
         assertThrows(ServiceException.class,()->service.reservationRule(2L,5L,null,false));
         assertEquals("store_experience",service.reservationRule(2L,5L,null,true).reservationType());

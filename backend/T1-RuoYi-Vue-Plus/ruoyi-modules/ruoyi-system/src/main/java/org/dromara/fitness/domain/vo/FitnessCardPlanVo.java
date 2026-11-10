@@ -148,8 +148,12 @@ public class FitnessCardPlanVo implements Serializable {
     /**
      * 手动绑定课程名称
      */
-    @ExcelProperty(value = "关联课程")
     private String bindCourseName;
+
+    private List<Long> allowedCourseIds;
+
+    @ExcelProperty(value = "适用课程")
+    private String allowedCourseNames;
 
     /**
      * 排序号

@@ -22,7 +22,7 @@ export interface RemoteSelectParams {
 
 
 const DEFAULT_PAGE_SIZE = 20;
-const courseTypeNames: Record<string, string> = { private: '私教课', small_group: '小班课', group: '团课' };
+const courseTypeNames: Record<string, string> = { private: '私教课', small: '小班课', experience: '体验课', small_group: '小班课', group: '团课' };
 const planTypeNames: Record<string, string> = { private_card: '私教课包', group_card: '团课课包', times_card: '次卡', time_card: '期限卡', stored_card: '储值卡' };
 
 const hasValue = (value: unknown) => value !== undefined && value !== null && value !== '';

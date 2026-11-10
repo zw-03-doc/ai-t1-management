@@ -52,7 +52,7 @@ const pageConfig = reactive({
     { label: '活动副标题', prop: 'subTitle' },
     { label: '活动类型', prop: 'activityType', type: 'select', options: activityTypeOptions },
     { label: '活动入口', prop: 'actionType', type: 'select', options: actionTypeOptions },
-    { label: '绑定卡项', prop: 'planIds', type: 'remoteSelectMultiple', remoteMethod: loadCardPlanOptions, placeholder: '选择活动卡项，详情入口仅选一项', visibleWhen: (form: any) => ['detail', 'plan'].includes(form.actionType) },
+    { label: '绑定卡项', prop: 'planIds', type: 'remoteSelectMultiple', remoteMethod: loadCardPlanOptions, selectionLimit: (form: Record<string, any>) => form.actionType === 'plan' ? 1 : 0, placeholder: '请选择活动卡项', visibleWhen: (form: any) => ['detail', 'plan'].includes(form.actionType) },
     { label: '关联课程', prop: 'courseId', type: 'remoteSelect', remoteMethod: loadCourseOptions, visibleWhen: (form: any) => form.actionType === 'course' },
     { label: '咨询教练', prop: 'contactCoachId', type: 'remoteSelect', remoteMethod: loadCoachOptions, placeholder: '选择提供微信咨询的教练' },
     { label: '折扣标签', prop: 'discountLabel', placeholder: '示例：7折、立减100、买一赠一' },

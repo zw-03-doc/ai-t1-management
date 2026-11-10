@@ -36,10 +36,8 @@
                 <input v-model="changes[row.key].end" aria-label="本场结束时间" type="time" />
                 <el-checkbox v-model="changes[row.key].nextDay">次日结束</el-checkbox>
               </div>
-              <el-select v-if="directed" v-model="changes[row.key].studentMemberIds" multiple filterable remote
-                :remote-method="searchMembers" aria-label="本场学员" placeholder="本场学员" @visible-change="visible => visible && searchMembers('')">
-                <el-option v-for="member in memberOptions" :key="String(member.value)" :label="member.label" :value="member.value" />
-              </el-select>
+              <FitnessMultiSelect v-if="directed" v-model="changes[row.key].studentMemberIds" label="本场学员"
+                placeholder="选择本场学员" :search="searchMembers" :options="memberOptions" />
             </div>
             <el-button link type="primary" @click="editingKey = ''">完成</el-button>
           </template>
@@ -51,6 +49,7 @@
 </template>
 
 <script setup lang="ts">
+import FitnessMultiSelect from '../components/FitnessMultiSelect.vue';
 import type { SessionTime } from './sessions';
 import { loadMemberOptions } from '../components/remoteOptions';
 const props = defineProps<{ model: Record<string, any> }>();

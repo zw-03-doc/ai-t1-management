@@ -28,7 +28,7 @@ class FitnessOptionalMemberProfileTest {
     private final FitnessMiniMapper mini = mock(FitnessMiniMapper.class);
     private final FitnessWechatMiniAuthService wechat = mock(FitnessWechatMiniAuthService.class);
     private final FitnessMemberAvatarService avatars = mock(FitnessMemberAvatarService.class);
-    private final FitnessMiniServiceImpl service = new FitnessMiniServiceImpl(null, null, null, mini, wechat, avatars);
+    private final FitnessMiniServiceImpl service = new FitnessMiniServiceImpl(null, null, null, mini, null, wechat, avatars);
 
     @BeforeAll
     static void initializeIdentifiers() {

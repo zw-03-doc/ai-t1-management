@@ -3,6 +3,12 @@
     <template #field-grantedTimes="{ model }">
       <el-form-item label="总次数"><output>{{ Number(model.totalTimes || 0) + Number(model.giftTimes || 0) }} 次</output></el-form-item>
     </template>
+    <template #field-legacyCourseType="{ model }">
+      <el-form-item label="原课型限制">
+        <span>{{ courseTypesLabel(model.supportCourseType) }}</span>
+        <el-button link @click="model.supportCourseType = ''">解除限制</el-button>
+      </el-form-item>
+    </template>
     <template #row-actions="{ row }">
       <el-button v-hasPermi="['fitness:memberCard:manage']" link type="primary" :disabled="row.status !== '0'" @click="bindingPlan = row">绑定会员</el-button>
     </template>
@@ -23,6 +29,11 @@ import type { FitnessCardPlanForm } from '@/api/fitness/cardPlan/types';
 function coursesForPlan(params: RemoteSelectParams) {
   const kind = params.model?.planType;
   return loadCourseOptions({ ...params, model: { ...params.model, courseTypeFilter: kind === 'private_package' ? 'private' : kind === 'small_group_package' ? 'small' : undefined } });
+}
+
+function courseTypesLabel(types: string) {
+  const names: Record<string, string> = { private: '私教课', small: '小班课', small_group: '小班课', group: '团课', experience: '体验课', all: '全部课程' };
+  return types.split(/[,，;\s]+/).map(type => names[type] || type).join('、');
 }
 
 const statusOptions = [
@@ -63,15 +74,15 @@ const pageConfig = reactive({
     { label: '销售价', prop: 'salePrice', type: 'number' },
     { label: '原价', prop: 'originalPrice', type: 'number' },
     { label: '有效天数', prop: 'validDays', type: 'number' },
-    { label: '绑定课程', prop: 'bindCourseId', type: 'remoteSelect', remoteMethod: coursesForPlan, placeholder: '选填，可按课程名称搜索' },
+    { label: '适用课程', prop: 'allowedCourseIds', type: 'remoteSelectMultiple', span: 24, remoteMethod: coursesForPlan, placeholder: '选择课程，留空表示不限具体课程', onSelect: (model: Record<string, any>) => { model.supportCourseType = ''; } },
     { label: '次数', prop: 'totalTimes', type: 'number', min: 0, precision: 0 },
     { label: '赠送次数', prop: 'giftTimes', type: 'number', min: 0, precision: 0 },
     { label: '总次数', prop: 'grantedTimes', type: 'custom' },
     { label: '储值金额', prop: 'storedAmount', type: 'number' },
-    { label: '支持课程类型', prop: 'supportCourseType' },
+    { label: '原课型限制', prop: 'legacyCourseType', type: 'custom', visibleWhen: (model: Record<string, any>) => !!model.supportCourseType && !['private_package', 'small_group_package'].includes(model.planType) },
     { label: '绑定教练', prop: 'isPrivateBindCoach', type: 'select', options: bindCoachOptions },
     { label: '私教/小班教练', prop: 'customCoachId', type: 'remoteSelect', remoteMethod: loadCoachOptions },
-    { label: '指定会员(1-5)', prop: 'customMemberIds', type: 'remoteSelectMultiple', remoteMethod: loadMemberOptions, span: 24 },
+    { label: '指定会员(1-5)', prop: 'customMemberIds', type: 'remoteSelectMultiple', remoteMethod: loadMemberOptions, selectionLimit: 5, span: 24 },
     { label: '排序号', prop: 'sortNo', type: 'number' },
     { label: '状态', prop: 'status', type: 'select', options: statusOptions },
     { label: '备注', prop: 'remark', type: 'textarea', span: 24 }
@@ -90,7 +101,7 @@ const pageConfig = reactive({
     { label: '总次数', prop: 'grantedTimes' },
     { label: '绑定教练', prop: 'customCoachName' },
     { label: '指定会员', prop: 'customMemberNames' },
-    { label: '绑定课程', prop: 'bindCourseName' },
+    { label: '适用课程', prop: 'allowedCourseNames' },
     { label: '创建时间', prop: 'createTime', type: 'date' },
     { label: '有效天数', prop: 'validDays' },
     { label: '储值金额', prop: 'storedAmount' },
@@ -120,7 +131,7 @@ const pageConfig = reactive({
     isPrivateBindCoach: '0',
     customCoachId: undefined,
     customMemberIds: [],
-    bindCourseId: undefined,
+    allowedCourseIds: [],
     sortNo: 0,
     status: '0',
     remark: ''
@@ -132,7 +143,7 @@ const pageConfig = reactive({
   listFn: listCardPlan,
   getFn: getCardPlan,
   addFn: addCardPlan,
-  updateFn: (form: FitnessCardPlanForm) => updateCardPlan({ ...form, bindCourseId: form.bindCourseId || null, storeId: form.storeId || null }),
+  updateFn: (form: FitnessCardPlanForm) => updateCardPlan({ ...form, storeId: form.storeId || null }),
   delFn: delCardPlan
 });
 </script>

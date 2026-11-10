@@ -16,6 +16,7 @@ import org.dromara.fitness.domain.FitCourse;
 import org.dromara.fitness.domain.FitMember;
 import org.dromara.fitness.domain.bo.FitnessCardPlanBo;
 import org.dromara.fitness.domain.vo.FitnessCardPlanVo;
+import org.dromara.fitness.domain.vo.FitnessPlanCourseVo;
 import org.dromara.fitness.mapper.FitnessCardPlanMapper;
 import org.dromara.fitness.mapper.FitnessCourseMapper;
 import org.dromara.fitness.mapper.FitnessMemberMapper;
@@ -50,7 +51,7 @@ public class FitnessCardPlanServiceImpl implements IFitnessCardPlanService {
     @Override
     public FitnessCardPlanVo queryById(Long planId) {
         FitnessCardPlanVo vo = baseMapper.selectCardPlanById(planId);
-        fillExtraFields(vo);
+        if (vo != null) fillExtraFields(List.of(vo));
         return vo;
     }
 
@@ -81,10 +82,12 @@ public class FitnessCardPlanServiceImpl implements IFitnessCardPlanService {
 
         applyPackageRule(add);
         validEntityBeforeSave(add);
-        validateCourseBinding(add);
+        List<Long> courses = requestedCourses(bo, List.of());
+        assignCourses(add, courses);
 
         boolean flag = baseMapper.insert(add) > 0;
         if (flag) {
+            saveExtraCourses(add, courses);
             bo.setPlanId(add.getPlanId());
             bo.setPlanNo(add.getPlanNo());
             bo.setBindCourseId(add.getBindCourseId());
@@ -111,15 +114,27 @@ public class FitnessCardPlanServiceImpl implements IFitnessCardPlanService {
 
         applyPackageRule(update);
         if (!bo.isStoreProvided()) update.setStoreId(db.getStoreId());
-        if (!bo.isBindCourseProvided()) {
-            update.setBindCourseId(db.getBindCourseId());
+        List<Long> previous = new ArrayList<>();
+        if (db.getBindCourseId() != null) {
+            previous.add(db.getBindCourseId());
+            baseMapper.selectExtraCourses(db.getTenantId(), List.of(db.getPlanId()), false)
+                .forEach(course -> previous.add(course.getCourseId()));
+        }
+        List<Long> courses = requestedCourses(bo, previous);
+        assignCourses(update, courses);
+        if (bo.getAllowedCourseIds() != null && !isPackagePlan(update.getPlanType()) && !courses.equals(previous)) {
+            update.setSupportCourseType("");
         }
         validEntityBeforeSave(update);
-        validateCourseBinding(update);
 
-        return baseMapper.update(update, new LambdaUpdateWrapper<FitCardPlan>().eq(FitCardPlan::getPlanId, db.getPlanId())
+        boolean updated = baseMapper.update(update, new LambdaUpdateWrapper<FitCardPlan>().eq(FitCardPlan::getPlanId, db.getPlanId())
             .set(bo.isStoreProvided() && update.getStoreId() == null, FitCardPlan::getStoreId, null)
-            .set(bo.isBindCourseProvided() && update.getBindCourseId() == null, FitCardPlan::getBindCourseId, null)) > 0;
+            .set(update.getBindCourseId() == null, FitCardPlan::getBindCourseId, null)) > 0;
+        if (updated && !courses.equals(previous)) {
+            baseMapper.deleteExtraCourses(update.getTenantId(), update.getPlanId());
+            saveExtraCourses(update, courses);
+        }
+        return updated;
     }
 
     @Override
@@ -186,15 +201,36 @@ public class FitnessCardPlanServiceImpl implements IFitnessCardPlanService {
         entity.setCustomMemberIds(null);
     }
 
-    private void validateCourseBinding(FitCardPlan plan) {
-        if (plan.getBindCourseId() == null) return;
-        FitCourse course = courseMapper.selectById(plan.getBindCourseId());
-        if (course == null || !Objects.equals(course.getTenantId(), plan.getTenantId()))
-            throw new ServiceException("所选课程不存在，请重新选择或清空");
-        if (plan.getStoreId() != null && !Objects.equals(plan.getStoreId(), course.getStoreId()))
-            throw new ServiceException("请选择方案适用门店的课程");
-        if (isPackagePlan(plan.getPlanType()) && !Objects.equals(plan.getSupportCourseType(), course.getCourseType()))
-            throw new ServiceException("请选择与课包类型一致的课程");
+    private List<Long> requestedCourses(FitnessCardPlanBo bo, List<Long> existing) {
+        if (bo.getAllowedCourseIds() != null) {
+            if (bo.getAllowedCourseIds().stream().anyMatch(Objects::isNull)) throw new ServiceException("所选课程无效");
+            return bo.getAllowedCourseIds().stream().distinct().toList();
+        }
+        if (!bo.isBindCourseProvided() || (!existing.isEmpty() && Objects.equals(existing.get(0), bo.getBindCourseId()))) {
+            return existing;
+        }
+        if (existing.size() > 1) throw new ServiceException("该方案已绑定多门课程，请刷新后台后编辑");
+        return bo.getBindCourseId() == null ? List.of() : List.of(bo.getBindCourseId());
+    }
+
+    private void assignCourses(FitCardPlan plan, List<Long> ids) {
+        plan.setBindCourseId(ids.isEmpty() ? null : ids.get(0));
+        if (ids.isEmpty()) return;
+        List<FitCourse> courses = courseMapper.selectBatchIds(ids);
+        if (courses.size() != ids.size()) throw new ServiceException("部分课程不存在，请重新选择");
+        for (FitCourse course : courses) {
+            if (!Objects.equals(course.getTenantId(), plan.getTenantId())) throw new ServiceException("所选课程不存在");
+            if (plan.getStoreId() != null && !Objects.equals(plan.getStoreId(), course.getStoreId())) {
+                throw new ServiceException("请选择方案适用门店的课程");
+            }
+            if (isPackagePlan(plan.getPlanType()) && !Objects.equals(plan.getSupportCourseType(), course.getCourseType())) {
+                throw new ServiceException("请选择与课包类型一致的课程");
+            }
+        }
+    }
+
+    private void saveExtraCourses(FitCardPlan plan, List<Long> ids) {
+        if (ids.size() > 1) baseMapper.insertExtraCourses(plan.getTenantId(), plan.getPlanId(), ids.subList(1, ids.size()));
     }
 
     private String resolveCourseTypeByPlanType(String planType) {
@@ -224,7 +260,23 @@ public class FitnessCardPlanServiceImpl implements IFitnessCardPlanService {
         if (list == null || list.isEmpty()) {
             return;
         }
-        list.forEach(this::fillExtraFields);
+        var extra = baseMapper.selectExtraCourses(currentTenantId(), list.stream().map(FitnessCardPlanVo::getPlanId).toList(), false)
+            .stream().collect(Collectors.groupingBy(FitnessPlanCourseVo::getPlanId));
+        for (FitnessCardPlanVo vo : list) {
+            List<Long> ids = new ArrayList<>();
+            List<String> names = new ArrayList<>();
+            if (vo.getBindCourseId() != null) {
+                ids.add(vo.getBindCourseId());
+                names.add(StringUtils.defaultIfBlank(vo.getBindCourseName(), "已删除课程"));
+                for (var course : extra.getOrDefault(vo.getPlanId(), List.of())) {
+                    ids.add(course.getCourseId());
+                    names.add(StringUtils.defaultIfBlank(course.getCourseName(), "已删除课程"));
+                }
+            }
+            vo.setAllowedCourseIds(ids);
+            vo.setAllowedCourseNames(String.join("、", names));
+            fillExtraFields(vo);
+        }
     }
 
     private void fillExtraFields(FitnessCardPlanVo vo) {

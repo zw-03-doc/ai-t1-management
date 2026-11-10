@@ -118,6 +118,9 @@ public class FitnessCardPlanBo extends BaseEntity {
      */
     private Long bindCourseId;
 
+    /** Null preserves the saved selection; an empty list explicitly removes the course restriction. */
+    private List<Long> allowedCourseIds;
+
     @JsonIgnore
     @Setter(AccessLevel.NONE)
     private boolean bindCourseProvided;

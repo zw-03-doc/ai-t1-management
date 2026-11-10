@@ -14,6 +14,7 @@ import org.dromara.fitness.domain.bo.FitnessMiniBo;
 import org.dromara.fitness.domain.dto.FitnessWechatMiniDto;
 import org.dromara.fitness.domain.vo.FitnessMiniVo;
 import org.dromara.fitness.mapper.FitnessMiniMapper;
+import org.dromara.fitness.mapper.FitnessCardPlanMapper;
 import org.dromara.fitness.service.IFitnessMiniService;
 import org.dromara.fitness.service.support.FitnessWechatMiniAuthService;
 import org.dromara.fitness.utils.FitnessBizCodeUtils;
@@ -45,6 +46,7 @@ public class FitnessMiniServiceImpl implements IFitnessMiniService {
     private final FitnessIdentityService identities;
     private final FitnessEntitlementService entitlements;
     private final FitnessMiniMapper baseMapper;
+    private final FitnessCardPlanMapper cardPlans;
     private final FitnessWechatMiniAuthService wechatMiniAuthService;
     private final FitnessMemberAvatarService memberAvatars;
 
@@ -251,6 +253,7 @@ public class FitnessMiniServiceImpl implements IFitnessMiniService {
         if (vo == null) {
             throw new ServiceException("卡项方案不存在");
         }
+        vo.setAdditionalCourses(cardPlans.selectExtraCourses(FitnessSecurityUtils.getCurrentTenantId(), List.of(planId), true));
         return vo;
     }
 

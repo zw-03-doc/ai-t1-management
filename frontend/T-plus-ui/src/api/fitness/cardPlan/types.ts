@@ -20,7 +20,9 @@ export interface FitnessCardPlanVO extends BaseEntity {
   customMemberIdsRaw?: string;
   customMemberIds?: Array<number | string>;
   customMemberNames?: string;
+  allowedCourseIds?: Array<number | string>;
   bindCourseId?: number | string;
+  allowedCourseNames?: string;
   bindCourseName?: string;
   sortNo?: number;
   status?: string;
@@ -52,6 +54,7 @@ export interface FitnessCardPlanForm {
   isPrivateBindCoach?: string;
   customCoachId?: number | string;
   customMemberIds?: Array<number | string>;
+  allowedCourseIds?: Array<number | string>;
   bindCourseId?: number | string | null;
   sortNo?: number;
   status?: string;

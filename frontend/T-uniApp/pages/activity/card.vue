@@ -19,7 +19,8 @@
       <view v-if="activity && (activity.ruleNote || activity.discountLabel)" class="catalog-section">活动权益</view>
       <view v-if="activity?.discountLabel" class="catalog-body">{{ activity.discountLabel }}</view>
       <view v-if="activity?.ruleNote" class="catalog-body">{{ activity.ruleNote }}</view>
-      <view v-if="plan.bindCourseId" class="catalog-row" @tap="go('course/detail', {id: plan.bindCourseId})"><text><text class="catalog-sub">绑定课程　</text>{{ plan.bindCourseName || '查看课程' }}</text><text class="catalog-arrow">›</text></view>
+      <view v-if="courses.length" class="catalog-section">适用课程</view>
+      <view v-for="course in courses" :key="course.courseId" class="catalog-row" @tap="go('course/detail', {id: course.courseId})"><text>{{ course.courseName }}</text><text class="catalog-arrow">›</text></view>
       <button v-if="activity && (activity.coachContactWechat || activity.coachContactQrUrl)" class="catalog-button" @tap="go('activity/contact', {activityId})">联系教练微信</button>
     </block>
   </view>
@@ -29,7 +30,15 @@ import { memberActivityDetail, memberCardPlanDetail } from '../../api/auth'
 import { catalogLink, planType, courseType, price, grantedTimes } from '../../utils/catalog'
 export default {
   data() { return { id: '', activityId: '', plan: null, activity: null, error: '' } },
-  computed: { total() { return this.plan ? grantedTimes(this.plan) : 0 } },
+  computed: {
+    total() { return this.plan ? grantedTimes(this.plan) : 0 },
+    courses() {
+      if (!this.plan) return []
+      const { bindCourseId, bindCourseName, additionalCourses = [] } = this.plan
+      const first = bindCourseId ? [{ courseId: bindCourseId, courseName: bindCourseName || '查看课程' }] : []
+      return first.concat(additionalCourses || [])
+    }
+  },
   onLoad(options) { this.id = options.id; this.activityId = options.activityId || ''; this.load() },
   methods: {
     typeText: planType, priceText: price, courseText: courseType,

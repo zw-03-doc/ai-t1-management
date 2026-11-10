@@ -23,11 +23,18 @@
               >
                 <el-option v-for="option in field.options || []" :key="String(option.value)" :label="option.label" :value="option.value" />
               </el-select>
+              <FitnessMultiSelect
+                v-else-if="field.type === 'remoteSelectMultiple'" :model-value="queryParams[field.prop]" :label="field.label"
+                @update:model-value="value => { queryParams[field.prop] = value; onFilterChange(field); }"
+                :placeholder="field.placeholder || `选择${field.label}`"
+                :options="getFieldOptions(field, 'query')" :loading="getRemoteLoading('query', field.prop)"
+                :has-more="remoteMoreMap[getRemoteKey('query', field.prop)]"
+                :search="keyword => handleRemoteSearch(field, 'query', keyword)" @more="loadMore(field, 'query')"
+              />
               <el-select
-                v-else-if="['remoteSelect', 'remoteSelectMultiple'].includes(field.type || '')"
+                v-else-if="field.type === 'remoteSelect'"
                 v-model="queryParams[field.prop]"
                 @change="onFilterChange(field)"
-                :multiple="['remoteSelectMultiple'].includes(field.type || '')"
                 clearable
                 filterable
                 remote
@@ -184,16 +191,25 @@
               />
               <el-select
                 v-else-if="field.type === 'select'"
-                v-model="form[field.prop]"
+                v-model="form[field.prop]" @change="value => field.onSelect?.(form, field.options?.find(option => option.value === value))"
                 clearable
                 :placeholder="field.placeholder || `请选择${field.label}`"
               >
                 <el-option v-for="option in field.options || []" :key="String(option.value)" :label="option.label" :value="option.value" />
               </el-select>
+              <FitnessMultiSelect
+                v-else-if="field.type === 'remoteSelectMultiple'" :model-value="form[field.prop]" :label="field.label"
+                @update:model-value="value => { form[field.prop] = value; field.onSelect?.(form); }"
+                :max="typeof field.selectionLimit === 'function' ? field.selectionLimit(form) : field.selectionLimit"
+                :disabled="field.lockOnEdit && !!form[idKey]"
+                :placeholder="field.placeholder || `选择${field.label}`"
+                :options="getFieldOptions(field, 'form')" :loading="getRemoteLoading('form', field.prop)"
+                :has-more="remoteMoreMap[getRemoteKey('form', field.prop)]"
+                :search="keyword => handleRemoteSearch(field, 'form', keyword)" @more="loadMore(field, 'form')"
+              />
               <el-select
-                v-else-if="['remoteSelect', 'remoteSelectMultiple'].includes(field.type || '')"
+                v-else-if="field.type === 'remoteSelect'"
                 v-model="form[field.prop]"
-                :multiple="field.type === 'remoteSelectMultiple'"
                 :disabled="field.lockOnEdit && !!form[idKey]"
                 @change="value => field.onSelect?.(form, getFieldOptions(field, 'form').find(option => option.value === value))"
                 clearable
@@ -249,6 +265,7 @@
 <script setup name="FitnessCrudPage" lang="ts">
 import { useRoute, useRouter } from 'vue-router';
 import { checkPermi } from '@/utils/permission';
+import FitnessMultiSelect from './FitnessMultiSelect.vue';
 import CatalogImageUpload from './CatalogImageUpload.vue';
 import FitnessRecordDetails from './FitnessRecordDetails.vue';
 interface OptionItem {
@@ -290,6 +307,7 @@ interface FormField {
   placeholder?: string;
   options?: OptionItem[];
   remoteMethod?: RemoteMethod;
+  selectionLimit?: number | ((model: Record<string, any>) => number);
   span?: number;
   rows?: number;
   min?: number;

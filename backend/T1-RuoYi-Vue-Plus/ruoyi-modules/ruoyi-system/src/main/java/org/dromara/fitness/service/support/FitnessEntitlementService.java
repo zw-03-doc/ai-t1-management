@@ -47,7 +47,8 @@ public class FitnessEntitlementService {
         if (course == null || !Objects.equals(course.getTenantId(), tenant)) throw new ServiceException("课程不存在");
         FitCardPlan plan = card == null ? null : plans.selectById(card.getPlanId());
         // A later edit to the course binding must not invalidate an accepted booking at check-in.
-        if (newBooking && plan != null && plan.getBindCourseId() != null && !plan.getBindCourseId().equals(course.getCourseId()))
+        if (newBooking && plan != null && plan.getBindCourseId() != null && !plan.getBindCourseId().equals(course.getCourseId())
+            && !plans.hasExtraCourse(tenant, plan.getPlanId(), course.getCourseId()))
             throw new ServiceException("此卡仅可预约方案绑定的课程");
         FitnessEntitlementPolicy.validate(card, plan, course, schedule, memberId, tenant, new Date());
     }
