@@ -20,7 +20,7 @@ function script(file, exposed) {
 
 const crudFile = 'src/views/fitness/components/FitnessCrudPage.vue';
 const crudScript = script(crudFile,
-  'queryParams,form,dialog,clearContext,handleUpdate,handleAdd,cancel,closeDialog,reset,formRef,submitForm,loadRemoteOptions,remoteOptionsMap,remoteLoadingMap,remoteMoreMap,onFilterChange,onTextInput,handleQuery');
+  'queryParams,form,dialog,clearContext,handleUpdate,handleAdd,cancel,closeDialog,reset,formRef,submitForm,loadRemoteOptions,remoteOptionsMap,remoteLoadingMap,remoteMoreMap,onFilterChange,onTextInput,handleQuery,setDateStart');
 const copy = value => JSON.parse(JSON.stringify(value));
 const deferred = () => { let resolve; const promise = new Promise(done => { resolve = done; }); return { promise, resolve }; };
 const base = {
@@ -56,6 +56,24 @@ function setup(overrides = {}, query = {}) {
 
 const tests = [];
 const test = (name, run) => tests.push({ name, run });
+
+test('a date alone matches one day; moving or clearing it keeps the range valid', async () => {
+  const field = { type: 'date', prop: 'scheduleDateStart', endProp: 'scheduleDateEnd' };
+  const { api, lists } = setup({ queryFields: [field] });
+  Object.assign(api.queryParams.value, { pageNum: 2, scheduleStatus: 'draft' });
+  for (const [start, expectedEnd] of [
+    ['2026-11-11', '2026-11-11'], ['2026-11-10', '2026-11-10'],
+    ['2026-11-12', '2026-11-15'], ['2026-11-18', '2026-11-18'], [null, undefined]
+  ]) {
+    if (start === '2026-11-12') api.queryParams.value.scheduleDateEnd = '2026-11-15';
+    await api.setDateStart(field, start);
+    const query = lists.at(-1);
+    assert.equal(query.scheduleDateStart, start || undefined);
+    assert.equal(query.scheduleDateEnd, expectedEnd);
+    assert.equal(query.scheduleStatus, 'draft');
+    assert.equal(query.pageNum, 1);
+  }
+});
 
 test('reservation starts with route context, and View all removes the initial schedule filter', () => {
   const noop = () => {};

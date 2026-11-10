@@ -115,6 +115,7 @@ const pageConfig = reactive({
   idKey: 'scheduleId',
   exportUrl: 'fitness/schedule/export',
   queryFields: [
+    { label: '排课日期', prop: 'scheduleDateStart', endProp: 'scheduleDateEnd', type: 'date' },
     { label: '排课编号', prop: 'scheduleNo' },
     { label: '课程', prop: 'courseId', type: 'remoteSelect', remoteMethod: loadCourseOptions },
     { label: '教练', prop: 'coachId', type: 'remoteSelect', remoteMethod: loadCoachOptions },
@@ -159,6 +160,8 @@ const pageConfig = reactive({
   initialQuery: {
     pageNum: 1,
     pageSize: 10,
+    scheduleDateStart: undefined,
+    scheduleDateEnd: undefined,
     scheduleNo: '',
     courseId: '',
     coachId: '',

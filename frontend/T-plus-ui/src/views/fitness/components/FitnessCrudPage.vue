@@ -5,7 +5,7 @@
       <div v-show="showSearch" class="mb-[10px]">
         <el-card shadow="never">
           <el-form ref="queryFormRef" :model="queryParams" :inline="true" @submit.prevent>
-            <el-form-item v-for="field in queryFields" :key="field.prop" :label="field.label" :prop="field.prop">
+            <el-form-item v-for="field in queryFields" :key="field.prop" :label="field.label" :prop="field.prop" :class="{ 'date-range-filter': field.endProp }">
               <el-input
                 v-if="field.type === 'input' || !field.type"
                 v-model="queryParams[field.prop]"
@@ -49,6 +49,21 @@
                 </template>
               </el-select>
 
+              <div v-else-if="field.type === 'date' && field.endProp" class="query-date-range">
+                <el-date-picker
+                  :model-value="queryParams[field.prop]"
+                  type="date" value-format="YYYY-MM-DD" placeholder="选择日期" :aria-label="field.label"
+                  @update:model-value="(day) => setDateStart(field, day)"
+                />
+                <span>至</span>
+                <el-date-picker
+                  :model-value="queryParams[field.endProp] === queryParams[field.prop] ? null : queryParams[field.endProp]"
+                  type="date" value-format="YYYY-MM-DD" placeholder="结束日期（选填）" aria-label="结束日期"
+                  :disabled="!queryParams[field.prop]"
+                  :disabled-date="(day: Date) => day < new Date(queryParams[field.prop] + 'T00:00:00')"
+                  @update:model-value="(day) => { queryParams[field.endProp!] = day || queryParams[field.prop]; onFilterChange(field); }"
+                />
+              </div>
               <el-date-picker
                 v-else-if="field.type === 'date'"
                 v-model="queryParams[field.prop]"
@@ -261,6 +276,7 @@ interface QueryField {
   options?: OptionItem[];
   remoteMethod?: RemoteMethod;
   dependsOn?: string;
+  endProp?: string;
 }
 
 interface FormField {
@@ -505,6 +521,18 @@ function onTextInput(value: string) {
   if (!value) return handleQuery();
   textSearchTimer = setTimeout(handleQuery, 300);
 }
+function setDateStart(field: QueryField, day: string | null) {
+  const query = queryParams.value;
+  const previousStart = query[field.prop];
+  const endKey = field.endProp!;
+  const previousEnd = query[endKey];
+  query[field.prop] = day || undefined;
+  if (!day || !previousEnd || previousEnd === previousStart || previousEnd < day) {
+    query[endKey] = query[field.prop];
+  }
+  return onFilterChange(field);
+}
+
 function onFilterChange(changed: QueryField) {
   for (const field of props.queryFields) {
     if (field.dependsOn !== changed.prop) continue;
@@ -651,6 +679,14 @@ onBeforeUnmount(() => {
 </script>
 
 <style scoped>
+.query-date-range { display: inline-flex; align-items: center; gap: 6px; color: var(--el-text-color-secondary); }
+.query-date-range :deep(.el-input) { width: 136px; }
+@media (max-width: 600px) {
+  .date-range-filter { display: flex; flex-direction: column; width: 100%; margin-right: 0; }
+  .date-range-filter :deep(.el-form-item__label) { justify-content: flex-start; }
+  .query-date-range { flex: 1; min-width: 0; }
+  .query-date-range :deep(.el-input) { flex: 1; width: 0; min-width: 0; }
+}
 .record-actions { display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 4px 9px; }
 .record-actions :deep(.el-button) { margin: 0; }
 </style>
