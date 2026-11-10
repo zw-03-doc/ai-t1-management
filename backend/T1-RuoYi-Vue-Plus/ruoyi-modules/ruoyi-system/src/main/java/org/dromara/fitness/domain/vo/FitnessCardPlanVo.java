@@ -81,9 +81,9 @@ public class FitnessCardPlanVo implements Serializable {
     private Integer validDays;
 
     /**
-     * 总次数
+     * 基础次数，不含赠送次数
      */
-    @ExcelProperty(value = "总次数")
+    @ExcelProperty(value = "次数")
     private Integer totalTimes;
 
     /**
@@ -91,6 +91,9 @@ public class FitnessCardPlanVo implements Serializable {
      */
     @ExcelProperty(value = "赠送次数")
     private Integer giftTimes;
+
+    @ExcelProperty(value = "总次数")
+    private Integer grantedTimes;
 
     /**
      * 储值金额
@@ -138,12 +141,12 @@ public class FitnessCardPlanVo implements Serializable {
     private String customMemberNames;
 
     /**
-     * 自动关联基础课程ID
+     * 手动绑定课程ID
      */
     private Long bindCourseId;
 
     /**
-     * 自动关联基础课程名称
+     * 手动绑定课程名称
      */
     @ExcelProperty(value = "关联课程")
     private String bindCourseName;

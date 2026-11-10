@@ -159,6 +159,7 @@ export async function loadCourseOptions({ keyword, value, model, pageNum = 1 }: 
     listRequest: () =>
       listCourse({
         pageNum,
+        courseType: model?.courseTypeFilter,
         pageSize: DEFAULT_PAGE_SIZE,
         storeId: model?.storeId || undefined,
         courseName: keyword || undefined

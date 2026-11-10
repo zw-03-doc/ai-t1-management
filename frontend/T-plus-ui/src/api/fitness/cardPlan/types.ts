@@ -1,4 +1,5 @@
 export interface FitnessCardPlanVO extends BaseEntity {
+  grantedTimes?: number;
   planId: number | string;
   planNo?: string;
   storeId?: number | string;
@@ -37,7 +38,7 @@ export interface FitnessCardPlanQuery extends PageQuery {
 export interface FitnessCardPlanForm {
   planId?: number | string;
   planNo?: string;
-  storeId?: number | string;
+  storeId?: number | string | null;
 
   planName: string;
   planType: string;
@@ -51,7 +52,7 @@ export interface FitnessCardPlanForm {
   isPrivateBindCoach?: string;
   customCoachId?: number | string;
   customMemberIds?: Array<number | string>;
-  bindCourseId?: number | string;
+  bindCourseId?: number | string | null;
   sortNo?: number;
   status?: string;
   remark?: string;

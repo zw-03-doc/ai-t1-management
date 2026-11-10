@@ -13,6 +13,13 @@ public final class FitnessEntitlementPolicy {
     private FitnessEntitlementPolicy() { }
     public record Consumption(int times, BigDecimal amount) { }
 
+    public static int grantedTimes(Integer base, Integer gift) {
+        int times = Objects.requireNonNullElse(base, 0), bonus = Objects.requireNonNullElse(gift, 0);
+        if (times < 0 || bonus < 0 || (long) times + bonus > Integer.MAX_VALUE)
+            throw new ServiceException("次数和赠送次数须为非负整数，总次数不能超过 2147483647");
+        return times + bonus;
+    }
+
     public static String mode(String planType) {
         if ("stored_card".equals(planType)) return "amount";
         if ("time_card".equals(planType)) return "free";

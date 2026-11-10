@@ -62,7 +62,7 @@ const rights = computed(() => {
   const p = selectedPlan.value!;
   if (p.planType === 'stored_card') return '储值 ¥' + Number(p.storedAmount ?? 0).toFixed(2);
   if (p.planType === 'time_card') return '时长卡';
-  return '共 ' + ((p.totalTimes || 0) + (p.giftTimes || 0)) + ' 次' + (p.giftTimes ? '（含赠送 ' + p.giftTimes + ' 次）' : '');
+  return '共 ' + (p.grantedTimes ?? Number(p.totalTimes || 0) + Number(p.giftTimes || 0)) + ' 次' + (p.giftTimes ? '（含赠送 ' + p.giftTimes + ' 次）' : '');
 });
 const issue = computed(() => {
   if (selectedMember.value && selectedMember.value.memberStatus !== 'normal') return '仅可为正常状态的会员绑卡';

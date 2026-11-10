@@ -13,6 +13,12 @@ import static org.junit.jupiter.api.Assertions.*;
 
 @Tag("dev")
 class FitnessEntitlementPolicyTest {
+    @Test void totalIncludesBonusExactlyOnce() {
+        assertEquals(7, FitnessEntitlementPolicy.grantedTimes(3, 4));
+        assertEquals(4, FitnessEntitlementPolicy.grantedTimes(null, 4));
+        assertThrows(ServiceException.class, () -> FitnessEntitlementPolicy.grantedTimes(-1, 4));
+        assertThrows(ServiceException.class, () -> FitnessEntitlementPolicy.grantedTimes(Integer.MAX_VALUE, 1));
+    }
     private final Date now = new Date(1000000);
     private FitMemberCard card() {
         FitMemberCard c = new FitMemberCard(); c.setCardId(1L); c.setTenantId("000000"); c.setMemberId(2L);

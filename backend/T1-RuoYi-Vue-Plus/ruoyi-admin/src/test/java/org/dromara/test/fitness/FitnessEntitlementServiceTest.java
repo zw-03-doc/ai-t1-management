@@ -62,6 +62,22 @@ class FitnessEntitlementServiceTest {
             assertThrows(ServiceException.class,()->service.consume(reservation(),1,BigDecimal.ZERO));
         }
     }
+    @Test void aCourseBindingLimitsNewBookingsAndKeepsExistingReservationsRedeemable() {
+        try (var auth = mockStatic(FitnessSecurityUtils.class)) {
+            auth.when(FitnessSecurityUtils::getCurrentTenantId).thenReturn("000000");
+            var card = setup("count_card");
+            var plan = new FitCardPlan();
+            plan.setBindCourseId(77L);
+            when(plans.selectById(9L)).thenReturn(plan);
+            when(cards.selectList(any())).thenReturn(List.of(card));
+            assertTrue(service.eligibleCards(2L, 5L).isEmpty());
+            assertThrows(ServiceException.class, () -> service.reservationRule(2L, 5L, 1L, false));
+            assertDoesNotThrow(() -> service.consume(reservation(), 1, BigDecimal.ZERO));
+            plan.setBindCourseId(null);
+            assertEquals(List.of(card), service.eligibleCards(2L, 5L));
+        }
+    }
+
     @Test void eligibleSelectionExcludesWrongStoreAndExhaustedButIncludesTermCard() {
         try(MockedStatic<FitnessSecurityUtils> auth=mockStatic(FitnessSecurityUtils.class)) {
             auth.when(FitnessSecurityUtils::getCurrentTenantId).thenReturn("000000"); var term=setup("time_card"); term.setRemainTimes(0); term.setBalanceAmount(BigDecimal.ZERO);

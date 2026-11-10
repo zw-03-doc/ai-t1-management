@@ -11,6 +11,7 @@ import org.dromara.fitness.domain.FitMemberCard;
 import org.dromara.fitness.mapper.FitnessCoachMapper;
 import org.dromara.fitness.mapper.FitnessMemberCardMapper;
 import org.dromara.fitness.mapper.FitnessStoreMapper;
+import org.dromara.fitness.utils.FitnessEntitlementPolicy;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
@@ -39,7 +40,7 @@ public class FitnessCardIssuer {
 
     public FitMemberCard issue(FitCardPlan plan, String tenant, Long memberId, Long storeId, Long coachId,
                                Date activeTime, String cardNo, Long orderId, String remark) {
-        int times = Objects.requireNonNullElse(plan.getTotalTimes(), 0) + Objects.requireNonNullElse(plan.getGiftTimes(), 0);
+        int times = FitnessEntitlementPolicy.grantedTimes(plan.getTotalTimes(), plan.getGiftTimes());
         FitMemberCard card = new FitMemberCard();
         card.setCardId(IdGeneratorUtil.nextLongId());
         card.setTenantId(tenant);

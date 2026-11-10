@@ -2,6 +2,9 @@ package org.dromara.fitness.domain.bo;
 
 
 import jakarta.validation.constraints.NotBlank;
+import com.fasterxml.jackson.annotation.JsonIgnore;
+import lombok.AccessLevel;
+import lombok.Setter;
 import jakarta.validation.constraints.NotNull;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
@@ -39,6 +42,15 @@ public class FitnessCardPlanBo extends BaseEntity {
      */
     private Long storeId;
 
+    @JsonIgnore
+    @Setter(AccessLevel.NONE)
+    private boolean storeProvided;
+
+    public void setStoreId(Long id) {
+        storeId = id;
+        storeProvided = true;
+    }
+
     /**
      * 卡项名称
      */
@@ -67,7 +79,7 @@ public class FitnessCardPlanBo extends BaseEntity {
     private Integer validDays;
 
     /**
-     * 总次数
+     * 基础次数，不含赠送次数
      */
     private Integer totalTimes;
 
@@ -102,9 +114,18 @@ public class FitnessCardPlanBo extends BaseEntity {
     private List<Long> customMemberIds;
 
     /**
-     * 自动关联基础课程ID
+     * 手动绑定的课程，显式传 null 解除绑定
      */
     private Long bindCourseId;
+
+    @JsonIgnore
+    @Setter(AccessLevel.NONE)
+    private boolean bindCourseProvided;
+
+    public void setBindCourseId(Long id) {
+        bindCourseId = id;
+        bindCourseProvided = true;
+    }
 
     /**
      * 排序号

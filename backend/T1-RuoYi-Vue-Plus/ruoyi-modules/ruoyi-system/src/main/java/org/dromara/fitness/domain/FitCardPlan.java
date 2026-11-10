@@ -66,7 +66,7 @@ public class FitCardPlan extends TenantEntity {
     private Integer validDays;
 
     /**
-     * 总次数
+     * 基础次数，不含赠送次数
      */
     private Integer totalTimes;
 
@@ -101,7 +101,7 @@ public class FitCardPlan extends TenantEntity {
     private String customMemberIds;
 
     /**
-     * 自动关联基础课程ID
+     * 手动绑定课程ID
      */
     private Long bindCourseId;
 

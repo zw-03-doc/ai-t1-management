@@ -8,24 +8,28 @@
       <view class="catalog-pair"><text>卡项类型</text><text>{{ typeText(plan.planType) }}</text></view>
       <view class="catalog-pair"><text>适用门店</text><text>{{ plan.storeName || '全部门店' }}</text></view>
       <view v-if="plan.validDays > 0" class="catalog-pair"><text>有效期</text><text>{{ plan.validDays }} 天</text></view>
-      <view v-if="plan.totalTimes > 0" class="catalog-pair"><text>包含次数</text><text>{{ plan.totalTimes }} 次</text></view>
-      <view v-if="plan.giftTimes > 0" class="catalog-pair"><text>赠送次数</text><text>{{ plan.giftTimes }} 次</text></view>
+      <block v-if="total > 0">
+        <view class="catalog-pair"><text>次数</text><text>{{ plan.totalTimes || 0 }} 次</text></view>
+        <view class="catalog-pair"><text>赠送次数</text><text>{{ plan.giftTimes || 0 }} 次</text></view>
+        <view class="catalog-pair"><text>总次数</text><text>{{ total }} 次</text></view>
+      </block>
       <view v-if="plan.storedAmount > 0" class="catalog-pair"><text>储值金额</text><text>{{ priceText(plan.storedAmount) }}</text></view>
-      <view v-if="plan.supportCourseType" class="catalog-pair"><text>适用课程</text><text>{{ courseText(plan.supportCourseType) }}</text></view>
+      <view v-if="plan.supportCourseType" class="catalog-pair"><text>适用课程类型</text><text>{{ courseText(plan.supportCourseType) }}</text></view>
       <view v-if="plan.isPrivateBindCoach === '1'" class="catalog-pair"><text>私教预约</text><text>限绑定教练</text></view>
       <view v-if="activity && (activity.ruleNote || activity.discountLabel)" class="catalog-section">活动权益</view>
       <view v-if="activity?.discountLabel" class="catalog-body">{{ activity.discountLabel }}</view>
       <view v-if="activity?.ruleNote" class="catalog-body">{{ activity.ruleNote }}</view>
-      <view v-if="plan.bindCourseId" class="catalog-row" @tap="go('course/detail', {id: plan.bindCourseId})"><text>{{ plan.bindCourseName || '查看关联课程' }}</text><text class="catalog-arrow">›</text></view>
+      <view v-if="plan.bindCourseId" class="catalog-row" @tap="go('course/detail', {id: plan.bindCourseId})"><text><text class="catalog-sub">绑定课程　</text>{{ plan.bindCourseName || '查看课程' }}</text><text class="catalog-arrow">›</text></view>
       <button v-if="activity && (activity.coachContactWechat || activity.coachContactQrUrl)" class="catalog-button" @tap="go('activity/contact', {activityId})">联系教练微信</button>
     </block>
   </view>
 </template>
 <script>
 import { memberActivityDetail, memberCardPlanDetail } from '../../api/auth'
-import { catalogLink, planType, courseType, price } from '../../utils/catalog'
+import { catalogLink, planType, courseType, price, grantedTimes } from '../../utils/catalog'
 export default {
   data() { return { id: '', activityId: '', plan: null, activity: null, error: '' } },
+  computed: { total() { return this.plan ? grantedTimes(this.plan) : 0 } },
   onLoad(options) { this.id = options.id; this.activityId = options.activityId || ''; this.load() },
   methods: {
     typeText: planType, priceText: price, courseText: courseType,

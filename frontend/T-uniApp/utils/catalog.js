@@ -29,6 +29,10 @@ export function catalogLink(path, params = {}) {
     .map(key => key + '=' + encodeURIComponent(params[key])).join('&')
   return '/pages/' + path + (query ? '?' + query : '')
 }
+export function grantedTimes(plan) {
+  return Number(plan.totalTimes || 0) + Number(plan.giftTimes || 0)
+}
 export function planSummary(plan) {
-  return [planType(plan.planType), plan.totalTimes > 0 ? plan.totalTimes + ' 次' : '', plan.validDays > 0 ? plan.validDays + ' 天' : ''].filter(Boolean).join(' · ')
+  const total = grantedTimes(plan)
+  return [planType(plan.planType), total > 0 ? '共 ' + total + ' 次' : '', plan.validDays > 0 ? plan.validDays + ' 天' : ''].filter(Boolean).join(' · ')
 }

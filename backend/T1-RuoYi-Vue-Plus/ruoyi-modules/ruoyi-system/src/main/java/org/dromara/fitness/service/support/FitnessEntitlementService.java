@@ -29,30 +29,34 @@ public class FitnessEntitlementService {
         }
         if (experience) throw new ServiceException("卡项预约不能同时选择无卡体验");
         FitMemberCard card = cards.selectById(cardId);
-        validate(card, memberId, scheduleId);
+        validate(card, memberId, scheduleId, true);
         return new ReservationRule(cardId, "card", FitnessEntitlementPolicy.mode(card.getPlanType()));
     }
 
     public List<FitMemberCard> eligibleCards(Long memberId, Long scheduleId) {
         return cards.selectList(new LambdaQueryWrapper<FitMemberCard>()
             .eq(FitMemberCard::getTenantId, FitnessSecurityUtils.getCurrentTenantId()).eq(FitMemberCard::getMemberId, memberId))
-            .stream().filter(card -> { try { validate(card, memberId, scheduleId); return true; } catch (ServiceException ex) { return false; } }).toList();
+            .stream().filter(card -> { try { validate(card, memberId, scheduleId, true); return true; } catch (ServiceException ex) { return false; } }).toList();
     }
 
-    private void validate(FitMemberCard card, Long memberId, Long scheduleId) {
+    private void validate(FitMemberCard card, Long memberId, Long scheduleId, boolean newBooking) {
         FitCourseSchedule schedule = schedules.selectById(scheduleId);
         String tenant = FitnessSecurityUtils.getCurrentTenantId();
         if (schedule == null || !Objects.equals(schedule.getTenantId(), tenant)) throw new ServiceException("场次不存在");
         FitCourse course = courses.selectById(schedule.getCourseId());
         if (course == null || !Objects.equals(course.getTenantId(), tenant)) throw new ServiceException("课程不存在");
-        FitnessEntitlementPolicy.validate(card, card == null ? null : plans.selectById(card.getPlanId()), course, schedule, memberId, tenant, new Date());
+        FitCardPlan plan = card == null ? null : plans.selectById(card.getPlanId());
+        // A later edit to the course binding must not invalidate an accepted booking at check-in.
+        if (newBooking && plan != null && plan.getBindCourseId() != null && !plan.getBindCourseId().equals(course.getCourseId()))
+            throw new ServiceException("此卡仅可预约方案绑定的课程");
+        FitnessEntitlementPolicy.validate(card, plan, course, schedule, memberId, tenant, new Date());
     }
 
     /** Caller holds the reservation lock and a transaction; card lock protects cross-session spending. */
     public FitnessEntitlementPolicy.Consumption consume(FitCourseReservation reservation, Integer times, BigDecimal amount) {
         FitMemberCard card = reservation.getCardId() == null ? null : cards.selectOne(new LambdaQueryWrapper<FitMemberCard>()
             .eq(FitMemberCard::getCardId, reservation.getCardId()).eq(FitMemberCard::getTenantId, FitnessSecurityUtils.getCurrentTenantId()).last("FOR UPDATE"));
-        if (reservation.getCardId() != null) validate(card, reservation.getMemberId(), reservation.getScheduleId());
+        if (reservation.getCardId() != null) validate(card, reservation.getMemberId(), reservation.getScheduleId(), false);
         var usage = FitnessEntitlementPolicy.consumption(reservation.getCardId(), card == null ? null : card.getPlanType(), times, amount);
         if (card == null) return usage;
         int remaining = card.getRemainTimes() == null ? 0 : card.getRemainTimes();
