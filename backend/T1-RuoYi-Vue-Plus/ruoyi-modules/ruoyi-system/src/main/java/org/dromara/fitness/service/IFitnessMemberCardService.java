@@ -3,6 +3,8 @@ package org.dromara.fitness.service;
 import org.dromara.common.mybatis.core.page.PageQuery;
 import org.dromara.common.mybatis.core.page.TableDataInfo;
 import org.dromara.fitness.domain.bo.FitnessMemberCardBo;
+import org.dromara.fitness.domain.bo.FitnessCardBindBo;
+import org.dromara.fitness.domain.vo.FitnessCardBindVo;
 import org.dromara.fitness.domain.vo.FitnessMemberCardVo;
 
 import java.util.List;
@@ -13,6 +15,8 @@ import java.util.List;
  * @author CodeBuddy
  */
 public interface IFitnessMemberCardService {
+
+    FitnessCardBindVo bind(FitnessCardBindBo bo);
 
     FitnessMemberCardVo queryById(Long cardId);
 

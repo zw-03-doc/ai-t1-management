@@ -1,6 +1,6 @@
 package org.dromara.fitness.service.impl;
 
-import cn.hutool.core.date.DateUtil;
+import org.dromara.fitness.service.support.FitnessCardIssuer;
 import com.baomidou.lock.annotation.Lock4j;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
@@ -27,9 +27,6 @@ import org.dromara.fitness.mapper.FitnessMemberCardMapper;
 import org.dromara.fitness.mapper.FitnessMemberMapper;
 import org.dromara.fitness.mapper.FitnessOrderItemMapper;
 import org.dromara.fitness.mapper.FitnessOrderMapper;
-import org.dromara.fitness.mapper.FitnessCoachMapper;
-import org.dromara.fitness.mapper.FitnessStoreMapper;
-import org.dromara.fitness.domain.FitCoach;
 import org.dromara.fitness.service.IFitnessOrderService;
 import org.dromara.fitness.utils.FitnessBizCodeUtils;
 
@@ -60,8 +57,7 @@ public class FitnessOrderServiceImpl implements IFitnessOrderService {
     private final FitnessCardPlanMapper cardPlanMapper;
     private final FitnessMemberMapper memberMapper;
     private final FitnessCheckinMapper checkinMapper;
-    private final FitnessCoachMapper coachMapper;
-    private final FitnessStoreMapper storeMapper;
+    private final FitnessCardIssuer cardIssuer;
 
     @Override
     public FitnessOrderVo queryById(Long orderId) {
@@ -96,7 +92,7 @@ public class FitnessOrderServiceImpl implements IFitnessOrderService {
             throw new ServiceException("新订单只能待收款；请使用确认线下收款完成发卡");
         requirePayMethod(bo.getPayMethod());
         Long storeId = bo.getStoreId() == null ? plan.getStoreId() : bo.getStoreId();
-        requireStoreAndCoach(storeId, bo.getBindCoachId(), plan);
+        cardIssuer.validateAssignment(currentTenantId(), storeId, bo.getBindCoachId(), plan);
 
         FitOrder order = MapstructUtils.convert(bo, FitOrder.class);
         order.setOrderId(IdGeneratorUtil.nextLongId());
@@ -150,7 +146,7 @@ public class FitnessOrderServiceImpl implements IFitnessOrderService {
             .orElseThrow(() -> new ServiceException("订单缺少卡项明细，请联系管理员"));
         if (bo.getPlanId() != null && !Objects.equals(bo.getPlanId(), planId)) throw new ServiceException("卡项方案不能修改，请取消后重新录单");
         Long storeId = bo.getStoreId() == null ? db.getStoreId() : bo.getStoreId();
-        requireStoreAndCoach(storeId, bo.getBindCoachId(), requirePlan(planId));
+        cardIssuer.validateAssignment(currentTenantId(), storeId, bo.getBindCoachId(), requirePlan(planId));
         requirePayMethod(bo.getPayMethod());
         FitOrder update = new FitOrder();
         update.setOrderId(db.getOrderId());
@@ -315,19 +311,6 @@ public class FitnessOrderServiceImpl implements IFitnessOrderService {
             throw new ServiceException("请选择有效的线下收款方式");
     }
 
-    private void requireStoreAndCoach(Long storeId, Long coachId, FitCardPlan plan) {
-        var store = storeId == null ? null : storeMapper.selectById(storeId);
-        if (store == null || !Objects.equals(store.getTenantId(), currentTenantId()) || !"0".equals(store.getStatus()))
-            throw new ServiceException("门店不存在或已停用");
-        if (plan.getStoreId() != null && !Objects.equals(plan.getStoreId(), storeId)) throw new ServiceException("卡项方案与订单门店不一致");
-        if ("1".equals(plan.getIsPrivateBindCoach()) && coachId == null) throw new ServiceException("该卡项要求绑定教练，请选择教练后再确认");
-        if (coachId != null) {
-            FitCoach coach = coachMapper.selectOne(new LambdaQueryWrapper<FitCoach>().eq(FitCoach::getCoachId, coachId).last("FOR UPDATE"));
-            if (coach == null || !Objects.equals(coach.getTenantId(), currentTenantId()) || !"0".equals(coach.getHireStatus()) || !Objects.equals(coach.getStoreId(), storeId))
-                throw new ServiceException("绑定教练必须在职且属于订单门店");
-        }
-    }
-
     private FitCardPlan requirePlan(Long planId) {
         FitCardPlan plan = cardPlanMapper.selectById(planId);
         if (plan == null) {
@@ -381,43 +364,15 @@ public class FitnessOrderServiceImpl implements IFitnessOrderService {
                 continue;
             }
             FitCardPlan plan = requirePlan(item.getItemRefId());
-            requireStoreAndCoach(order.getStoreId(), order.getBindCoachId(), plan);
-            Long cardId = issueMemberCard(order, item, plan, order.getBindCoachId());
+            cardIssuer.validateAssignment(currentTenantId(), order.getStoreId(), order.getBindCoachId(), plan);
+            Date activated = order.getPaidTime() == null ? new Date() : order.getPaidTime();
+            Long cardId = cardIssuer.issue(plan, order.getTenantId(), order.getMemberId(), order.getStoreId(), order.getBindCoachId(),
+                activated, "CARD" + IdGeneratorUtil.nextId(), order.getOrderId(), order.getRemark()).getCardId();
             FitOrderItem updateItem = new FitOrderItem();
             updateItem.setItemId(item.getItemId());
             updateItem.setGrantCardId(cardId);
             orderItemMapper.updateById(updateItem);
         }
-    }
-
-    private Long issueMemberCard(FitOrder order, FitOrderItem item, FitCardPlan plan, Long bindCoachId) {
-        Date activeTime = order.getPaidTime() == null ? new Date() : order.getPaidTime();
-        Date expireTime = plan.getValidDays() == null || plan.getValidDays() <= 0 ? null : DateUtil.offsetDay(activeTime, plan.getValidDays());
-        int totalTimes = nullSafe(plan.getTotalTimes()) + nullSafe(plan.getGiftTimes());
-
-        FitMemberCard card = new FitMemberCard();
-        card.setCardId(IdGeneratorUtil.nextLongId());
-        card.setTenantId(order.getTenantId());
-        card.setStoreId(order.getStoreId());
-        card.setMemberId(order.getMemberId());
-        card.setPlanId(plan.getPlanId());
-        card.setCardNo("CARD" + IdGeneratorUtil.nextId());
-        card.setCardName(plan.getPlanName());
-        card.setPlanType(plan.getPlanType());
-        card.setBindCoachId(bindCoachId);
-        card.setActiveTime(activeTime);
-        card.setExpireTime(expireTime);
-        card.setTotalTimes(totalTimes);
-        card.setUsedTimes(0);
-        card.setRemainTimes(totalTimes);
-        card.setBalanceAmount(nullSafe(plan.getStoredAmount()));
-        card.setCardStatus("active");
-        card.setOrderId(order.getOrderId());
-        card.setRemark(order.getRemark());
-        if (memberCardMapper.insert(card) <= 0) {
-            throw new ServiceException("支付成功后发卡失败");
-        }
-        return card.getCardId();
     }
 
     private void rollbackGrantedCards(Long orderId, List<FitOrderItem> itemList) {

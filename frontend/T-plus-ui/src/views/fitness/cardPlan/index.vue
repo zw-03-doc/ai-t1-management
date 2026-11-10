@@ -1,9 +1,17 @@
 <template>
-  <FitnessCrudPage v-bind="pageConfig as any" />
+  <FitnessCrudPage v-bind="pageConfig as any">
+    <template #row-actions="{ row }">
+      <el-button v-hasPermi="['fitness:memberCard:manage']" link type="primary" :disabled="row.status !== '0'" @click="bindingPlan = row">绑定会员</el-button>
+    </template>
+  </FitnessCrudPage>
+  <BindMemberCardDialog v-if="bindingPlan" :plan="bindingPlan" @close="bindingPlan = undefined" />
 </template>
 
 <script setup name="FitnessCardPlan" lang="ts">
 import FitnessCrudPage from '../components/FitnessCrudPage.vue';
+import BindMemberCardDialog from '../components/BindMemberCardDialog.vue';
+import type { FitnessCardPlanVO } from '@/api/fitness/cardPlan/types';
+const bindingPlan = ref<FitnessCardPlanVO>();
 import { addCardPlan, delCardPlan, getCardPlan, listCardPlan, updateCardPlan } from '@/api/fitness/cardPlan';
 import { loadCoachOptions, loadMemberOptions, loadStoreOptions } from '../components/remoteOptions';
 

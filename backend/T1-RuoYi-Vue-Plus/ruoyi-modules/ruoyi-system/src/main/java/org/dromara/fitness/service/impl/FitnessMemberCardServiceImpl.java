@@ -1,12 +1,24 @@
 package org.dromara.fitness.service.impl;
 
 import com.baomidou.lock.annotation.Lock4j;
+import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import lombok.RequiredArgsConstructor;
 import org.dromara.common.core.exception.ServiceException;
 import org.dromara.common.core.utils.StringUtils;
 import org.dromara.common.mybatis.core.page.PageQuery;
 import org.dromara.common.mybatis.core.page.TableDataInfo;
 import org.dromara.fitness.domain.FitMemberCard;
+import org.dromara.fitness.domain.FitMember;
+import org.dromara.fitness.domain.FitCardPlan;
+import org.dromara.fitness.domain.bo.FitnessCardBindBo;
+import org.dromara.fitness.domain.vo.FitnessCardBindVo;
+import org.dromara.fitness.mapper.FitnessMemberMapper;
+import org.dromara.fitness.mapper.FitnessCardPlanMapper;
+import org.dromara.fitness.service.support.FitnessCardIssuer;
+import org.dromara.fitness.service.support.FitnessOperationsService;
+import org.dromara.fitness.utils.FitnessSecurityUtils;
+import org.springframework.transaction.annotation.Transactional;
+import java.util.Arrays;
 import org.dromara.fitness.domain.bo.FitnessMemberCardBo;
 import org.dromara.fitness.domain.vo.FitnessMemberCardVo;
 import org.dromara.fitness.mapper.FitnessMemberCardMapper;
@@ -28,6 +40,59 @@ import java.util.Objects;
 public class FitnessMemberCardServiceImpl implements IFitnessMemberCardService {
 
     private final FitnessMemberCardMapper baseMapper;
+    private final FitnessMemberMapper members;
+    private final FitnessCardPlanMapper plans;
+    private final FitnessCardIssuer issuer;
+    private final FitnessOperationsService operations;
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public FitnessCardBindVo bind(FitnessCardBindBo bo) {
+        String tenant = FitnessSecurityUtils.getCurrentTenantId();
+        var member = members.selectOne(new LambdaQueryWrapper<FitMember>()
+            .eq(FitMember::getTenantId, tenant).eq(FitMember::getMemberId, bo.memberId()).last("FOR UPDATE"));
+        if (member == null || !"normal".equals(member.getMemberStatus())) throw new ServiceException("请选择正常状态的会员");
+        String cardNo = "MANUAL-" + bo.requestId();
+        var previous = baseMapper.selectOne(new LambdaQueryWrapper<FitMemberCard>()
+            .eq(FitMemberCard::getTenantId, tenant).eq(FitMemberCard::getCardNo, cardNo));
+        if (previous != null) {
+            if (!bo.memberId().equals(previous.getMemberId()) || !bo.planId().equals(previous.getPlanId())
+                || bo.storeId() != null && !bo.storeId().equals(previous.getStoreId())
+                || bo.bindCoachId() != null && !bo.bindCoachId().equals(previous.getBindCoachId()))
+                throw new ServiceException("本次请求已用于其他绑卡操作，请重新打开");
+            return new FitnessCardBindVo(previous.getCardId(), previous.getCardNo(), false);
+        }
+        var plan = plans.selectOne(new LambdaQueryWrapper<FitCardPlan>()
+            .eq(FitCardPlan::getTenantId, tenant).eq(FitCardPlan::getPlanId, bo.planId()).last("FOR UPDATE"));
+        if (plan == null || !"0".equals(plan.getStatus())) throw new ServiceException("请选择已上架的卡项方案");
+        Long coach = bo.bindCoachId();
+        if ("private_package".equals(plan.getPlanType()) || "small_group_package".equals(plan.getPlanType())) {
+            if (!Arrays.asList(Objects.toString(plan.getCustomMemberIds(), "").split(",")).contains(bo.memberId().toString()))
+                throw new ServiceException("该会员不在课包的指定名单中，请先修改方案");
+            if (plan.getCustomCoachId() == null || coach != null && !coach.equals(plan.getCustomCoachId()))
+                throw new ServiceException("请使用课包指定的教练");
+            coach = plan.getCustomCoachId();
+        }
+        Long store = bo.storeId() != null ? bo.storeId() : (plan.getStoreId() != null ? plan.getStoreId() : member.getHomeStoreId());
+        issuer.validateAssignment(tenant, store, coach, plan);
+        Date now = new Date();
+        var same = new LambdaQueryWrapper<FitMemberCard>()
+            .eq(FitMemberCard::getTenantId, tenant).eq(FitMemberCard::getMemberId, bo.memberId())
+            .eq(FitMemberCard::getStoreId, store).eq(FitMemberCard::getPlanId, bo.planId())
+            .eq(coach != null, FitMemberCard::getBindCoachId, coach).isNull(coach == null, FitMemberCard::getBindCoachId)
+            .in(FitMemberCard::getCardStatus, "active", "unused", "frozen")
+            .and(q -> q.isNull(FitMemberCard::getExpireTime).or().gt(FitMemberCard::getExpireTime, now))
+            .orderByDesc(FitMemberCard::getCardId).last("LIMIT 1 FOR UPDATE");
+        var held = baseMapper.selectOne(same);
+        if (held != null) {
+            if ("frozen".equals(held.getCardStatus())) throw new ServiceException("会员已持有冻结的同款卡，请到会员持卡中处理");
+            return new FitnessCardBindVo(held.getCardId(), held.getCardNo(), false);
+        }
+        var card = issuer.issue(plan, tenant, bo.memberId(), store, coach, now, cardNo, null, bo.remark());
+        operations.audit(bo.memberId(), store, null, null, null, "admin_bind_member_card", "web",
+            plan.getPlanName() + " · " + cardNo + (StringUtils.isBlank(bo.remark()) ? "" : " · " + bo.remark()));
+        return new FitnessCardBindVo(card.getCardId(), cardNo, true);
+    }
 
     @Override
     public FitnessMemberCardVo queryById(Long cardId) {

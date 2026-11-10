@@ -2,6 +2,10 @@ import request from '@/utils/request';
 import { AxiosPromise } from 'axios';
 import { FitnessMemberCardForm, FitnessMemberCardQuery, FitnessMemberCardVO } from './types';
 
+export function bindMemberCard(data: { memberId: string | number; planId: string | number; storeId: string | number; bindCoachId?: string | number; requestId: string; remark?: string }): AxiosPromise<{ cardId: string; cardNo: string; created: boolean }> {
+  return request({ url: '/fitness/memberCard/bind', method: 'post', data });
+}
+
 export function listMemberCard(query: FitnessMemberCardQuery): AxiosPromise<FitnessMemberCardVO[]> {
   return request({ url: '/fitness/memberCard/list', method: 'get', params: query });
 }

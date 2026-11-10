@@ -31,6 +31,7 @@ const detailFields = [
   { label: '预约记录 ID', prop: 'reservationId' }, { label: '说明 / 原因', prop: 'remark' },
 ];
 const actionLabels: Record<string, string> = {
+  admin_bind_member_card: '管理员手动绑卡',
   coach_create_schedule: '教练排课',
   admin_finish_schedule: '管理员结束场次',
   admin_schedule_status: '管理员变更排课状态',

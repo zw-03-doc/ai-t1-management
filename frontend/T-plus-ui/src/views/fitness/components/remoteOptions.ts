@@ -95,12 +95,12 @@ async function buildOptions<T = any>(params: {
   return Object.assign(uniqueOptions(result), { hasMore });
 }
 
-export async function loadStoreOptions({ keyword, value, pageNum = 1 }: RemoteSelectParams) {
+export async function loadStoreOptions({ keyword, value, model, pageNum = 1 }: RemoteSelectParams) {
   return buildOptions({
     keyword,
     pageNum,
     value,
-    listRequest: () => listStore({ pageNum, pageSize: DEFAULT_PAGE_SIZE, storeName: keyword || undefined }),
+    listRequest: () => listStore({ pageNum, pageSize: DEFAULT_PAGE_SIZE, storeName: keyword || undefined, status: model?.storeStatus }),
     getRequest: (target) => getStore(target as string | number),
     toOption: (item: any) => ({
       value: item.storeId,
@@ -131,7 +131,7 @@ export async function loadCoachOptions({ keyword, value, model, pageNum = 1 }: R
 }
 
 
-export async function loadMemberOptions({ keyword, value, pageNum = 1 }: RemoteSelectParams) {
+export async function loadMemberOptions({ keyword, value, model, pageNum = 1 }: RemoteSelectParams) {
   return buildOptions({
     keyword,
     pageNum,
@@ -139,6 +139,7 @@ export async function loadMemberOptions({ keyword, value, pageNum = 1 }: RemoteS
     listRequest: () =>
       listMember({
         pageNum,
+        memberStatus: model?.memberStatus,
         pageSize: DEFAULT_PAGE_SIZE,
         keyword: keyword?.trim() || undefined
       }),
@@ -179,6 +180,7 @@ export async function loadCardPlanOptions({ keyword, value, model, pageNum = 1 }
     listRequest: () =>
       listCardPlan({
         pageNum,
+        status: model?.planStatus,
         pageSize: DEFAULT_PAGE_SIZE,
         storeId: model?.storeId || undefined,
         planName: keyword || undefined

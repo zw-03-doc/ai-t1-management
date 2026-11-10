@@ -1,13 +1,20 @@
 <template>
   <FitnessCrudPage v-bind="pageConfig as any">
+    <template #row-actions="{ row }">
+      <el-button v-hasPermi="['fitness:memberCard:manage']" link type="primary" :disabled="row.memberStatus !== 'normal'" @click="bindingMember = row">绑卡</el-button>
+    </template>
     <template #detail-action="{ row }">
       <el-button v-hasPermi="['fitness:member:query']" link type="primary" @click="handleDetail(row)">详情</el-button>
     </template>
   </FitnessCrudPage>
+  <BindMemberCardDialog v-if="bindingMember" :member="bindingMember" @close="bindingMember = undefined" />
 </template>
 
 <script setup name="FitnessMember" lang="ts">
 import FitnessCrudPage from '../components/FitnessCrudPage.vue';
+import BindMemberCardDialog from '../components/BindMemberCardDialog.vue';
+import type { FitnessMemberVO } from '@/api/fitness/member/types';
+const bindingMember = ref<FitnessMemberVO>();
 import { addMember, delMember, getMember, listMember, updateMember } from '@/api/fitness/member';
 import { loadStoreOptions } from '../components/remoteOptions';
 import { useRouter } from 'vue-router';

@@ -15,6 +15,7 @@ import org.dromara.system.mapper.*;
 import org.dromara.system.service.*;
 import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
+import org.dromara.fitness.service.support.FitnessCardIssuer;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
 import org.mockito.ArgumentCaptor;
@@ -132,7 +133,7 @@ class FitnessIdentityLifecycleTest {
         final FitnessCheckinMapper checkins=mock(FitnessCheckinMapper.class);
         final FitnessCoachMapper coaches=mock(FitnessCoachMapper.class);
         final FitnessStoreMapper stores=mock(FitnessStoreMapper.class);
-        final FitnessOrderServiceImpl service=new FitnessOrderServiceImpl(orders,items,cards,plans,members,checkins,coaches,stores);
+        final FitnessOrderServiceImpl service=new FitnessOrderServiceImpl(orders,items,cards,plans,members,checkins,new FitnessCardIssuer(cards,coaches,stores));
         final FitOrder order=new FitOrder();final FitCoach coach=new FitCoach();
         OrderFixture() {
             order.setOrderId(10L);order.setTenantId("000000");order.setMemberId(2L);order.setStoreId(3L);order.setBindCoachId(4L);order.setOrderStatus("pending");order.setPayableAmount(new BigDecimal("99.00"));

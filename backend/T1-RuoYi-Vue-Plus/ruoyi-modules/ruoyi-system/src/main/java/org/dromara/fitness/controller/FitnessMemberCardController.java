@@ -13,6 +13,9 @@ import org.dromara.common.mybatis.core.page.PageQuery;
 import org.dromara.common.mybatis.core.page.TableDataInfo;
 import org.dromara.common.web.core.BaseController;
 import org.dromara.fitness.domain.bo.FitnessMemberCardBo;
+import org.dromara.fitness.domain.bo.FitnessCardBindBo;
+import org.dromara.fitness.domain.vo.FitnessCardBindVo;
+import jakarta.validation.Valid;
 import org.dromara.fitness.domain.vo.FitnessMemberCardVo;
 import org.dromara.fitness.service.IFitnessMemberCardService;
 import org.springframework.validation.annotation.Validated;
@@ -32,6 +35,13 @@ import java.util.List;
 public class FitnessMemberCardController extends BaseController {
 
     private final IFitnessMemberCardService fitnessMemberCardService;
+
+    @SaCheckPermission("fitness:memberCard:manage")
+    @Log(title = "会员手动绑卡", businessType = BusinessType.INSERT)
+    @PostMapping("/bind")
+    public R<FitnessCardBindVo> bind(@Valid @RequestBody FitnessCardBindBo bo) {
+        return R.ok(fitnessMemberCardService.bind(bo));
+    }
 
     @SaCheckPermission("fitness:memberCard:list")
     @GetMapping("/list")

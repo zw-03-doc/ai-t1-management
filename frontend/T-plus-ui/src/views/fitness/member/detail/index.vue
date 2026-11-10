@@ -3,12 +3,12 @@
     <el-card class="mb-[12px]" shadow="never">
       <el-space wrap>
         <strong>{{ detail.member?.realName || detail.member?.nickname || '会员' }}的业务办理</strong>
-        <el-button v-hasPermi="['fitness:order:add']" type="primary" @click="openMemberPage('order')">办理课包 / 查看订单</el-button>
+        <el-button v-hasPermi="['fitness:memberCard:manage']" type="primary" :disabled="detail.member?.memberStatus !== 'normal'" @click="binding = true">绑卡</el-button>
+        <el-button v-hasPermi="['fitness:order:add']" @click="openMemberPage('order')">办理订单</el-button>
         <el-button v-hasPermi="['fitness:reservation:list']" @click="openMemberPage('reservation')">预约课程</el-button>
         <el-button v-hasPermi="['fitness:checkin:list']" @click="openMemberPage('checkin')">签到与核销</el-button>
         <el-button v-hasPermi="['fitness:training:manage']" @click="openMemberPage('training')">训练档案</el-button>
       </el-space>
-      <p class="text-[13px] text-gray-500">课包决定课程权益；绑定教练后，教练可为会员定制训练计划。训练计划顺延不会改变已预约课程。</p>
     </el-card>
     <el-row :gutter="16">
       <!-- 左侧会员信息 -->
@@ -171,6 +171,8 @@
         </el-card>
       </el-col>
     </el-row>
+    <BindMemberCardDialog v-if="binding && detail.member" :key="detail.member.memberId" :member="detail.member"
+      @close="binding = false" @bound="showBoundCard" />
   </div>
 </template>
 
@@ -180,6 +182,9 @@ import request from '@/utils/request';
 import { useRoute, useRouter } from 'vue-router';
 import { useFitnessDictOptions, findDictLabel } from '../../components/useFitnessDictOptions';
 import { openFitnessPage } from '../../components/navigation';
+import BindMemberCardDialog from '../../components/BindMemberCardDialog.vue';
+const binding = ref(false);
+function showBoundCard() { activeTab.value = 'cards'; fetchDetail(); }
 
 const route = useRoute();
 const router = useRouter();
@@ -265,6 +270,7 @@ function checkinStatusTag(status?: string) {
 }
 
 async function fetchDetail() {
+  binding.value = false;
   const memberId = route.query.memberId as string;
   const requestId = ++detailRequest;
   detail.value = {};
