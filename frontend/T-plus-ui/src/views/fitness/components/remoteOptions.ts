@@ -8,6 +8,7 @@ import { getStore, listStore } from '@/api/fitness/store';
 import { getUser, listUser } from '@/api/system/user';
 
 export interface RemoteSelectOption {
+  salePrice?: number;
   label: string;
   value: string | number | boolean;
 }
@@ -185,6 +186,7 @@ export async function loadCardPlanOptions({ keyword, value, model, pageNum = 1 }
     getRequest: (target) => getCardPlan(target as string | number),
     toOption: (item: any) => ({
       value: item.planId,
+      salePrice: item.salePrice,
       label: `${item.planName || '未命名方案'}${item.planNo ? `｜${item.planNo}` : ''}${item.planType ? `（${planTypeNames[item.planType] || '课包'}）` : ''}`
     })
   });

@@ -64,6 +64,7 @@
         }}</text
         >
       </button>
+      <button class="explore-button" @tap="goActivity">门店活动与价目表</button>
       <button class="explore-button" @tap="openGuide">
         训练计划
       </button>
@@ -482,9 +483,7 @@ export default {
       this.browserLogin = true;
     },
     goActivity() {
-      uni.navigateTo({
-        url: "/pages/activity/index",
-      });
+      this.startTraining("/pages/activity/index" + (this.venueStore ? "?storeId=" + encodeURIComponent(this.venueStore) : ""));
     },
     goCoachApp() {
       this.navigateAfterLogin("coach");

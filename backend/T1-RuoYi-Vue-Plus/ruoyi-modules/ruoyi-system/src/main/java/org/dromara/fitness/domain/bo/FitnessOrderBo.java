@@ -47,6 +47,10 @@ public class FitnessOrderBo extends BaseEntity {
 
     private BigDecimal discountAmount;
 
+    /** Price displayed when the plan was selected and amount to confirm at offline collection. */
+    private BigDecimal quotedPlanPrice;
+    private BigDecimal settlementAmount;
+
     private BigDecimal payableAmount;
 
     private BigDecimal paidAmount;

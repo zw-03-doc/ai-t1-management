@@ -127,4 +127,5 @@ public class FitnessCoachVo implements Serializable {
 
 
     private String contactWechat;
+    private String contactQrUrl;
 }

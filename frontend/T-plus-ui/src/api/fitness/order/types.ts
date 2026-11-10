@@ -46,6 +46,8 @@ export interface FitnessOrderQuery extends PageQuery {
 }
 
 export interface FitnessOrderForm {
+  quotedPlanPrice?: number;
+  settlementAmount?: number;
   orderId?: number | string;
   storeId?: number | string;
   memberId?: number | string;

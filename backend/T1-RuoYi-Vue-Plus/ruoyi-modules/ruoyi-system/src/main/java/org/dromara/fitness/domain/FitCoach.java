@@ -108,4 +108,5 @@ public class FitCoach extends TenantEntity {
 
 
     private String contactWechat;
+    private String contactQrUrl;
 }

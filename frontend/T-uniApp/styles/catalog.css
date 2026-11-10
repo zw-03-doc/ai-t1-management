@@ -1,0 +1,26 @@
+.catalog-page { box-sizing: border-box; min-height: 100vh; max-width: 760px; margin: 0 auto; padding: 24rpx 32rpx calc(52rpx + env(safe-area-inset-bottom)); background: var(--t1-bg); color: var(--t1-text); }
+.catalog-page.with-nav { padding-bottom: calc(148rpx + env(safe-area-inset-bottom)); }
+.catalog-heading { font-size: 46rpx; line-height: 1.3; font-weight: 700; letter-spacing: -1rpx; margin: 20rpx 0; }
+.catalog-sub { color: var(--t1-muted); font-size: 25rpx; line-height: 1.6; overflow-wrap: anywhere; }
+.catalog-section { margin: 32rpx 0 12rpx; font-size: 29rpx; font-weight: 650; }
+.catalog-row, .catalog-pair { display: flex; align-items: center; justify-content: space-between; gap: 20rpx; padding: 24rpx 0; border-bottom: 1px solid var(--t1-border); }
+.catalog-row { min-height: 50rpx; }
+.catalog-name { font-weight: 650; font-size: 30rpx; line-height: 1.45; }
+.catalog-price { font-weight: 650; font-size: 34rpx; white-space: nowrap; }
+.catalog-pair { font-size: 28rpx; align-items: baseline; }
+.catalog-pair text:first-child { flex-shrink: 0; color: var(--t1-muted); }
+.catalog-pair text:last-child { text-align: right; }
+.catalog-cover { display: block; width: 100%; height: 320rpx; border-radius: 14rpx; background: var(--t1-inset); }
+.catalog-body { white-space: pre-wrap; overflow-wrap: anywhere; font-size: 28rpx; line-height: 1.7; }
+.catalog-button { margin: 28rpx 0 0; width: 100%; background: var(--t1-text); color: var(--t1-on-dark); padding: 20rpx; font-size: 29rpx; font-weight: 600; line-height: 1.5; border-radius: 12rpx; }
+.catalog-button::after { border: 0; }
+.catalog-button.secondary { background: var(--t1-surface); color: var(--t1-text); border: 1px solid var(--t1-border); }
+.catalog-state { padding: 56rpx 0; color: var(--t1-muted); font-size: 27rpx; text-align: center; }
+.catalog-detail-image { display: block; width: 100%; margin-top: 24rpx; }
+.catalog-arrow { color: var(--t1-muted); font-size: 34rpx; }
+.catalog-links { display: flex; gap: 16rpx; }
+.catalog-links button { flex: 1; margin: 0; }
+.catalog-event { padding: 24rpx 0; border-bottom: 1px solid var(--t1-border); }
+.catalog-event .catalog-cover { margin-bottom: 16rpx; }
+.catalog-select { margin: 18rpx 0; font-size: 26rpx; }
+.catalog-qr { display: block; width: 360rpx; height: 360rpx; max-width: 100%; margin: 28rpx auto 12rpx; }

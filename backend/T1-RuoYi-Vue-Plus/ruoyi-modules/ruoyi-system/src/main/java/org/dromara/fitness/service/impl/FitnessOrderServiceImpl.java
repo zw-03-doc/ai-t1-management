@@ -89,11 +89,7 @@ public class FitnessOrderServiceImpl implements IFitnessOrderService {
         validBeforeCreate(bo);
         FitCardPlan plan = requirePlan(bo.getPlanId());
         BigDecimal totalAmount = nullSafe(plan.getSalePrice());
-        BigDecimal discountAmount = nullSafe(bo.getDiscountAmount());
-        if (discountAmount.signum() < 0) throw new ServiceException("优惠金额不能为负数");
-        if (discountAmount.compareTo(totalAmount) > 0) {
-            throw new ServiceException("优惠金额不能大于订单总额");
-        }
+        BigDecimal discountAmount = orderDiscount(totalAmount, bo);
         BigDecimal payableAmount = totalAmount.subtract(discountAmount);
         boolean payNow = Boolean.TRUE.equals(bo.getPayNow());
         if (StringUtils.isNotBlank(bo.getOrderStatus()) && !"pending".equals(bo.getOrderStatus()))
@@ -164,29 +160,26 @@ public class FitnessOrderServiceImpl implements IFitnessOrderService {
         update.setCashierUserId(bo.getCashierUserId());
         update.setRemark(bo.getRemark());
 
-        if (bo.getDiscountAmount() != null) {
-            if (bo.getDiscountAmount().signum() < 0) throw new ServiceException("优惠金额不能为负数");
-            BigDecimal totalAmount = nullSafe(db.getTotalAmount());
-            if (bo.getDiscountAmount().compareTo(totalAmount) > 0) {
-                throw new ServiceException("优惠金额不能大于订单总额");
+        BigDecimal totalAmount = nullSafe(db.getTotalAmount());
+        if (bo.getSettlementAmount() != null || bo.getQuotedPlanPrice() != null || bo.getDiscountAmount() != null) {
+            BigDecimal discount = orderDiscount(totalAmount, bo);
+            if (discount.compareTo(nullSafe(db.getDiscountAmount())) != 0) {
+                update.setDiscountAmount(discount);
+                update.setPayableAmount(totalAmount.subtract(discount));
             }
-            update.setDiscountAmount(bo.getDiscountAmount());
-            update.setPayableAmount(totalAmount.subtract(bo.getDiscountAmount()));
         }
         boolean updated = baseMapper.update(update, new LambdaUpdateWrapper<FitOrder>().eq(FitOrder::getOrderId, db.getOrderId())
             .set(FitOrder::getBindCoachId, bo.getBindCoachId())) > 0;
-        if (updated && bo.getDiscountAmount() != null) {
+        if (updated && update.getDiscountAmount() != null) {
             List<FitOrderItem> itemList = orderItemMapper.selectList(new LambdaQueryWrapper<FitOrderItem>()
                 .eq(FitOrderItem::getOrderId, bo.getOrderId())
                 .orderByAsc(FitOrderItem::getItemId));
-            if (!itemList.isEmpty()) {
-                FitOrderItem item = itemList.get(0);
-                FitOrderItem itemUpdate = new FitOrderItem();
-                itemUpdate.setItemId(item.getItemId());
-                itemUpdate.setDiscountAmount(bo.getDiscountAmount());
-                itemUpdate.setRealAmount(nullSafe(item.getTotalPrice()).subtract(bo.getDiscountAmount()));
-                orderItemMapper.updateById(itemUpdate);
-            }
+            if (itemList.size() != 1) throw new ServiceException("请核对订单明细后再调整金额");
+            FitOrderItem itemUpdate = new FitOrderItem();
+            itemUpdate.setItemId(itemList.get(0).getItemId());
+            itemUpdate.setDiscountAmount(update.getDiscountAmount());
+            itemUpdate.setRealAmount(update.getPayableAmount());
+            if (orderItemMapper.updateById(itemUpdate) != 1) throw new ServiceException("订单明细更新失败");
         }
         return updated;
     }
@@ -344,6 +337,21 @@ public class FitnessOrderServiceImpl implements IFitnessOrderService {
             throw new ServiceException("卡项方案未上架，无法录单");
         }
         return plan;
+    }
+
+    private BigDecimal orderDiscount(BigDecimal total, FitnessOrderBo bo) {
+        if (bo.getQuotedPlanPrice() != null && bo.getQuotedPlanPrice().compareTo(total) != 0)
+            throw new ServiceException("卡项价格已变化，请重新选择方案并核对金额");
+        BigDecimal amount = bo.getSettlementAmount();
+        if (amount != null) {
+            if (amount.signum() < 0 || amount.compareTo(total) > 0 || amount.stripTrailingZeros().scale() > 2)
+                throw new ServiceException("实付金额须在 0 元与应付金额之间，最多两位小数");
+            return total.subtract(amount);
+        }
+        if (bo.getQuotedPlanPrice() != null) throw new ServiceException("请输入实付金额");
+        BigDecimal discount = nullSafe(bo.getDiscountAmount());
+        if (discount.signum() < 0 || discount.compareTo(total) > 0) throw new ServiceException("优惠金额超出订单金额范围");
+        return discount;
     }
 
     private FitOrderItem buildOrderItem(FitOrder order, FitCardPlan plan) {

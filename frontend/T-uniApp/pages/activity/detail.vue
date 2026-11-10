@@ -1,398 +1,59 @@
 <template>
-  <view class="page-wrap">
-    <view class="back-link" @tap="goBack">‹ 返回活动</view>
-    <view v-if="loading" class="empty">正在加载活动…</view>
-    <view v-else-if="errorText" class="empty error" @tap="loadDetail"
-      ><text class="empty-title">活动暂时没能加载</text>{{ errorText
-      }}<view>轻点重试</view></view
-    >
-    <block v-else-if="detail.activityId">
-      <image
-        v-if="detail.coverUrl"
-        class="cover"
-        :src="detail.coverUrl"
-        mode="aspectFill"
-      />
-      <view class="row"
-        ><text class="tag" v-if="detail.weeklyFeatured === '1'"
-          >本周推荐</text
-        ></view
-      >
-      <view class="page-title">{{ detail.title }}</view>
-      <view class="page-subtitle" v-if="detail.subTitle">{{
-        detail.subTitle
-      }}</view>
-      <view class="highlight" v-if="detail.priceHighlight">{{
-        detail.priceHighlight
-      }}</view>
-      <view class="event-meta">
-        <view class="event-meta-row"
-          ><text class="meta-label">门店</text
-          ><text>{{ detail.storeName || "全门店" }}</text></view
-        >
-        <view class="event-meta-row"
-          ><text class="meta-label">时间</text
-          ><view class="date-lines"
-            ><text>{{ formatDateTime(detail.startTime) }}</text
-            ><text class="muted"
-              >至 {{ formatDateTime(detail.endTime) }}</text
-            ></view
-          ></view
-        >
-        <view class="event-meta-row" v-if="detail.targetAudience"
-          ><text class="meta-label">适合</text
-          ><text>{{ detail.targetAudience }}</text></view
-        >
-        <view class="countdown">{{
-          formatCountdown(detail.countdownEndTime || detail.endTime)
-        }}</view>
-      </view>
-      <view class="panel" v-if="detail.ruleNote || detail.discountLabel">
-        <view class="section-title">参与前了解</view>
-        <view class="content" v-if="detail.discountLabel">{{
-          detail.discountLabel
-        }}</view>
-        <view class="content" v-if="detail.ruleNote">{{
-          detail.ruleNote
-        }}</view>
-      </view>
-      <view class="panel" v-if="detail.detailContent"
-        ><view class="section-title">活动详情</view
-        ><view class="content">{{ detail.detailContent }}</view></view
-      >
-      <image
-        v-if="detail.detailImageUrl"
-        class="detail-image"
-        :src="detail.detailImageUrl"
-        mode="widthFix"
-      />
-      <view class="consult">
-        <view class="section-title">咨询门店</view><button class="btn" @tap="handlePrimaryAction">
-          {{ primaryActionText }}
-        </button>
-        <button
-          v-if="detail.actionType !== 'contact' && detail.storeContactPhone"
-          class="btn ghost"
-          @tap="contactStore"
-        >
-          致电门店咨询
-        </button>
-      </view>
+  <view class="catalog-page">
+    <view v-if="error" class="catalog-state">{{ error }}<button class="catalog-button secondary" @tap="load">重试</button></view>
+    <view v-else-if="!detail" class="catalog-state">加载中…</view>
+    <block v-else>
+      <image v-if="detail.coverUrl" class="catalog-cover" :src="image(detail.coverUrl)" mode="aspectFill" />
+      <view class="catalog-heading">{{ detail.title }}</view>
+      <view v-if="detail.subTitle" class="catalog-body">{{ detail.subTitle }}</view>
+      <view class="catalog-pair"><text>活动日期</text><text>{{ period(detail.startTime, detail.endTime) }}</text></view>
+      <view class="catalog-pair"><text>适用门店</text><text>{{ detail.storeName || '全部门店' }}</text></view>
+      <view v-if="detail.priceHighlight || detail.discountLabel" class="catalog-pair"><text>活动优惠</text><text>{{ [detail.priceHighlight, detail.discountLabel].filter(Boolean).join(' · ') }}</text></view>
+      <view v-if="detail.targetAudience" class="catalog-pair"><text>适用人群</text><text>{{ detail.targetAudience }}</text></view>
+      <view v-if="detail.ruleNote" class="catalog-section">活动规则</view>
+      <view v-if="detail.ruleNote" class="catalog-body">{{ detail.ruleNote }}</view>
+      <view v-if="detail.detailContent" class="catalog-section">活动详情</view>
+      <view v-if="detail.detailContent" class="catalog-body">{{ detail.detailContent }}</view>
+      <image v-if="detail.detailImageUrl" class="catalog-detail-image" mode="widthFix" :src="image(detail.detailImageUrl)" />
+      <button v-if="primary" class="catalog-button" @tap="act">{{ primary }}</button>
+      <view v-else class="catalog-state">{{ detail.actionType === 'plan' ? '当前没有可查看的活动卡项' : '当前暂无可用的咨询方式' }}</view>
+      <button v-if="detail.actionType !== 'coach' && hasCoach" class="catalog-button secondary" @tap="contact">联系教练微信</button>
     </block>
-    <view v-else class="empty"
-      ><text class="empty-title">没有找到这个活动</text
-      >返回活动页，看看其他选择。</view
-    >
   </view>
 </template>
 <script>
-import { memberActivityDetail } from "../../api/auth";
-
+import { memberActivityDetail } from '../../api/auth'
+import { catalogImage, catalogLink, datePeriod } from '../../utils/catalog'
 export default {
-  data() {
-    return {
-      activityId: undefined,
-      detail: {},
-      loading: false,
-      errorText: "",
-    };
-  },
+  data() { return { id: '', storeId: '', detail: null, error: '' } },
   computed: {
-    primaryActionText() {
-      return this.detail.actionType === "contact"
-        ? "致电门店咨询"
-        : "查看会员卡方案";
-    },
+    hasCoach() { return !!(this.detail?.coachContactWechat || this.detail?.coachContactQrUrl) },
+    primary() {
+      const d = this.detail
+      if (d.actionType === 'contact') return d.storeContactPhone ? '致电门店' : ''
+      if (d.actionType === 'coach') return this.hasCoach ? '联系教练微信' : ''
+      if (d.actionType === 'plan') return d.planList?.length ? '查看卡项详情' : ''
+      if (d.actionType === 'course') return d.courseId ? '查看课程' : ''
+      return '查看卡项价目表'
+    }
   },
-  onLoad(options) {
-    this.activityId = options && options.id;
-    this.loadDetail();
-  },
+  onLoad(options) { this.id = options.id; this.storeId = options.storeId || ''; this.load() },
   methods: {
-    async loadDetail() {
-      if (!this.activityId) {
-        this.errorText = "活动参数缺失";
-        return;
-      }
-      if (this.loading) {
-        return;
-      }
-      this.loading = true;
-      this.errorText = "";
-      try {
-        this.detail = (await memberActivityDetail(this.activityId)) || {};
-      } catch (error) {
-        this.errorText = error.message || "活动详情加载失败";
-        uni.showToast({ title: this.errorText, icon: "none" });
-      } finally {
-        this.loading = false;
-      }
-    },
-    handlePrimaryAction() {
-      if (this.detail.actionType === "contact") {
-        this.contactStore();
-        return;
-      }
-      this.goPlanList();
-    },
-    goPlanList() {
-      uni.navigateTo({ url: `/pages/activity/plan?id=${this.activityId}` });
-    },
-    contactStore() {
-      const phone = this.detail.storeContactPhone;
-      if (!phone) {
-        uni.showToast({ title: "当前门店暂无联系电话", icon: "none" });
-        return;
-      }
-      uni.makePhoneCall({ phoneNumber: phone });
-    },
-    goBack() {
-      uni.navigateBack({
-        delta: 1,
-        fail: () => uni.redirectTo({ url: "/pages/activity/index" }),
-      });
-    },
-    formatDateTime(value) {
-      if (!value) {
-        return "--";
-      }
-      const date = new Date(value);
-      if (Number.isNaN(date.getTime())) {
-        return "--";
-      }
-      const yyyy = date.getFullYear();
-      const mm = `${date.getMonth() + 1}`.padStart(2, "0");
-      const dd = `${date.getDate()}`.padStart(2, "0");
-      const hh = `${date.getHours()}`.padStart(2, "0");
-      const mi = `${date.getMinutes()}`.padStart(2, "0");
-      return `${yyyy}-${mm}-${dd} ${hh}:${mi}`;
-    },
-    formatCountdown(value) {
-      if (!value) {
-        return "具体时间请咨询门店";
-      }
-      const end = new Date(value);
-      if (Number.isNaN(end.getTime())) {
-        return "具体时间请咨询门店";
-      }
-      const diff = end.getTime() - Date.now();
-      if (diff <= 0) {
-        return "活动已结束";
-      }
-      const day = Math.floor(diff / (24 * 60 * 60 * 1000));
-      const hour = Math.floor(
-        (diff % (24 * 60 * 60 * 1000)) / (60 * 60 * 1000),
-      );
-      if (day > 0) {
-        return `倒计时 ${day}天${hour}小时`;
-      }
-      return `倒计时 ${hour}小时`;
-    },
-  },
-};
+    image: catalogImage, period: datePeriod,
+    async load() { this.error = ''; try { this.detail = await memberActivityDetail(this.id) } catch(e) { this.error = e.message || '活动加载失败' } },
+    go(path, params) { uni.navigateTo({url: catalogLink(path, params)}) },
+    contact() { this.go('activity/contact', {activityId: this.id}) },
+    act() {
+      const d = this.detail
+      if (d.actionType === 'contact') return uni.makePhoneCall({phoneNumber: d.storeContactPhone})
+      if (d.actionType === 'coach') return this.contact()
+      if (d.actionType === 'plan') return this.go('activity/card', {id: d.planList[0].planId, activityId: this.id})
+      if (d.actionType === 'course') return this.go('course/detail', {id: d.courseId})
+      this.go('activity/plan', {id: this.id, storeId: d.storeId || this.storeId})
+    }
+  }
+}
 </script>
 <style scoped>
-.page-wrap {
-  min-height: 100vh;
-  box-sizing: border-box;
-  background: var(--t1-bg);
-  color: var(--t1-text);
-  padding: 32rpx 32rpx calc(48rpx + env(safe-area-inset-bottom));
-  max-width: 960px;
-  margin: auto;
-}
-.with-nav {
-  padding-bottom: calc(164rpx + env(safe-area-inset-bottom));
-}
-.page-title {
-  font-size: 48rpx;
-  line-height: 1.25;
-  font-weight: 700;
-  margin-top: 12rpx;
-  letter-spacing: -1rpx;
-}
-.page-subtitle,
-.muted {
-  font-size: 25rpx;
-  line-height: 1.7;
-  color: var(--t1-muted);
-}
-.page-subtitle {
-  margin-top: 14rpx;
-}
-.panel,
-.card {
-  background: var(--t1-surface);
-  border: 1rpx solid var(--t1-border);
-  border-radius: 20rpx;
-  padding: 28rpx;
-  margin-top: 24rpx;
-}
-.row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 20rpx;
-}
-.section-title {
-  font-size: 30rpx;
-  font-weight: 700;
-}
-.tag {
-  font-size: 21rpx;
-  line-height: 1.5;
-  padding: 8rpx 14rpx;
-  background: var(--t1-tint);
-  color: var(--t1-accent);
-  border-radius: 8rpx;
-  white-space: nowrap;
-  flex-shrink: 0;
-}
-.btn {
-  margin: 0;
-  min-height: 88rpx;
-  line-height: 88rpx;
-  padding: 0 28rpx;
-  border-radius: 14rpx;
-  background: var(--t1-text);
-  color: var(--t1-on-dark);
-  font-size: 28rpx;
-  font-weight: 700;
-}
-.btn::after {
-  border: 0;
-}
-.btn.ghost {
-  background: transparent;
-  border: 1rpx solid var(--t1-border);
-  color: var(--t1-text);
-}
-.btn[disabled] {
-  background: var(--t1-inset);
-  color: var(--t1-muted);
-  opacity: 0.7;
-}
-.empty {
-  padding: 64rpx 28rpx;
-  text-align: center;
-  border: 1rpx dashed var(--t1-border);
-  border-radius: 20rpx;
-  margin-top: 24rpx;
-  color: var(--t1-muted);
-  font-size: 26rpx;
-  line-height: 1.8;
-}
-.empty-title {
-  display: block;
-  color: var(--t1-text);
-  font-size: 32rpx;
-  font-weight: 600;
-  margin-bottom: 12rpx;
-}
-.error {
-  color: var(--t1-danger);
-}
-.scroll {
-  white-space: nowrap;
-  width: 100%;
-  margin-top: 28rpx;
-}
-.chip {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  min-height: 80rpx;
-  padding: 0 26rpx;
-  margin-right: 12rpx;
-  border-radius: 14rpx;
-  border: 1rpx solid var(--t1-border);
-  background: var(--t1-surface);
-  color: var(--t1-muted);
-  font-size: 26rpx;
-  box-sizing: border-box;
-}
-.chip.active {
-  color: var(--t1-on-dark);
-  background: var(--t1-text);
-  border-color: var(--t1-accent);
-  font-weight: 700;
-}
-.back-link {
-  display: inline-flex;
-  align-items: center;
-  min-height: 80rpx;
-  color: var(--t1-muted);
-  font-size: 26rpx;
-  margin: -12rpx 0 12rpx;
-}
-
-.cover {
-  display: block;
-  width: 100%;
-  height: 400rpx;
-  border-radius: 20rpx;
-  margin-bottom: 32rpx;
-}
-.highlight {
-  font-size: 35rpx;
-  font-weight: 600;
-  color: var(--t1-accent);
-  line-height: 1.6;
-  margin-top: 28rpx;
-}
-.event-meta {
-  padding: 16rpx 0 24rpx;
-  margin-top: 20rpx;
-  border-top: 1rpx solid var(--t1-border);
-  border-bottom: 1rpx solid var(--t1-border);
-}
-.event-meta-row {
-  display: flex;
-  align-items: flex-start;
-  gap: 24rpx;
-  padding: 16rpx 0;
-  font-size: 27rpx;
-  line-height: 1.6;
-}
-.meta-label {
-  flex-shrink: 0;
-  width: 64rpx;
-  color: var(--t1-muted);
-}
-.date-lines {
-  display: flex;
-  flex-direction: column;
-  gap: 6rpx;
-}
-.countdown {
-  display: inline-block;
-  background: var(--t1-tint);
-  color: var(--t1-accent);
-  font-size: 23rpx;
-  padding: 12rpx 20rpx;
-  border-radius: 8rpx;
-  margin-top: 16rpx;
-}
-.content {
-  margin-top: 24rpx;
-  white-space: pre-wrap;
-  font-size: 27rpx;
-  line-height: 1.9;
-  color: var(--t1-muted);
-}
-.detail-image {
-  display: block;
-  width: 100%;
-  border-radius: 20rpx;
-  margin-top: 24rpx;
-}
-.consult {
-  padding: 36rpx 0 0;
-}
-.consult .muted {
-  margin: 16rpx 0 28rpx;
-}
-.consult .btn {
-  margin-top: 16rpx;
-}
+@import "../../styles/catalog.css";
 </style>

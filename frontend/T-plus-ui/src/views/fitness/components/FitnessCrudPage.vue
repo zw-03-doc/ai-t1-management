@@ -159,7 +159,7 @@
     <el-dialog v-model="dialog.visible" :title="dialog.title" width="min(900px, 96vw)" append-to-body destroy-on-close :before-close="closeDialog">
       <el-form v-if="dialog.visible" ref="formRef" :model="form" :rules="rules" :disabled="saving" label-width="110px">
         <el-row>
-          <el-col v-for="field in formFields" :key="field.prop" :span="field.span || 12" :xs="24">
+          <el-col v-for="field in formFields.filter(item => !item.visibleWhen || item.visibleWhen(form))" :key="field.prop" :span="field.span || 12" :xs="24">
             <slot v-if="field.type === 'custom'" :name="'field-' + field.prop" :model="form" />
             <el-form-item v-else :label="field.label" :prop="field.prop">
               <el-input
@@ -194,6 +194,8 @@
                 v-else-if="['remoteSelect', 'remoteSelectMultiple'].includes(field.type || '')"
                 v-model="form[field.prop]"
                 :multiple="field.type === 'remoteSelectMultiple'"
+                :disabled="field.lockOnEdit && !!form[idKey]"
+                @change="value => field.onSelect?.(form, getFieldOptions(field, 'form').find(option => option.value === value))"
                 clearable
                 filterable
                 remote
@@ -228,7 +230,7 @@
                 style="width: 100%"
                 :placeholder="field.placeholder || `请选择${field.label}`"
               />
-              <ImageUpload v-else-if="field.type === 'imageUpload'" v-model="form[field.prop]" :limit="field.limit ?? 1" />
+              <CatalogImageUpload v-else-if="field.type === 'imageUpload'" v-model="form[field.prop]" :scope="permPrefix.split(':')[1]" @busy="value => value ? uploads.add(field.prop) : uploads.delete(field.prop)" />
             </el-form-item>
           </el-col>
         </el-row>
@@ -236,7 +238,7 @@
       <el-alert v-if="saveError" :title="saveError" type="error" :closable="false" />
       <template #footer>
         <div class="dialog-footer">
-          <el-button type="primary" :loading="saving" @click="submitForm"><slot name="submit-label" :model="form">确定</slot></el-button>
+          <el-button type="primary" :loading="saving" :disabled="uploads.size > 0" @click="submitForm"><slot name="submit-label" :model="form">确定</slot></el-button>
           <el-button :disabled="saving" @click="cancel">取消</el-button>
         </div>
       </template>
@@ -247,8 +249,10 @@
 <script setup name="FitnessCrudPage" lang="ts">
 import { useRoute, useRouter } from 'vue-router';
 import { checkPermi } from '@/utils/permission';
+import CatalogImageUpload from './CatalogImageUpload.vue';
 import FitnessRecordDetails from './FitnessRecordDetails.vue';
 interface OptionItem {
+  salePrice?: number;
   label: string;
   value: string | number | boolean;
   elTagType?: string;
@@ -292,6 +296,9 @@ interface FormField {
   max?: number;
   precision?: number;
   limit?: number;
+  visibleWhen?: (model: Record<string, any>) => boolean;
+  lockOnEdit?: boolean;
+  onSelect?: (model: Record<string, any>, option?: OptionItem) => void;
 }
 
 interface TableColumn {
@@ -614,9 +621,10 @@ const handleUpdate = async (row?: any) => {
 };
 
 const saving = ref(false);
+const uploads = ref(new Set<string>());
 const saveError = ref('');
 const submitForm = () => {
-  if (saving.value) return;
+  if (saving.value || uploads.value.size) return;
   const requestId = editRequest;
   formRef.value?.validate(async (valid: boolean) => {
     if (!valid || saving.value || requestId !== editRequest) {

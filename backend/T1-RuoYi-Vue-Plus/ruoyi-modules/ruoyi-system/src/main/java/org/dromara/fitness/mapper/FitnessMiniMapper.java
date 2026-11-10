@@ -93,15 +93,15 @@ public interface FitnessMiniMapper {
     FitnessMiniVo.ReservationVo selectReservationById(@Param("memberId") Long memberId,
                                                       @Param("reservationId") Long reservationId);
 
-    List<FitnessMiniVo.CardPlanVo> selectCardPlanList(@Param("storeId") Long storeId);
+    List<FitnessMiniVo.CardPlanVo> selectCardPlanList(@Param("storeId") Long storeId, @Param("memberId") Long memberId);
 
-    FitnessMiniVo.CardPlanVo selectCardPlanById(@Param("planId") Long planId);
+    FitnessMiniVo.CardPlanVo selectCardPlanById(@Param("planId") Long planId, @Param("memberId") Long memberId);
 
     List<FitnessMiniVo.ActivityVo> selectActivityList(@Param("storeId") Long storeId);
 
     FitnessMiniVo.ActivityVo selectActivityById(@Param("activityId") Long activityId);
 
-    List<FitnessMiniVo.ActivityCardPlanVo> selectActivityCardPlanList(@Param("activityId") Long activityId);
+    List<FitnessMiniVo.ActivityCardPlanVo> selectActivityCardPlanList(@Param("activityId") Long activityId, @Param("memberId") Long memberId);
 
     int insertOrder(@Param("orderId") Long orderId,
 

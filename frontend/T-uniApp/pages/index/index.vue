@@ -54,6 +54,7 @@
       <button @tap="go('/pages/course/index?tab=reservation')"><text class="quick-title">签到</text
         >
       </button>
+      <button @tap="go('/pages/activity/index')"><text class="quick-title">门店活动</text></button>
       <button @tap="go('/pages/guide/index')"><text class="quick-title">动作指南</text
         >
       </button>
@@ -324,7 +325,8 @@ export default {
   font-weight: 700;
 }
 .quick-grid {
-  display: flex;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 12rpx;
   margin-top: 20rpx;
 }

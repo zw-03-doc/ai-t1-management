@@ -1,6 +1,18 @@
 <template>
   <div>
   <FitnessCrudPage v-bind="pageConfig as any">
+    <template #field-quotedPlanPrice="{ model }">
+      <el-form-item label="应付金额" prop="quotedPlanPrice">
+        <span>{{ model.quotedPlanPrice == null ? '请先选择卡项方案' : '¥' + Number(model.quotedPlanPrice).toFixed(2) }}</span>
+      </el-form-item>
+    </template>
+    <template #field-settlementAmount="{ model }">
+      <el-form-item label="实付金额" prop="settlementAmount">
+        <el-input-number v-if="model.quotedPlanPrice != null" :key="model.planId" v-model="model.settlementAmount"
+          :precision="2" :min="0" :max="model.quotedPlanPrice" :controls="false" aria-label="实付金额" style="width:100%" />
+        <el-input v-else disabled placeholder="请先选择卡项方案" />
+      </el-form-item>
+    </template>
     <template #row-actions="{ row, refresh }">
       <el-tooltip v-if="row.orderStatus === 'pending'" content="确认线下收款" placement="top">
         <el-button v-hasPermi="['fitness:order:edit']" link type="success" icon="CircleCheck" @click="handlePay(row, refresh)" />
@@ -15,7 +27,8 @@
       <el-descriptions-item label="会员">{{ payDialog.order.memberName }} {{ payDialog.order.memberMobile }}</el-descriptions-item>
       <el-descriptions-item label="门店">{{ payDialog.order.storeName }}</el-descriptions-item>
       <el-descriptions-item label="卡项方案">{{ payDialog.order.planName || '请核对订单明细' }}</el-descriptions-item>
-      <el-descriptions-item label="应收金额">¥{{ Number(payDialog.order.payableAmount || 0).toFixed(2) }}</el-descriptions-item>
+      <el-descriptions-item label="应付金额">¥{{ Number(payDialog.order.totalAmount || 0).toFixed(2) }}</el-descriptions-item>
+      <el-descriptions-item label="本次实收">¥{{ Number(payDialog.order.payableAmount || 0).toFixed(2) }}</el-descriptions-item>
     </el-descriptions>
     <el-form label-width="100px" class="mt-4">
       <el-form-item label="绑定教练">
@@ -29,7 +42,6 @@
         </el-select>
       </el-form-item>
     </el-form>
-    <el-alert type="warning" :closable="false" title="请确认门店已实际收到上述金额。此操作不会发起线上扣款，确认后立即发卡。" />
     <template #footer>
       <el-button :disabled="paying" @click="payDialog.visible=false">取消</el-button>
       <el-button type="primary" :loading="paying" @click="confirmPayment">已收款，确认发卡</el-button>
@@ -90,12 +102,17 @@ const pageConfig = reactive({
     { label: '订单号', prop: 'orderNo', placeholder: '可手动填写，不填则自动生成' },
     { label: '门店', prop: 'storeId', type: 'remoteSelect', remoteMethod: loadStoreOptions },
     { label: '会员', prop: 'memberId', type: 'remoteSelect', remoteMethod: loadMemberOptions },
-    { label: '卡项方案', prop: 'planId', type: 'remoteSelect', remoteMethod: loadCardPlanOptions },
+    { label: '卡项方案', prop: 'planId', type: 'remoteSelect', remoteMethod: loadCardPlanOptions, lockOnEdit: true,
+      onSelect: (model: any, plan?: { salePrice?: number }) => {
+        model.quotedPlanPrice = plan ? Number(plan.salePrice ?? 0) : undefined;
+        model.settlementAmount = model.quotedPlanPrice;
+      } },
+    { label: '应付金额', prop: 'quotedPlanPrice', type: 'custom' },
+    { label: '实付金额', prop: 'settlementAmount', type: 'custom' },
     { label: '绑定教练', prop: 'bindCoachId', type: 'remoteSelect', remoteMethod: loadCoachOptions },
     { label: '订单类型', prop: 'orderType', type: 'select', options: orderTypeOptions },
     { label: '订单来源', prop: 'orderSource', type: 'select', options: orderSourceOptions },
     { label: '支付方式', prop: 'payMethod', type: 'select', options: payMethodOptions },
-    { label: '优惠金额', prop: 'discountAmount', type: 'number', precision: 2 },
     { label: '收银员', prop: 'cashierUserId', type: 'remoteSelect', remoteMethod: loadSystemUserOptions },
     { label: '备注', prop: 'remark', type: 'textarea', span: 24 }
   ],
@@ -103,14 +120,15 @@ const pageConfig = reactive({
     { label: '会员', prop: 'memberName', minWidth: 164 },
     { label: '卡项方案', prop: 'planName', minWidth: 136 },
     { label: '门店', prop: 'storeName', minWidth: 126 },
-    { label: '应付金额', prop: 'payableAmount' },
-    { label: '实付金额', prop: 'paidAmount' },
+    { label: '应付金额', prop: 'totalAmount' },
+    { label: '实付金额', prop: 'receiptText', minWidth: 136 },
     { label: '订单状态', prop: 'orderStatus', type: 'tag', options: orderStatusOptions },
     { label: '创建时间', prop: 'createTime', type: 'date', minWidth: 154 }
   ],
   detailColumns: [
     { label: '订单号', prop: 'orderNo' },
     { label: '绑定教练', prop: 'coachName' },
+    { label: '约定收款金额', prop: 'payableAmount' },
     { label: '订单类型', prop: 'orderType', type: 'tag', options: orderTypeOptions },
     { label: '订单来源', prop: 'orderSource', type: 'tag', options: orderSourceOptions },
     { label: '支付方式', prop: 'payMethod', type: 'tag', options: payMethodOptions }
@@ -135,18 +153,29 @@ const pageConfig = reactive({
     orderStatus: 'pending',
     payMethod: 'cash',
     payNow: false,
-    discountAmount: 0,
-    payableAmount: 0,
-    paidAmount: 0,
+    quotedPlanPrice: undefined,
+    settlementAmount: undefined,
     cashierUserId: undefined,
     remark: ''
   },
   rules: {
+    settlementAmount: [{ required: true, message: '请输入实付金额', trigger: 'blur' }],
     memberId: [{ required: true, message: '会员不能为空', trigger: 'change' }],
     planId: [{ required: true, message: '卡项方案不能为空', trigger: 'change' }]
   },
-  listFn: listOrder,
-  getFn: getOrder,
+  listFn: async (query: any) => {
+    const result: any = await listOrder(query);
+    return { ...result, rows: (result.rows || []).map((row: any) => ({
+      ...row,
+      receiptText: row.orderStatus === 'pending'
+        ? '¥' + Number(row.payableAmount ?? 0).toFixed(2) + '（待确认）'
+        : '¥' + Number(row.paidAmount ?? 0).toFixed(2)
+    })) };
+  },
+  getFn: async (id: string | number) => {
+    const result = await getOrder(id);
+    return { ...result, data: { ...result.data, quotedPlanPrice: result.data.totalAmount, settlementAmount: result.data.payableAmount } };
+  },
   addFn: addOrder,
   updateFn: updateOrder,
   delFn: delOrder

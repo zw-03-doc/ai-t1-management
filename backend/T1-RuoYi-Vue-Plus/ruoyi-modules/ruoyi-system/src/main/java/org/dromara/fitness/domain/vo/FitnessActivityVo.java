@@ -72,6 +72,9 @@ public class FitnessActivityVo implements Serializable {
     @ExcelProperty(value = "动作类型")
     private String actionType;
 
+    private Long contactCoachId;
+    private Long courseId;
+
     @ExcelProperty(value = "折扣标签")
     private String discountLabel;
 

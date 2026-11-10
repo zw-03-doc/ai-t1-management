@@ -137,6 +137,7 @@ public final class FitnessMiniVo {
     private Integer checkinAfterMinutes;
 
         private String coachContactWechat;
+        private String coachContactQrUrl;
 
 
         @Serial
@@ -318,6 +319,10 @@ public final class FitnessMiniVo {
         private String activityType;
 
         private String actionType;
+        private Long courseId;
+        private String coachName;
+        private String coachContactWechat;
+        private String coachContactQrUrl;
 
         private String discountLabel;
 
@@ -338,6 +343,8 @@ public final class FitnessMiniVo {
         @Serial
         private static final long serialVersionUID = 1L;
 
+        private Long bindCourseId;
+        private String bindCourseName;
         private Long planId;
 
         private Long storeId;
@@ -379,6 +386,8 @@ public final class FitnessMiniVo {
         @Serial
         private static final long serialVersionUID = 1L;
 
+        private Long bindCourseId;
+        private String bindCourseName;
         private Long planId;
 
         private Long storeId;

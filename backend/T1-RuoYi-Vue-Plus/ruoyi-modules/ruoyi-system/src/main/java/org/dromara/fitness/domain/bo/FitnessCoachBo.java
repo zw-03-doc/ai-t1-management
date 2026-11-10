@@ -100,4 +100,5 @@ public class FitnessCoachBo extends BaseEntity {
 
     @jakarta.validation.constraints.Size(max = 100)
     private String contactWechat;
+    private String contactQrUrl;
 }

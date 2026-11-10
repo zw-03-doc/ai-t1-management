@@ -44,9 +44,11 @@
     {
       "path": "pages/activity/plan",
       "style": {
-        "navigationBarTitleText": "会员卡方案"
+        "navigationBarTitleText": "卡项价目表"
       }
     },
+    { "path": "pages/activity/card", "style": { "navigationBarTitleText": "卡项详情" } },
+    { "path": "pages/activity/contact", "style": { "navigationBarTitleText": "联系教练" } },
     {
       "path": "pages/mine/index",
       "style": {

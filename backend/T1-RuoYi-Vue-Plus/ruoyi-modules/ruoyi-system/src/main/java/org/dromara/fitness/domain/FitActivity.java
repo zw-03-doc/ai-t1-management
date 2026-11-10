@@ -1,6 +1,8 @@
 package org.dromara.fitness.domain;
 
 import com.baomidou.mybatisplus.annotation.TableId;
+import com.baomidou.mybatisplus.annotation.TableField;
+import com.baomidou.mybatisplus.annotation.FieldStrategy;
 import com.baomidou.mybatisplus.annotation.TableLogic;
 import com.baomidou.mybatisplus.annotation.TableName;
 import com.baomidou.mybatisplus.annotation.Version;
@@ -38,6 +40,7 @@ public class FitActivity extends TenantEntity {
     /**
      * 适用门店ID（为空表示全门店）
      */
+    @TableField(updateStrategy = FieldStrategy.ALWAYS)
     private Long storeId;
 
     /**
@@ -104,6 +107,11 @@ public class FitActivity extends TenantEntity {
      * 操作类型（detail/contact）
      */
     private String actionType;
+
+    @TableField(updateStrategy = FieldStrategy.ALWAYS)
+    private Long contactCoachId;
+    @TableField(updateStrategy = FieldStrategy.ALWAYS)
+    private Long courseId;
 
     /**
      * 折扣标签

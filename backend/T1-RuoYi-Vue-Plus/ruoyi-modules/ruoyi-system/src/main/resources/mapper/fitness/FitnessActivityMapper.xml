@@ -23,6 +23,8 @@
                t.weekly_featured AS weeklyFeatured,
                t.activity_type AS activityType,
                t.action_type AS actionType,
+               t.course_id AS courseId,
+               t.contact_coach_id AS contactCoachId,
                t.discount_label AS discountLabel,
                t.rule_note AS ruleNote,
                t.sort_no AS sortNo,

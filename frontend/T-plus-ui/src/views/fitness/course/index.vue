@@ -59,6 +59,7 @@ const pageConfig = reactive({
     { label: '课后签到(分)', prop: 'checkinAfterMinutes', type: 'number' },
     { label: '支持卡项类型', prop: 'supportCardType' },
     { label: '状态', prop: 'status', type: 'select', options: statusOptions },
+    { label: '课程封面', prop: 'coverUrl', type: 'imageUpload' },
     { label: '课程介绍', prop: 'description', type: 'textarea', span: 24 },
     { label: '备注', prop: 'remark', type: 'textarea', span: 24 }
   ],

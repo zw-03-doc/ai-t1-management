@@ -110,6 +110,9 @@ public class FitnessActivityBo extends BaseEntity {
      */
     private String actionType;
 
+    private Long contactCoachId;
+    private Long courseId;
+
     /**
      * 绑定卡项方案ID（仅优惠卡项活动使用）
      */

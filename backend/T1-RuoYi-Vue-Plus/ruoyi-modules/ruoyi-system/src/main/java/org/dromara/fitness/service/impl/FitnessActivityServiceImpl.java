@@ -2,6 +2,7 @@ package org.dromara.fitness.service.impl;
 
 import cn.hutool.core.collection.CollUtil;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import lombok.RequiredArgsConstructor;
 import org.dromara.common.core.constant.TenantConstants;
 import org.dromara.common.core.exception.ServiceException;
@@ -16,6 +17,9 @@ import org.dromara.fitness.domain.FitActivity;
 import org.dromara.fitness.domain.bo.FitnessActivityBo;
 import org.dromara.fitness.domain.vo.FitnessActivityVo;
 import org.dromara.fitness.mapper.FitnessActivityMapper;
+import org.dromara.fitness.mapper.FitnessCardPlanMapper;
+import org.dromara.fitness.mapper.FitnessCoachMapper;
+import org.dromara.fitness.mapper.FitnessCourseMapper;
 import org.dromara.fitness.service.IFitnessActivityService;
 import org.dromara.fitness.utils.FitnessBizCodeUtils;
 import org.springframework.stereotype.Service;
@@ -42,6 +46,9 @@ public class FitnessActivityServiceImpl implements IFitnessActivityService {
     private static final String ACTION_CONTACT = "contact";
 
     private final FitnessActivityMapper baseMapper;
+    private final FitnessCardPlanMapper plans;
+    private final FitnessCoachMapper coaches;
+    private final FitnessCourseMapper courses;
     private final OssService ossService;
 
     @Override
@@ -105,10 +112,9 @@ public class FitnessActivityServiceImpl implements IFitnessActivityService {
 
     @Override
     public Boolean updateStatus(Long activityId, String status) {
-        FitActivity update = new FitActivity();
-        update.setActivityId(activityId);
-        update.setStatus(status);
-        return baseMapper.updateById(update) > 0;
+        if (!"0".equals(status) && !"1".equals(status)) throw new ServiceException("活动状态无效");
+        return baseMapper.update(null, new LambdaUpdateWrapper<FitActivity>()
+            .eq(FitActivity::getActivityId, activityId).set(FitActivity::getStatus, status)) > 0;
     }
 
     @Override
@@ -182,23 +188,40 @@ public class FitnessActivityServiceImpl implements IFitnessActivityService {
         if (!Objects.equals(entity.getActivityType(), TYPE_CARD_DISCOUNT) && !Objects.equals(entity.getActivityType(), TYPE_CUSTOM_PUSH)) {
             throw new ServiceException("活动类型不合法");
         }
-        if (Objects.equals(entity.getActivityType(), TYPE_CARD_DISCOUNT)) {
-            if (!Objects.equals(entity.getActionType(), ACTION_DETAIL)) {
-                throw new ServiceException("优惠卡项活动动作类型仅支持查看详情");
+        String action = entity.getActionType();
+        if (!java.util.Set.of(ACTION_DETAIL, ACTION_CONTACT, "catalog", "plan", "coach", "course").contains(action))
+            throw new ServiceException("请选择有效的活动入口");
+        if (ACTION_DETAIL.equals(action) || "plan".equals(action)) {
+            var ids = bo.getPlanIds().stream().filter(Objects::nonNull).distinct().toList();
+            if (ids.isEmpty() || ("plan".equals(action) && ids.size() != 1))
+                throw new ServiceException("plan".equals(action) ? "卡项详情请选择一个卡项" : "活动价目表至少选择一个卡项");
+            for (Long id : ids) {
+                var plan = plans.selectById(id);
+                if (plan == null || !sameStore(entity.getStoreId(), plan.getStoreId()) || ("0".equals(entity.getStatus()) && !"0".equals(plan.getStatus())))
+                    throw new ServiceException("请选择适用门店已上架的卡项");
             }
-            if (bo == null || CollUtil.isEmpty(bo.getPlanIds())) {
-                throw new ServiceException("优惠卡项活动至少绑定一个卡项方案");
-            }
-        } else {
-            if (!Objects.equals(entity.getActionType(), ACTION_CONTACT)) {
-                throw new ServiceException("定制推送活动动作类型仅支持联系门店");
-            }
+        } else bo.setPlanIds(List.of());
+        if ("course".equals(action)) {
+            var course = entity.getCourseId() == null ? null : courses.selectById(entity.getCourseId());
+            if (course == null || !sameStore(entity.getStoreId(), course.getStoreId()) || ("0".equals(entity.getStatus()) && !"0".equals(course.getStatus())))
+                throw new ServiceException("请选择适用门店已上架的课程");
+        } else entity.setCourseId(null);
+        if (entity.getContactCoachId() != null || "coach".equals(action)) {
+            var coach = entity.getContactCoachId() == null ? null : coaches.selectById(entity.getContactCoachId());
+            if (coach == null || !"0".equals(coach.getHireStatus()) || !sameStore(entity.getStoreId(), coach.getStoreId()))
+                throw new ServiceException("请选择适用门店的在职教练");
+            if (StringUtils.isBlank(coach.getContactWechat()) && StringUtils.isBlank(coach.getContactQrUrl()))
+                throw new ServiceException("请先在教练资料中填写咨询微信号或上传咨询二维码");
         }
         if (StringUtils.isNotBlank(entity.getActivityNo()) && baseMapper.exists(new LambdaQueryWrapper<FitActivity>()
             .eq(FitActivity::getActivityNo, entity.getActivityNo())
             .ne(Objects.nonNull(entity.getActivityId()), FitActivity::getActivityId, entity.getActivityId()))) {
             throw new ServiceException("活动编号已存在");
         }
+    }
+
+    private boolean sameStore(Long activityStore, Long resourceStore) {
+        return activityStore == null || resourceStore == null || activityStore.equals(resourceStore);
     }
 
     private String resolveOssUrl(String value) {

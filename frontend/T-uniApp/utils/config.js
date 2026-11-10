@@ -20,6 +20,9 @@ export const MEMBER_ROUTES = [
   "/pages/activity/index",
   "/pages/activity/detail",
   "/pages/activity/plan",
+  "/pages/activity/card",
+  "/pages/activity/contact",
+  "/pages/course/detail",
   "/pages/mine/index",
   "/pages/mine/profile",
 ];

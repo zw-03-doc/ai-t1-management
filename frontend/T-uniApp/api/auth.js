@@ -97,6 +97,14 @@ export function memberCancelReservation(reservationId) {
 	})
 }
 
+export function memberCardPlanDetail(planId) {
+  return request({url: '/fitness/mini/cardPlan/' + encodeURIComponent(planId), auth: 'member'})
+}
+
+export function memberCourseDetail(courseId) {
+  return request({url: '/fitness/mini/course/' + encodeURIComponent(courseId), auth: 'member'})
+}
+
 export function memberCardPlanList(storeId) {
 	const params = {}
 	if (storeId !== undefined && storeId !== null && storeId !== '') {

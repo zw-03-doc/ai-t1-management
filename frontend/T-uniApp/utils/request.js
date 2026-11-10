@@ -77,10 +77,13 @@ function redirectToPortal(auth, message) {
   } else if (auth === "member") {
     if (page?.route === "pages/course/index" && ["schedule", "reservation"].includes(tab)) {
       target = "/pages/course/index?tab=" + tab;
-    } else if (["pages/activity/index", "pages/activity/detail", "pages/activity/plan"].includes(page?.route)) {
-      const id = String(page.options?.id || page.$vm?.activityId || "");
-      target = page.route !== "pages/activity/index" && /^\d+$/.test(id)
-        ? "/" + page.route + "?id=" + id : "/pages/activity/index";
+    } else if (page?.route?.startsWith("pages/activity/") || page?.route === "pages/course/detail") {
+      const options = page.options || page.$page?.options || {};
+      const query = ["id", "activityId", "courseId", "storeId"].map(key => {
+        const value = String(options[key] || page.$vm?.[key] || "");
+        return /^\d+$/.test(value) ? key + "=" + value : "";
+      }).filter(Boolean).join("&");
+      target = "/" + page.route + (query ? "?" + query : "");
     }
   }
   uni.showToast({

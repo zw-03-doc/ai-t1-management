@@ -70,7 +70,7 @@ export function resolveTargetUrl(role, target) {
 const memberDestinations = [
 	'/pages/index/index', '/pages/mine/index', '/pages/course/index', '/pages/course/detail',
 	'/pages/training/index', '/pages/activity/index', '/pages/activity/detail',
-	'/pages/activity/plan', '/pages/guide/index'
+	'/pages/activity/plan', '/pages/activity/card', '/pages/activity/contact', '/pages/guide/index'
 ]
 
 export function memberProfileTarget(value) {

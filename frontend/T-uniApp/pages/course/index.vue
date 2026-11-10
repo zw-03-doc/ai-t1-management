@@ -88,42 +88,16 @@
     >
     <block v-else>
       <block v-if="currentTab === 'course'">
-        <view
-          class="card course-card"
-          v-for="item in courseList"
-          :key="item.courseId"
-          @tap="openCourse(item)"
-        >
-          <image
-            v-if="item.coverUrl"
-            class="course-cover"
-            :src="item.coverUrl"
-            mode="aspectFill"
-          />
-          <view class="row"
-            ><text class="tag">{{ courseTypeText(item.courseType) }}</text
-            ><text class="muted">{{
-              item.durationMinutes == null
-                ? "时长待定"
-                : item.durationMinutes + " 分钟"
-            }}</text></view
-          >
-          <view class="card-title">{{ item.courseName }}</view>
-          <view class="card-desc"
-            >{{ item.storeName || "门店待定" }}<text class="dot">·</text
-            >{{ item.coachName || "教练待安排" }}</view
-          >
-          <view class="card-footer"
-            ><view
-              ><text class="price">{{ priceText(item.displayPrice) }}</text
-              ><text class="price-caption">课程参考价</text></view
-            ><text class="text-link">了解课程 →</text></view
-          >
+        <view class="course-entry" v-for="item in courseList" :key="item.courseId" @tap="openCourse(item)">
+          <image v-if="item.coverUrl" class="course-thumb" :src="imageUrl(item.coverUrl)" mode="aspectFill" />
+          <view class="course-copy">
+            <view class="card-title">{{ item.courseName }}</view>
+            <view class="muted">{{ courseTypeText(item.courseType) }}<text v-if="item.durationMinutes"> · {{ item.durationMinutes }} 分钟</text></view>
+            <view v-if="item.coachName || item.storeName" class="muted">{{ [item.coachName, item.storeName].filter(Boolean).join(' · ') }}</view>
+          </view>
+          <text class="course-amount">{{ priceText(item.displayPrice) }} ›</text>
         </view>
-        <view v-if="!courseList.length" class="empty"
-          ><text class="empty-title">暂无课程</text
-          >换个类型看看，或稍后再来。</view
-        >
+        <view v-if="!courseList.length" class="empty">暂无上架课程</view>
       </block>
       <block v-if="currentTab === 'schedule'">
         <view
@@ -409,6 +383,7 @@
   </view>
 </template>
 <script>
+import { catalogImage } from "../../utils/catalog";
 import T1Nav from "../../components/T1Nav.vue";
 import { beijingCalendarTime, beijingDate } from "../../utils/booking-date";
 import {
@@ -436,6 +411,7 @@ export default {
       ],
       currentTab: "course",
       courseType: "",
+      storeId: "",
       selectedDate: "",
       selectedCourseId: "",
       selectedCourseName: "",
@@ -475,7 +451,7 @@ export default {
     },
     sectionLabel() {
       return {
-        course: "找到适合你的训练",
+        course: "课程目录",
         schedule: "按日期选择一节课",
         reservation: "每一次到场，都算数",
         card: "你的会员卡",
@@ -485,6 +461,7 @@ export default {
   },
   onLoad(options) {
     const tab = options && options.tab;
+    this.storeId = options?.storeId || "";
     this.selectedCourseId = (options && options.courseId) || "";
     try {
       this.selectedCourseName = decodeURIComponent(
@@ -505,6 +482,7 @@ export default {
     this.loadCurrentTabData();
   },
   methods: {
+    imageUrl(value) { return catalogImage(value); },
     clearCourseFilter() {
       this.selectedCourseId = "";
       this.selectedCourseName = "";
@@ -577,7 +555,7 @@ export default {
       try {
         if (this.currentTab === "course") {
           this.courseList =
-            (await memberCourseList({ courseType: this.courseType })) || [];
+            (await memberCourseList({ courseType: this.courseType, storeId: this.storeId || undefined })) || [];
           return;
         }
         if (this.currentTab === "schedule") {
@@ -586,6 +564,7 @@ export default {
               pageNum: 1,
               pageSize: 20,
               courseId: this.selectedCourseId || undefined,
+              storeId: this.storeId || undefined,
             })) || {};
           this.scheduleList = table.rows || [];
           return;
@@ -958,6 +937,12 @@ export default {
 };
 </script>
 <style scoped>
+.course-entry { display: flex; align-items: center; gap: 16rpx; padding: 26rpx 0; border-bottom: 1px solid var(--t1-border); }
+.course-thumb { width: 96rpx; height: 96rpx; border-radius: 10rpx; flex: none; }
+.course-copy { flex: 1; min-width: 0; }
+.course-entry .card-title { margin: 0 0 6rpx; }
+.course-amount { font-size: 28rpx; font-weight: 650; white-space: nowrap; }
+
 .page-wrap {
   min-height: 100vh;
   box-sizing: border-box;

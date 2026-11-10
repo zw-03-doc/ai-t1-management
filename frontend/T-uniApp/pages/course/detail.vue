@@ -9,7 +9,7 @@
     <block v-if="course">
       <image
         v-if="course.coverUrl"
-        :src="course.coverUrl"
+        :src="imageUrl(course.coverUrl)"
         mode="aspectFill"
         class="cover"
       />
@@ -34,10 +34,10 @@
           ><text class="muted">课程参考价</text></view
         >
       </view>
-      <view class="panel">
+      <view v-if="course.description" class="panel">
         <view class="section-title">课程介绍</view>
         <view class="description">{{
-          course.description || "课程内容和训练安排，请与负责教练沟通。"
+          course.description
         }}</view>
       </view>
       <view class="panel coach-panel">
@@ -48,14 +48,8 @@
               course.coachName || "教练待安排"
             }}</view></view
           ></view
-        ><view v-if="course.coachContactWechat" class="contact-account"
-          >微信 · {{ course.coachContactWechat }}</view
         >
-        <button class="btn ghost" @tap="contact">
-          {{
-            course.coachContactWechat ? "复制微信号 · 咨询教练" : "咨询课程安排"
-          }}
-        </button>
+        <button v-if="course.coachContactWechat || course.coachContactQrUrl" class="btn ghost" @tap="contact">联系教练微信</button>
       </view>
       <view class="panel">
         <view class="section-title">预约前了解</view>
@@ -75,9 +69,6 @@
           ><text>本轮上架至</text
           ><text>{{ dateText(course.listingUntil) }}</text></view
         >
-        <view class="muted rule-note"
-          >预约的是具体日期与时段。教练、名额和参考价以所选场次为准，费用请线下咨询。</view
-        >
       </view>
       <button class="btn reserve-button" @tap="reserve">
         选择日期与时段 →
@@ -87,6 +78,7 @@
 </template>
 <script>
 import { request } from "../../utils/request";
+import { catalogImage, catalogLink } from "../../utils/catalog";
 import { beijingDate } from "../../utils/booking-date";
 import { courseInterestEnabled, interestPreferenceKey } from "../../utils/course-interest";
 
@@ -122,6 +114,7 @@ export default {
     this.visible = false;
   },
   methods: {
+    imageUrl(value) { return catalogImage(value); },
     goBack() {
       uni.navigateBack({
         fail: () => uni.redirectTo({ url: "/pages/course/index" }),
@@ -194,14 +187,7 @@ export default {
       }).catch(() => {});
     },
     contact() {
-      if (!this.course.coachContactWechat) {
-        uni.showToast({
-          title: "教练尚未配置咨询微信号，请联系门店",
-          icon: "none",
-        });
-        return;
-      }
-      uni.setClipboardData({ data: this.course.coachContactWechat });
+      uni.navigateTo({ url: catalogLink('activity/contact', { courseId: this.courseId }) });
     },
     reserve() {
       uni.navigateTo({

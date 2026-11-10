@@ -5,7 +5,7 @@
 <script setup name="FitnessActivity" lang="ts">
 import FitnessCrudPage from '../components/FitnessCrudPage.vue';
 import { addActivity, delActivity, getActivity, listActivity, updateActivity } from '@/api/fitness/activity';
-import { loadCardPlanOptions, loadStoreOptions } from '../components/remoteOptions';
+import { loadCardPlanOptions, loadCoachOptions, loadCourseOptions, loadStoreOptions } from '../components/remoteOptions';
 
 const statusOptions = [
   { label: '上架', value: '0' },
@@ -23,12 +23,16 @@ const activityTypeOptions = [
 ];
 
 const actionTypeOptions = [
-  { label: '查看详情', value: 'detail' },
+  { label: '活动卡项价目表', value: 'detail' },
+  { label: '门店卡项价目表', value: 'catalog' },
+  { label: '指定卡项详情', value: 'plan' },
+  { label: '课程详情', value: 'course' },
+  { label: '联系教练微信', value: 'coach' },
   { label: '联系门店', value: 'contact' }
 ];
 
 const pageConfig = reactive({
-  title: '活动管理',
+  title: '活动',
   permPrefix: 'fitness:activity',
   idKey: 'activityId',
   exportUrl: 'fitness/activity/export',
@@ -36,7 +40,7 @@ const pageConfig = reactive({
     { label: '活动编号', prop: 'activityNo' },
     { label: '活动标题', prop: 'title' },
     { label: '活动类型', prop: 'activityType', type: 'select', options: activityTypeOptions },
-    { label: '动作类型', prop: 'actionType', type: 'select', options: actionTypeOptions },
+    { label: '活动入口', prop: 'actionType', type: 'select', options: actionTypeOptions },
     { label: '适用门店', prop: 'storeId', type: 'remoteSelect', remoteMethod: loadStoreOptions },
     { label: '本周主推', prop: 'weeklyFeatured', type: 'select', options: featuredOptions },
     { label: '状态', prop: 'status', type: 'select', options: statusOptions }
@@ -47,8 +51,10 @@ const pageConfig = reactive({
     { label: '活动标题', prop: 'title' },
     { label: '活动副标题', prop: 'subTitle' },
     { label: '活动类型', prop: 'activityType', type: 'select', options: activityTypeOptions },
-    { label: '动作类型', prop: 'actionType', type: 'select', options: actionTypeOptions },
-    { label: '绑定卡项', prop: 'planIds', type: 'remoteSelectMultiple', remoteMethod: loadCardPlanOptions, placeholder: '优惠卡项活动请选择绑定卡项' },
+    { label: '活动入口', prop: 'actionType', type: 'select', options: actionTypeOptions },
+    { label: '绑定卡项', prop: 'planIds', type: 'remoteSelectMultiple', remoteMethod: loadCardPlanOptions, placeholder: '选择活动卡项，详情入口仅选一项', visibleWhen: (form: any) => ['detail', 'plan'].includes(form.actionType) },
+    { label: '关联课程', prop: 'courseId', type: 'remoteSelect', remoteMethod: loadCourseOptions, visibleWhen: (form: any) => form.actionType === 'course' },
+    { label: '咨询教练', prop: 'contactCoachId', type: 'remoteSelect', remoteMethod: loadCoachOptions, placeholder: '选择提供微信咨询的教练' },
     { label: '折扣标签', prop: 'discountLabel', placeholder: '示例：7折、立减100、买一赠一' },
     { label: '规则备注', prop: 'ruleNote', placeholder: '示例：体验卡仅限新客、不可叠加其他优惠' },
     { label: '价格亮点', prop: 'priceHighlight', placeholder: '示例：次卡低至 ¥99' },
@@ -74,7 +80,7 @@ const pageConfig = reactive({
   ],
   detailColumns: [
     { label: '活动编号', prop: 'activityNo' },
-    { label: '动作类型', prop: 'actionType', type: 'tag', options: actionTypeOptions },
+    { label: '活动入口', prop: 'actionType', type: 'tag', options: actionTypeOptions },
     { label: '价格亮点', prop: 'priceHighlight' },
     { label: '本周主推', prop: 'weeklyFeatured', type: 'tag', options: featuredOptions },
     { label: '副标题', prop: 'subTitle' },
@@ -102,6 +108,8 @@ const pageConfig = reactive({
     activityType: 'card_discount',
     actionType: 'detail',
     planIds: [],
+    courseId: undefined,
+    contactCoachId: undefined,
     discountLabel: '',
     ruleNote: '',
     priceHighlight: '',
@@ -120,7 +128,7 @@ const pageConfig = reactive({
   rules: {
     title: [{ required: true, message: '活动标题不能为空', trigger: 'blur' }],
     activityType: [{ required: true, message: '活动类型不能为空', trigger: 'change' }],
-    actionType: [{ required: true, message: '动作类型不能为空', trigger: 'change' }],
+    actionType: [{ required: true, message: '请选择活动入口', trigger: 'change' }],
     coverUrl: [{ required: true, message: '活动封面图不能为空', trigger: 'change' }],
     startTime: [{ required: true, message: '开始时间不能为空', trigger: 'change' }],
     endTime: [{ required: true, message: '结束时间不能为空', trigger: 'change' }]

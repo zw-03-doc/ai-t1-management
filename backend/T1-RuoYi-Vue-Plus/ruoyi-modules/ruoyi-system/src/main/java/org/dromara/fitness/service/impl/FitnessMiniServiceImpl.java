@@ -109,7 +109,7 @@ public class FitnessMiniServiceImpl implements IFitnessMiniService {
             .filter(item -> Objects.equals("reserved", item.getReservationStatus()))
             .collect(Collectors.toList()), 3));
         homeIndexVo.setCardList(limitList(defaultList(baseMapper.selectMyMemberCardList(memberId)), 3));
-        homeIndexVo.setPromotionList(limitList(defaultList(baseMapper.selectCardPlanList(memberInfoVo.getHomeStoreId())), 3));
+        homeIndexVo.setPromotionList(limitList(defaultList(baseMapper.selectCardPlanList(memberInfoVo.getHomeStoreId(), memberId)), 3));
         homeIndexVo.setBannerList(buildBannerList(memberId, recommendCourseList));
         return homeIndexVo;
     }
@@ -242,12 +242,12 @@ public class FitnessMiniServiceImpl implements IFitnessMiniService {
 
     @Override
     public List<FitnessMiniVo.CardPlanVo> queryCardPlanList(Long storeId) {
-        return defaultList(baseMapper.selectCardPlanList(storeId));
+        return defaultList(baseMapper.selectCardPlanList(storeId, FitnessSecurityUtils.getCurrentMemberId()));
     }
 
     @Override
     public FitnessMiniVo.CardPlanVo queryCardPlanById(Long planId) {
-        FitnessMiniVo.CardPlanVo vo = baseMapper.selectCardPlanById(planId);
+        FitnessMiniVo.CardPlanVo vo = baseMapper.selectCardPlanById(planId, FitnessSecurityUtils.getCurrentMemberId());
         if (vo == null) {
             throw new ServiceException("卡项方案不存在");
         }
@@ -265,7 +265,7 @@ public class FitnessMiniServiceImpl implements IFitnessMiniService {
         if (vo == null) {
             throw new ServiceException("活动不存在或已下架");
         }
-        vo.setPlanList(defaultList(baseMapper.selectActivityCardPlanList(activityId)));
+        vo.setPlanList(defaultList(baseMapper.selectActivityCardPlanList(activityId, FitnessSecurityUtils.getCurrentMemberId())));
         return vo;
     }
 
@@ -275,7 +275,7 @@ public class FitnessMiniServiceImpl implements IFitnessMiniService {
         if (vo == null) {
             throw new ServiceException("活动不存在或已下架");
         }
-        return defaultList(baseMapper.selectActivityCardPlanList(activityId));
+        return defaultList(baseMapper.selectActivityCardPlanList(activityId, FitnessSecurityUtils.getCurrentMemberId()));
     }
 
     @Override

@@ -44,6 +44,7 @@ const pageConfig = reactive({
 
     { label: '教练姓名', prop: 'coachName' },
     { label: '手机号', prop: 'mobile' },
+    { label: '公开咨询二维码', prop: 'contactQrUrl', type: 'imageUpload' },
     { label: '咨询微信号', prop: 'contactWechat' },
     { label: '性别', prop: 'gender', type: 'select', options: genderOptions },
     { label: '教练等级', prop: 'levelCode' },
