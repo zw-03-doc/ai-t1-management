@@ -1,6 +1,23 @@
 <template>
   <div>
-    <FitnessCrudPage v-bind="pageConfig as any">
+    <FitnessCrudPage v-bind="pageConfig as any" selection-permission="fitness:schedule:edit">
+      <template #header-actions="{ selection, loading, refresh }">
+        <el-col v-hasPermi="['fitness:schedule:edit']" :span="1.5">
+          <el-dropdown split-button type="primary" trigger="click" :disabled="!selection.length || loading || changingStatus"
+            @click="changeSelected(selection, primaryTarget(selection), refresh)"
+            @command="(target: string) => changeSelected(selection, target, refresh)">
+            {{ primaryTarget(selection) === 'open' ? '批量开放' : '批量关闭' }}{{ selection.length ? '（' + selection.length + '）' : '' }}
+            <template #dropdown>
+              <el-dropdown-menu>
+                <el-dropdown-item v-for="action in statusActions" :key="action.value" :command="action.value"
+                  :disabled="selection.every((row: FitnessScheduleVO) => row.scheduleStatus === action.value)">
+                  {{ action.label }}
+                </el-dropdown-item>
+              </el-dropdown-menu>
+            </template>
+          </el-dropdown>
+        </el-col>
+      </template>
       <template #field-sessions="{ model }"><ScheduleTimes :model="model" /></template>
       <template #submit-label="{ model }">{{ model.scheduleId ? '保存场次' : '创建排课' + (model.sessions?.length ? '（' + model.sessions.length + ' 场）' : '') }}</template>
       <template #row-actions="{ row, refresh }">
@@ -35,10 +52,38 @@ import { scheduleRequests, draftError, timeRangeLabel } from './sessions';
 import FitnessCrudPage from '../components/FitnessCrudPage.vue';
 import { openFitnessPage } from '../components/navigation';
 const router = useRouter();
-import { addScheduleBatch, cancelSchedule, delSchedule, getSchedule, listSchedule, updateSchedule, finishSchedule } from '@/api/fitness/schedule';
+import { addScheduleBatch, cancelSchedule, changeScheduleStatus, delSchedule, getSchedule, listSchedule, updateSchedule, finishSchedule } from '@/api/fitness/schedule';
+import type { FitnessScheduleVO } from '@/api/fitness/schedule/types';
 import { loadCoachOptions, loadCourseOptions, loadMemberOptions, loadStoreOptions } from '../components/remoteOptions';
 
 const { proxy } = getCurrentInstance() as ComponentInternalInstance;
+
+const statusActions = [
+  { value: 'open', label: '开放预约' }, { value: 'closed', label: '关闭预约' }, { value: 'draft', label: '转为草稿' },
+  { value: 'finished', label: '结束场次' }, { value: 'cancelled', label: '取消排课' }
+];
+const changingStatus = ref(false);
+const primaryTarget = (selection: FitnessScheduleVO[]) =>
+  selection.length && selection.every(row => row.scheduleStatus === 'open') ? 'closed' : 'open';
+
+async function changeSelected(selection: FitnessScheduleVO[], target: string, refresh: () => Promise<void>) {
+  if (changingStatus.value || !selection.length) return;
+  const rows = selection.map(row => ({ scheduleId: row.scheduleId, expectedStatus: row.scheduleStatus! }));
+  const action = statusActions.find(item => item.value === target)!;
+  changingStatus.value = true;
+  try {
+    if (target === 'finished' || target === 'cancelled') {
+      await proxy?.$modal.confirm(`确认对选中的 ${rows.length} 个场次执行“${action.label}”？`);
+    }
+    const { data: changed } = await changeScheduleStatus(target, rows);
+    proxy?.$modal.msgSuccess(changed ? `已变更 ${changed} 个场次` : '所选场次已是该状态');
+    await refresh();
+  } catch {
+    // The request client displays the server's reason when a transition is rejected.
+  } finally {
+    changingStatus.value = false;
+  }
+}
 
 const handleFinish = async (row: any, refresh: () => Promise<void>) => {
   try {

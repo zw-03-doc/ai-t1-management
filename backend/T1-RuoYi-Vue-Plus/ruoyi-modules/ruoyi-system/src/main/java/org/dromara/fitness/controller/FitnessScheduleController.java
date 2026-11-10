@@ -17,6 +17,7 @@ import org.dromara.common.mybatis.core.page.PageQuery;
 import org.dromara.common.mybatis.core.page.TableDataInfo;
 import org.dromara.common.web.core.BaseController;
 import org.dromara.fitness.domain.bo.FitnessScheduleBo;
+import org.dromara.fitness.domain.bo.FitnessScheduleStatusBo;
 import org.dromara.fitness.domain.vo.FitnessScheduleVo;
 import org.dromara.fitness.service.IFitnessScheduleService;
 import org.springframework.validation.annotation.Validated;
@@ -76,6 +77,13 @@ public class FitnessScheduleController extends BaseController {
     public R<Void> addBatch(@Validated(AddGroup.class) @RequestBody BatchSchedules batch) {
         fitnessScheduleService.insertBatch(batch.rows());
         return R.ok();
+    }
+
+    @SaCheckPermission("fitness:schedule:edit")
+    @Log(title = "批量变更排课状态", businessType = BusinessType.UPDATE)
+    @PutMapping("/batch/status")
+    public R<Integer> changeStatus(@Valid @RequestBody FitnessScheduleStatusBo batch) {
+        return R.ok(fitnessScheduleService.changeStatus(batch));
     }
 
     @SaCheckPermission("fitness:schedule:edit")

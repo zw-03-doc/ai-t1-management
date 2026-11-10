@@ -26,6 +26,10 @@ export function updateSchedule(data: FitnessScheduleForm) {
   return request({ url: '/fitness/schedule', method: 'put', data });
 }
 
+export function changeScheduleStatus(targetStatus: string, rows: Array<{ scheduleId: string | number; expectedStatus: string }>): AxiosPromise<number> {
+  return request({ url: '/fitness/schedule/batch/status', method: 'put', data: { targetStatus, rows } });
+}
+
 export function cancelSchedule(scheduleId: string | number, cancelReason?: string) {
   return request({ url: `/fitness/schedule/${scheduleId}/cancel`, method: 'put', data: { cancelReason } });
 }

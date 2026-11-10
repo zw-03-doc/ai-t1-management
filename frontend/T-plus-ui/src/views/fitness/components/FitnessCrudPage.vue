@@ -82,21 +82,21 @@
           <el-col v-if="allowCreate" :span="1.5">
             <el-button v-hasPermi="[`${permPrefix}:add`]" type="primary" plain icon="Plus" @click="handleAdd">新增</el-button>
           </el-col>
+          <slot name="header-actions" :selection="selectedRows" :loading="loading" :refresh="handleQuery" />
           <el-col v-if="allowDelete" :span="1.5">
-            <el-button v-hasPermi="[`${permPrefix}:remove`]" type="danger" plain icon="Delete" :disabled="multiple" @click="handleDelete()"
+            <el-button v-hasPermi="[`${permPrefix}:remove`]" type="danger" plain icon="Delete" :disabled="!selectedRows.length" @click="handleDelete()"
               >批量删除</el-button
             >
           </el-col>
           <el-col v-if="exportUrl" :span="1.5">
             <el-button v-hasPermi="[`${permPrefix}:export`]" type="warning" plain icon="Download" @click="handleExport">导出</el-button>
           </el-col>
-          <slot name="header-actions" :refresh="getList" />
           <right-toolbar v-model:show-search="showSearch" @query-table="getList" />
         </el-row>
       </template>
 
       <el-table v-loading="loading" border :data="list" @selection-change="handleSelectionChange">
-        <el-table-column v-if="allowDelete && checkPermi([`${permPrefix}:remove`])" type="selection" width="44" align="center" />
+        <el-table-column v-if="(allowDelete && checkPermi([`${permPrefix}:remove`])) || (selectionPermission && checkPermi([selectionPermission]))" type="selection" width="44" align="center" />
         <el-table-column
           v-for="column in tableColumns"
           :key="column.prop"
@@ -302,6 +302,7 @@ const props = withDefaults(
     allowCreate?: boolean;
     allowEdit?: boolean;
     allowDelete?: boolean;
+    selectionPermission?: string;
     queryFields: QueryField[];
     formFields: FormField[];
     tableColumns: TableColumn[];
@@ -346,9 +347,8 @@ const fetchDetail = () => props.getFn(detailRow.value![props.idKey]);
 const showSearch = ref(true);
 const list = ref<any[]>([]);
 const total = ref(0);
-const ids = ref<Array<string | number>>([]);
-const single = ref(true);
-const multiple = ref(true);
+const selectedRows = ref<any[]>([]);
+const ids = computed<Array<string | number>>(() => selectedRows.value.map((row) => row[props.idKey]));
 const queryFormRef = ref<ElFormInstance>();
 const formRef = ref<ElFormInstance>();
 const remoteOptionsMap = reactive<Record<string, OptionItem[]>>({});
@@ -562,9 +562,7 @@ const resetQuery = () => {
 };
 
 const handleSelectionChange = (selection: any[]) => {
-  ids.value = selection.map((item) => item[props.idKey]);
-  single.value = selection.length !== 1;
-  multiple.value = selection.length === 0;
+  selectedRows.value = selection;
 };
 
 const handleAdd = async () => {

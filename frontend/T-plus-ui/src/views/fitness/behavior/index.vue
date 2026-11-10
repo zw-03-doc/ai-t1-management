@@ -33,6 +33,7 @@ const detailFields = [
 const actionLabels: Record<string, string> = {
   coach_create_schedule: '教练排课',
   admin_finish_schedule: '管理员结束场次',
+  admin_schedule_status: '管理员变更排课状态',
   member_reservation: '会员预约',
   admin_reservation: '管理员预约',
   member_cancel_reservation: '会员取消预约',
