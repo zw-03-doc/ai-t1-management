@@ -344,7 +344,6 @@
         LEFT JOIN fit_store st ON st.store_id = s.store_id AND st.del_flag = '0'
         LEFT JOIN fit_coach coach ON coach.coach_id = s.coach_id AND coach.del_flag = '0'
         LEFT JOIN fit_course_reservation r ON r.schedule_id = s.schedule_id AND r.member_id = #{memberId} AND r.del_flag = '0' AND r.reservation_status &lt;&gt; 'cancelled'
-
         LEFT JOIN fit_checkin_record cr ON cr.reservation_id = r.reservation_id AND cr.del_flag = '0'
         WHERE s.del_flag = '0'
           AND s.schedule_status = 'open'
@@ -353,8 +352,6 @@
           AND (c.listing_until IS NULL OR c.listing_until &gt; NOW())
           AND s.end_time &gt; NOW()
           AND (s.schedule_mode='normal' OR (s.schedule_mode='directed' AND EXISTS (SELECT 1 FROM fit_schedule_student ss WHERE ss.schedule_id=s.schedule_id AND ss.tenant_id=s.tenant_id AND ss.del_flag='0' AND ss.member_id=#{memberId})))
-
-
         <if test="bo != null and bo.storeId != null">
           AND s.store_id = #{bo.storeId}
         </if>
@@ -370,7 +367,7 @@
         <if test="bo != null and bo.scheduleDate != null">
           AND s.schedule_date = #{bo.scheduleDate}
         </if>
-        ORDER BY s.start_time ASC
+        ORDER BY s.start_time ASC, s.schedule_id ASC
     </select>
 
     <select id="selectReservationAction" resultType="org.dromara.fitness.domain.vo.FitnessMiniVo$ReservationActionVo">

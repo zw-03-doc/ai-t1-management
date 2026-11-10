@@ -23,7 +23,9 @@ function page(relative, answers = [], cards = []) {
       showModal: options => { calls.push(['modal', options.title, options.content]); options.success(answers.shift() || {confirm:false}); }
     }
   };
-  vm.createContext(ctx); vm.runInContext(script, ctx);
+  vm.createContext(ctx);
+  vm.runInContext(fs.readFileSync(path.join(base, 'utils/booking-date.js'), 'utf8').replace(/export /g, ''), ctx);
+  vm.runInContext(script, ctx);
   const state = ctx.component.data();
   for (const [name, fn] of Object.entries(ctx.component.methods)) state[name] = fn.bind(state);
   state.refreshAll = async () => {}; state.refreshReservations = async () => {}; state.loadCurrentTabData = async () => {};
@@ -31,6 +33,16 @@ function page(relative, answers = [], cards = []) {
 }
 const clone = value => JSON.parse(JSON.stringify(value));
 (async () => {
+  {
+    const detail = page('pages/course/detail.vue').state;
+    const list = page('pages/course/index.vue').state;
+    assert.equal(detail.dateText('2026-12-09 14:36:51'), '2026 / 12 / 09');
+    assert.equal(detail.dateText('2026-12-09T16:05:00Z'), '2026 / 12 / 10');
+    assert.equal(list.formatTime('2026-12-09 00:15:00'), '00:15');
+    assert.equal(list.formatDateOnly('2026-12-09'), '2026-12-09');
+    assert.equal(list.formatDateOnly('invalid'), '');
+    checks++;
+  }
   for (const courseType of ['group','private','small','experience']) {
     const {state,calls}=page('pages/course/index.vue',[1],[{cardId:'card',planType:'stored_card',balanceAmount:80}]);
     await state.reserveSchedule({scheduleId:'session',courseType});

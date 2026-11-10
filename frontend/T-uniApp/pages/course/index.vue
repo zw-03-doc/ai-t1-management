@@ -410,6 +410,7 @@
 </template>
 <script>
 import T1Nav from "../../components/T1Nav.vue";
+import { beijingCalendarTime, beijingDate } from "../../utils/booking-date";
 import {
   memberCourseList,
   memberScheduleList,
@@ -504,19 +505,6 @@ export default {
     this.loadCurrentTabData();
   },
   methods: {
-    displayDate(value) {
-      let normalized = value;
-      if (
-        typeof value === "string" &&
-        /^\d{4}-\d{2}-\d{2}(?:[ T]\d{2}:\d{2}(?::\d{2})?)?$/.test(value)
-      )
-        normalized =
-          value.length === 10
-            ? value + "T00:00:00+08:00"
-            : value.replace(" ", "T") + "+08:00";
-      const date = new Date(normalized);
-      return new Date(date.getTime() + 8 * 60 * 60 * 1000);
-    },
     clearCourseFilter() {
       this.selectedCourseId = "";
       this.selectedCourseName = "";
@@ -722,17 +710,7 @@ export default {
       );
     },
     formatDateOnly(value) {
-      if (!value) {
-        return "";
-      }
-      const date = this.displayDate(value);
-      if (Number.isNaN(date.getTime())) {
-        return "";
-      }
-      const y = date.getUTCFullYear();
-      const m = `${date.getUTCMonth() + 1}`.padStart(2, "0");
-      const d = `${date.getUTCDate()}`.padStart(2, "0");
-      return `${y}-${m}-${d}`;
+      return beijingDate(value);
     },
     async buildReservationPayload(item) {
       const cardId = await this.pickReservationCard(item);
@@ -949,7 +927,7 @@ export default {
       if (!value) {
         return "待定";
       }
-      const date = this.displayDate(value);
+      const date = beijingCalendarTime(value);
       if (Number.isNaN(date.getTime())) {
         return "待定";
       }
@@ -959,7 +937,7 @@ export default {
       if (!value) {
         return "--:--";
       }
-      const date = this.displayDate(value);
+      const date = beijingCalendarTime(value);
       if (Number.isNaN(date.getTime())) {
         return "--:--";
       }

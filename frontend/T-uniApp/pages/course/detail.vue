@@ -87,6 +87,7 @@
 </template>
 <script>
 import { request } from "../../utils/request";
+import { beijingDate } from "../../utils/booking-date";
 import { courseInterestEnabled, interestPreferenceKey } from "../../utils/course-interest";
 
 export default {
@@ -132,16 +133,7 @@ export default {
         : "¥" + Number(value).toFixed(2);
     },
     dateText(value) {
-      if (!value) return "";
-      const date = new Date(value);
-      if (Number.isNaN(date.getTime())) return "";
-      return (
-        date.getFullYear() +
-        " / " +
-        String(date.getMonth() + 1).padStart(2, "0") +
-        " / " +
-        String(date.getDate()).padStart(2, "0")
-      );
+      return beijingDate(value).replace(/-/g, " / ");
     },
     typeText(value) {
       return (
